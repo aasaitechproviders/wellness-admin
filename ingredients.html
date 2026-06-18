@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Products · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .product-card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; transition: box-shadow .15s, transform .15s; }
+  .product-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+  .product-thumb { height: 110px; background: var(--cream-deep); display: flex; align-items: center; justify-content: center; font-size: 38px; position: relative; overflow: hidden; }
+  .product-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .product-thumb .inactive-tag { position: absolute; top: 6px; left: 6px; background: rgba(0,0,0,0.6); color: #fff; font-size: 9.5px; padding: 2px 7px; border-radius: 50px; }
+  .product-body { padding: 10px 12px 12px; }
+  .product-body .pname { font-weight: 600; font-size: 13.5px; margin-bottom: 2px; }
+  .product-body .pmeta { font-size: 11px; color: var(--ink-faint); margin-bottom: 8px; }
+  .product-body .pactions { display: flex; gap: 6px; }
+  .wellness-mini { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; min-height: 18px; }
+  .wellness-mini span { font-size: 9.5px; padding: 2px 6px; border-radius: 50px; background: var(--green-pale); color: var(--green-dark); font-weight: 600; }
+  .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .img-drop { border: 1.5px dashed var(--border); border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; background: var(--cream-deep); }
+  .img-drop:hover { border-color: var(--green); }
+  .img-preview { width: 90px; height: 90px; border-radius: 10px; object-fit: cover; margin: 0 auto 8px; display: block; }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'ingredients', title: 'Products', sub: 'Ingredient catalog, wellness scoring and photos',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Product</button>`,
+});
+
+let state = { search: '', category: '', page: 1, limit: 200 };
+let cache = [];
+
+content.innerHTML = `
+  <div class="toolbar">
+    <input type="text" id="f-search" placeholder="Search products…" />
+    <select id="f-cat"><option value="">All categories</option><option>Vegetable</option><option>Leafy Vegetables</option><option>Fruits</option></select>
+    <div class="spacer"></div>
+  </div>
+  <div class="product-grid" id="grid"><div class="loading-row" style="grid-column:1/-1"><div class="spinner"></div></div></div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openEditModal(null));
+
+['f-search','f-cat'].forEach(id => {
+  const el = document.getElementById(id);
+  let t;
+  el.addEventListener(id === 'f-search' ? 'input' : 'change', () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      state.search = document.getElementById('f-search').value;
+      state.category = document.getElementById('f-cat').value;
+      load();
+    }, id === 'f-search' ? 350 : 0);
+  });
+});
+
+const EMJ = { Vegetable: '🥦', 'Leafy Vegetables': '🥬', Fruits: '🍎', default: '🥗' };
+const GOAL_LABELS = { diabetes: 'Diabetic', weightLoss: 'Weight Loss', immunity: 'Immunity', detox: 'Detox', antiInflammatory: 'Anti-Inflam.', satiety: 'Satiety' };
+
+async function load() {
+  document.getElementById('grid').innerHTML = `<div class="loading-row" style="grid-column:1/-1"><div class="spinner"></div></div>`;
+  try {
+    const { ingredients } = await adminApi.getIngredients(state);
+    cache = ingredients;
+    if (!ingredients.length) {
+      document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="icon">🥗</div>No products match these filters</div>`;
+      return;
+    }
+    document.getElementById('grid').innerHTML = ingredients.map(ing => {
+      const topGoals = Object.entries(ing.wellnessScores || {}).filter(([,v]) => v >= 70).sort((a,b)=>b[1]-a[1]).slice(0,2);
+      return `
+      <div class="product-card">
+        <div class="product-thumb">
+          ${ing.isActive === false ? '<span class="inactive-tag">Inactive</span>' : ''}
+          ${ing.hasImage ? `<img src="${adminApi.ingredientImageUrl(ing._id)}" alt="${escapeHtml(ing.name)}" />` : (EMJ[ing.category] || EMJ.default)}
+        </div>
+        <div class="product-body">
+          <div class="pname">${escapeHtml(ing.name)}</div>
+          <div class="pmeta">${escapeHtml(ing.category || '–')} ${ing.glycemic?.gi ? `· GI ${ing.glycemic.gi}` : ''} ${ing.nutrition?.calories ? `· ${ing.nutrition.calories} kcal` : ''}</div>
+          <div class="wellness-mini">${topGoals.map(([k]) => `<span>${GOAL_LABELS[k] || k}</span>`).join('')}</div>
+          <div class="pactions">
+            <button class="btn btn-outline btn-sm" style="flex:1" onclick="openEditModal('${ing._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${ing._id}')">${ing.isActive === false ? 'Deactivated' : 'Deactivate'}</button>
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('');
+  } catch (e) {
+    document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this product? It will be hidden from the customer app.')) return;
+  try { await adminApi.deleteIngredient(id); showToast('Product deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+const KNOWN_KEYS = ['name','ingredientId','category','bestFor','glycemic','nutrition','wellnessScores','suitability','_id','isActive','hasImage','image','createdAt','updatedAt'];
+
+function openEditModal(id) {
+  const ing = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!ing;
+  const advanced = {};
+  if (ing) Object.keys(ing).forEach(k => { if (!KNOWN_KEYS.includes(k)) advanced[k] = ing[k]; });
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal wide">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Product' : 'Add Product'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+
+        <div class="grid-2" style="gap:20px;align-items:start">
+          <div>
+            <form id="ing-form" class="form-grid">
+              <div class="field full"><label>Name *</label><input name="name" value="${escapeHtml(ing?.name || '')}" required /></div>
+              <div class="field"><label>Ingredient ID</label><input name="ingredientId" value="${escapeHtml(ing?.ingredientId || '')}" placeholder="auto if blank" /></div>
+              <div class="field"><label>Category</label>
+                <select name="category">
+                  ${['Vegetable','Leafy Vegetables','Fruits'].map(c => `<option ${ing?.category===c?'selected':''}>${c}</option>`).join('')}
+                </select>
+              </div>
+              <div class="field full"><label>Best For (keywords)</label><input name="bestFor" value="${escapeHtml(ing?.bestFor || '')}" placeholder="e.g. Iron, Immunity, Digestion" /></div>
+              <div class="field"><label>Glycemic Index</label><input name="gi" type="number" value="${ing?.glycemic?.gi ?? ''}" /></div>
+              <div class="field"><label>Calories (per 100g)</label><input name="calories" type="number" value="${ing?.nutrition?.calories ?? ''}" /></div>
+
+              <div class="field full">
+                <label>Wellness Scores (0–100)</label>
+                <div class="score-grid">
+                  ${Object.entries(GOAL_LABELS).map(([k,label]) => `
+                    <div class="field" style="margin-bottom:0">
+                      <label style="font-size:11px">${label}</label>
+                      <input name="score_${k}" type="number" min="0" max="100" value="${ing?.wellnessScores?.[k] ?? ''}" />
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="field full">
+                <label>Suitability</label>
+                <div class="chip-row">
+                  ${['kidFriendly','seniorFriendly','diabeticFriendly'].map(k => `
+                    <label class="chip-toggle ${ing?.suitability?.[k] ? 'on' : ''}" data-suit="${k}">
+                      <input type="checkbox" style="display:none" ${ing?.suitability?.[k] ? 'checked' : ''} />
+                      ${k === 'kidFriendly' ? 'Kid Friendly' : k === 'seniorFriendly' ? 'Senior Friendly' : 'Diabetic Safe'}
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="field full">
+                <label>Advanced (extra fields as JSON, optional)</label>
+                <textarea name="advanced" rows="3" style="font-family:var(--font-mono);font-size:12px">${Object.keys(advanced).length ? escapeHtml(JSON.stringify(advanced, null, 2)) : ''}</textarea>
+              </div>
+            </form>
+          </div>
+
+          <div>
+            <label style="font-size:12px;font-weight:600;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Photo</label>
+            ${isEdit ? `<div id="image-section">${renderImageSection(ing)}</div>` : `<div class="empty" style="padding:18px 10px"><div class="icon">📷</div>Save the product first, then add a photo here.</div>`}
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="ing-save">${isEdit ? 'Save Changes' : 'Create Product'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll('.chip-toggle').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.preventDefault();
+      chip.classList.toggle('on');
+      chip.querySelector('input').checked = chip.classList.contains('on');
+    });
+  });
+
+  document.getElementById('ing-save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('ing-form'));
+    let advancedParsed = {};
+    const advText = (fd.get('advanced') || '').trim();
+    if (advText) {
+      try { advancedParsed = JSON.parse(advText); }
+      catch { showToast('Advanced JSON is invalid — please fix or clear it', 'error'); return; }
+    }
+
+    const body = {
+      ...advancedParsed,
+      name: fd.get('name'),
+      ingredientId: fd.get('ingredientId') || undefined,
+      category: fd.get('category'),
+      bestFor: fd.get('bestFor'),
+      glycemic: { gi: fd.get('gi') ? Number(fd.get('gi')) : null },
+      nutrition: { calories: fd.get('calories') ? Number(fd.get('calories')) : null },
+      wellnessScores: Object.fromEntries(Object.keys(GOAL_LABELS).map(k => [k, fd.get(`score_${k}`) ? Number(fd.get(`score_${k}`)) : 0])),
+      suitability: Object.fromEntries(['kidFriendly','seniorFriendly','diabeticFriendly'].map(k => [k, !!root.querySelector(`.chip-toggle[data-suit="${k}"]`).classList.contains('on')])),
+    };
+    if (!body.name) { showToast('Name is required', 'error'); return; }
+
+    try {
+      if (isEdit) {
+        await adminApi.updateIngredient(ing._id, body);
+        showToast('Product updated', 'success');
+        await load();
+        openEditModal(ing._id); // stay open so admin can still manage the photo
+      } else {
+        const { ingredient } = await adminApi.createIngredient(body);
+        showToast('Product created — now add a photo', 'success');
+        await load();
+        openEditModal(ingredient._id);
+      }
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+function renderImageSection(ing) {
+  if (ing.hasImage) {
+    return `
+      <img class="img-preview" src="${adminApi.ingredientImageUrl(ing._id)}" alt="${escapeHtml(ing.name)}" />
+      <div style="display:flex;gap:6px;justify-content:center">
+        <label class="btn btn-outline btn-sm" style="cursor:pointer">Replace<input type="file" accept="image/*" style="display:none" onchange="handleImageUpload('${ing._id}', this)" /></label>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="removeImage('${ing._id}')">Remove</button>
+      </div>
+    `;
+  }
+  return `
+    <label class="img-drop" style="display:block">
+      <div style="font-size:24px;margin-bottom:4px">📷</div>
+      <div style="font-size:12px;color:var(--ink-faint)">Click to upload a photo</div>
+      <input type="file" accept="image/*" style="display:none" onchange="handleImageUpload('${ing._id}', this)" />
+    </label>
+  `;
+}
+
+async function handleImageUpload(id, inputEl) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  const section = document.getElementById('image-section');
+  section.innerHTML = `<div class="loading-row"><div class="spinner"></div></div>`;
+  try {
+    const { base64, mimeType } = await compressImageFile(file);
+    await adminApi.uploadIngredientImage(id, base64, mimeType);
+    showToast('Photo saved', 'success');
+    const { ingredients } = await adminApi.getIngredients(state);
+    cache = ingredients;
+    const updated = cache.find(x => x._id === id);
+    updated.hasImage = true;
+    section.innerHTML = renderImageSection(updated);
+    load();
+  } catch (e) {
+    showToast(e.message, 'error');
+    section.innerHTML = renderImageSection({ _id: id, hasImage: false, name: '' });
+  }
+}
+
+async function removeImage(id) {
+  if (!confirm('Remove this photo?')) return;
+  try {
+    await adminApi.deleteIngredientImage(id);
+    showToast('Photo removed', 'success');
+    document.getElementById('image-section').innerHTML = renderImageSection({ _id: id, hasImage: false, name: '' });
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

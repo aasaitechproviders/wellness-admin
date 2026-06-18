@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Apartments · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'apartments', title: 'Apartments', sub: 'Delivery zones, days and time slots',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Apartment</button>`,
+});
+
+let cache = [];
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+
+content.innerHTML = `
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Apartment</th><th>City</th><th>Delivery Days</th><th>Slots</th><th>Status</th><th></th></tr></thead>
+        <tbody id="body"><tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { apartments } = await adminApi.getApartments();
+    cache = apartments;
+    document.getElementById('body').innerHTML = apartments.length ? apartments.map(a => `
+      <tr>
+        <td><b>${escapeHtml(a.apartmentName)}</b><div class="muted mono" style="font-size:11px">${escapeHtml(a.apartmentId || '')}</div></td>
+        <td>${escapeHtml(a.city || '–')}</td>
+        <td>${(a.deliveryDays || []).join(', ') || '–'}</td>
+        <td class="muted" style="font-size:12px">${(a.deliverySlots || []).join(', ') || '–'}</td>
+        <td><span class="pill ${a.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${a.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${a._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${a._id}')">Deactivate</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this apartment? It will stop appearing as a delivery option.')) return;
+  try { await adminApi.deleteApartment(id); showToast('Apartment deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function openModal(id) {
+  const a = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!a;
+  const mySlots = a?.deliverySlots || [];
+  const myDays = new Set(a?.deliveryDays || []);
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Apartment' : 'Add Apartment'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+          <div class="field full"><label>Apartment Name *</label><input name="apartmentName" value="${escapeHtml(a?.apartmentName || '')}" required /></div>
+          <div class="field"><label>Apartment ID</label><input name="apartmentId" value="${escapeHtml(a?.apartmentId || '')}" placeholder="auto if blank" /></div>
+          <div class="field"><label>City</label>
+            <select name="city"><option ${a?.city==='Coimbatore'?'selected':''}>Coimbatore</option><option ${a?.city==='Chennai'?'selected':''}>Chennai</option></select>
+          </div>
+          <div class="field full">
+            <label>Delivery Days</label>
+            <div class="chip-row">${DAYS.map(d => `<label class="chip-toggle ${myDays.has(d) ? 'on' : ''}" data-day="${d}"><input type="checkbox" style="display:none" ${myDays.has(d)?'checked':''} />${d}</label>`).join('')}</div>
+          </div>
+          <div class="field full"><label>Delivery Slots (comma-separated, e.g. "6:00 AM - 8:00 AM, 5:00 PM - 7:00 PM")</label><textarea name="deliverySlots" rows="2">${mySlots.join(', ')}</textarea></div>
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Apartment'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll('[data-day]').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+      e.preventDefault();
+      chip.classList.toggle('on');
+      chip.querySelector('input').checked = chip.classList.contains('on');
+    });
+  });
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('form'));
+    const body = {
+      apartmentName: fd.get('apartmentName'),
+      apartmentId: fd.get('apartmentId') || undefined,
+      city: fd.get('city'),
+      deliveryDays: Array.from(root.querySelectorAll('[data-day].on')).map(el => el.dataset.day),
+      deliverySlots: fd.get('deliverySlots').split(',').map(s => s.trim()).filter(Boolean),
+    };
+    if (!body.apartmentName) { showToast('Apartment name is required', 'error'); return; }
+    try {
+      if (isEdit) await adminApi.updateApartment(a._id, body);
+      else await adminApi.createApartment(body);
+      showToast('Apartment saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

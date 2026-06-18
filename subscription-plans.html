@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Subscription Packages · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'subscription-plans', title: 'Subscription Packages', sub: 'Curated bundle pricing tiers — the plan price IS the bundle price',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Package</button>`,
+});
+
+let cache = [];
+
+content.innerHTML = `
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Package</th><th>Plan ID</th><th>Duration</th><th>Price</th><th>Status</th><th></th></tr></thead>
+        <tbody id="body"><tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { plans } = await adminApi.getPlans();
+    cache = plans;
+    document.getElementById('body').innerHTML = plans.length ? plans.map(p => `
+      <tr>
+        <td><b>${escapeHtml(p.planName)}</b>${p.description ? `<div class="muted" style="font-size:11px">${escapeHtml(p.description)}</div>` : ''}</td>
+        <td class="mono">${escapeHtml(p.planId)}</td>
+        <td>${p.duration} days</td>
+        <td class="num">${fmtMoney(p.price)}</td>
+        <td><span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${p.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this package? Customers will no longer be able to subscribe to it.')) return;
+  try { await adminApi.deletePlan(id); showToast('Package deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function openModal(id) {
+  const p = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!p;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Package' : 'Add Package'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+          <div class="field full"><label>Package Name *</label><input name="planName" value="${escapeHtml(p?.planName || '')}" required /></div>
+          <div class="field"><label>Plan ID *</label><input name="planId" value="${escapeHtml(p?.planId || '')}" placeholder="e.g. weekly" ${isEdit ? '' : 'required'} /></div>
+          <div class="field"><label>Duration (days)</label><input name="duration" type="number" value="${p?.duration ?? 7}" /></div>
+          <div class="field full"><label>Price (₹) — this is the full bundle price, not a separate fee *</label><input name="price" type="number" value="${p?.price ?? ''}" required /></div>
+          <div class="field full"><label>Description</label><input name="description" value="${escapeHtml(p?.description || '')}" /></div>
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Package'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('form'));
+    const body = {
+      planName: fd.get('planName'),
+      planId: fd.get('planId'),
+      duration: fd.get('duration') ? Number(fd.get('duration')) : 7,
+      price: fd.get('price') ? Number(fd.get('price')) : undefined,
+      description: fd.get('description') || undefined,
+    };
+    if (!body.planName) { showToast('Package name is required', 'error'); return; }
+    if (!isEdit && !body.planId) { showToast('Plan ID is required', 'error'); return; }
+    if (body.price === undefined) { showToast('Price is required', 'error'); return; }
+    try {
+      if (isEdit) await adminApi.updatePlan(p._id, body);
+      else await adminApi.createPlan(body);
+      showToast('Package saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

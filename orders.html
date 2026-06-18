@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orders · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({ active: 'orders', title: 'Orders', sub: 'Track and update deliveries' });
+
+const ORDER_STATUSES = ['placed','confirmed','packed','out_for_delivery','delivered','cancelled'];
+let state = { status: '', city: '', date: '', search: '', page: 1, limit: 20 };
+
+content.innerHTML = `
+  <div class="toolbar">
+    <input type="text" id="f-search" placeholder="Search order no, phone or name…" />
+    <select id="f-status"><option value="">All statuses</option>${ORDER_STATUSES.map(s => `<option value="${s}">${s.replace(/_/g,' ')}</option>`).join('')}</select>
+    <select id="f-city"><option value="">All cities</option><option>Coimbatore</option><option>Chennai</option></select>
+    <input type="date" id="f-date" />
+    <div class="spacer"></div>
+    <button class="btn btn-ghost btn-sm" id="f-clear">Clear filters</button>
+  </div>
+
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th>Order No</th><th>Customer</th><th>City</th><th>Items</th>
+          <th>Total</th><th>Delivery</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody id="orders-body"><tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <div id="modal-root"></div>
+`;
+
+['f-search','f-status','f-city','f-date'].forEach(id => {
+  const el = document.getElementById(id);
+  const ev = id === 'f-search' ? 'input' : 'change';
+  let t;
+  el.addEventListener(ev, () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      state.search = document.getElementById('f-search').value;
+      state.status = document.getElementById('f-status').value;
+      state.city   = document.getElementById('f-city').value;
+      state.date   = document.getElementById('f-date').value;
+      state.page = 1;
+      loadOrders();
+    }, id === 'f-search' ? 350 : 0);
+  });
+});
+document.getElementById('f-clear').addEventListener('click', () => {
+  state = { status: '', city: '', date: '', search: '', page: 1, limit: 20 };
+  document.getElementById('f-search').value = '';
+  document.getElementById('f-status').value = '';
+  document.getElementById('f-city').value = '';
+  document.getElementById('f-date').value = '';
+  loadOrders();
+});
+
+function statusSelect(order) {
+  return `<select class="status-select" data-id="${order._id}" style="padding:5px 8px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;background:#fff">
+    ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}
+  </select>`;
+}
+
+async function loadOrders() {
+  document.getElementById('orders-body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { orders, total, pages } = await adminApi.getOrders({
+      status: state.status, city: state.city, date: state.date, search: state.search,
+      page: state.page, limit: state.limit,
+    });
+
+    if (!orders.length) {
+      document.getElementById('orders-body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">📦</div>No orders match these filters</div></td></tr>`;
+    } else {
+      document.getElementById('orders-body').innerHTML = orders.map(o => `
+        <tr>
+          <td class="mono" style="cursor:pointer" onclick="openOrder('${o._id}')">${o.orderNo}</td>
+          <td>${escapeHtml(o.familyName || '–')}<div class="muted mono" style="font-size:11px">${escapeHtml(o.phone || '')}</div></td>
+          <td>${escapeHtml(o.city || '–')}</td>
+          <td>${o.items?.length || 0}</td>
+          <td class="num">${fmtMoney(o.totalAmount)}</td>
+          <td>${fmtDate(o.deliveryDate, { day:'numeric', month:'short' })}${o.deliverySlot ? `<div class="muted" style="font-size:11px">${o.deliverySlot}</div>` : ''}</td>
+          <td>${statusSelect(o)}</td>
+          <td><button class="btn btn-ghost btn-sm" onclick="openOrder('${o._id}')">View</button></td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('pagination').innerHTML = `
+      <span>${total} order${total === 1 ? '' : 's'} · Page ${state.page} of ${pages || 1}</span>
+      <button ${state.page <= 1 ? 'disabled' : ''} onclick="changePage(-1)">‹</button>
+      <button ${state.page >= pages ? 'disabled' : ''} onclick="changePage(1)">›</button>
+    `;
+
+    document.querySelectorAll('.status-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const id = sel.dataset.id;
+        const newStatus = sel.value;
+        try {
+          await adminApi.updateStatus(id, newStatus);
+          showToast('Order status updated', 'success');
+        } catch (e) { showToast(e.message, 'error'); }
+      });
+    });
+  } catch (e) {
+    document.getElementById('orders-body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+function changePage(d) { state.page += d; loadOrders(); }
+
+async function openOrder(id) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this) this.remove()"><div class="modal wide"><div class="loading-row"><div class="spinner"></div></div></div></div>`;
+  try {
+    const { order: o } = await adminApi.getOrder(id);
+    root.querySelector('.modal').innerHTML = `
+      <div class="modal-head">
+        <h3>${o.orderNo}</h3>
+        <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+        <span class="pill pill-${o.status}">${o.status.replace(/_/g,' ')}</span>
+        <span class="muted" style="font-size:12px">Placed ${fmtDate(o.createdAt)}</span>
+      </div>
+
+      <div class="grid-2" style="gap:20px">
+        <div>
+          <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Customer</div>
+          <div style="font-size:13.5px;line-height:1.7">
+            <b>${escapeHtml(o.familyName || '–')}</b><br/>
+            ${escapeHtml(o.phone || '')}<br/>
+            ${escapeHtml(o.apartmentName || '')}, Flat ${escapeHtml(o.flatNo || '')}${o.towerNo ? ', ' + escapeHtml(o.towerNo) : ''}<br/>
+            ${escapeHtml(o.city || '')}
+          </div>
+        </div>
+        <div>
+          <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Delivery</div>
+          <div style="font-size:13.5px;line-height:1.7">
+            ${fmtDate(o.deliveryDate, { weekday:'short', day:'numeric', month:'short' })}<br/>
+            ${escapeHtml(o.deliverySlot || '–')}<br/>
+            Payment: ${escapeHtml(o.paymentMethod || '–')} (${escapeHtml(o.paymentStatus || '–')})
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+      <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Items (${o.items?.length || 0})</div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Item</th><th>Quantity</th></tr></thead>
+          <tbody>
+            ${(o.items || []).map(it => `<tr><td>${escapeHtml(it.name)}</td><td>${it.quantity || it.qty || 1} ${escapeHtml(it.unit || '')}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No items recorded</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-weight:700">Total Amount</span>
+        <span class="mono" style="font-size:20px;font-weight:700;color:var(--green)">${fmtMoney(o.totalAmount)}</span>
+      </div>
+
+      <div class="modal-foot">
+        <label class="muted" style="font-size:12px;align-self:center;margin-right:6px">Update status:</label>
+        <select id="modal-status" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border)">
+          ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" id="modal-save">Save</button>
+      </div>
+    `;
+    root.querySelector('#modal-save').addEventListener('click', async () => {
+      try {
+        await adminApi.updateStatus(id, root.querySelector('#modal-status').value);
+        showToast('Order status updated', 'success');
+        document.getElementById('modal-root').innerHTML = '';
+        loadOrders();
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+  } catch (e) {
+    root.querySelector('.modal').innerHTML = `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
+  }
+}
+
+loadOrders();
+</script>
+</body>
+</html>

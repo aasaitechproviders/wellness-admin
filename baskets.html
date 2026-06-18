@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Curated Baskets · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'baskets', title: 'Curated Baskets', sub: 'Pre-built wellness bundles surfaced by the recommendation engine',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Basket</button>`,
+});
+
+let cache = [];
+
+content.innerHTML = `
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Basket</th><th>Goal</th><th>Ingredients</th><th>Price</th><th>Featured</th><th>Status</th><th></th></tr></thead>
+        <tbody id="body"><tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { baskets } = await adminApi.getBaskets();
+    cache = baskets;
+    document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => `
+      <tr>
+        <td><b>${escapeHtml(b.basketName)}</b><div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div></td>
+        <td>${escapeHtml(b.wellnessGoal || '–')}</td>
+        <td style="max-width:220px" class="muted">${(b.ingredientNames || []).slice(0,4).join(', ')}${(b.ingredientNames||[]).length > 4 ? '…' : ''}</td>
+        <td class="num">${fmtMoney(b.price)}</td>
+        <td>${b.isFeatured ? '⭐' : '–'}</td>
+        <td><span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${b.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this basket? It will stop appearing in recommendations.')) return;
+  try { await adminApi.deleteBasket(id); showToast('Basket deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function openModal(id) {
+  const b = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!b;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Basket' : 'Add Basket'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+          <div class="field"><label>Basket Name *</label><input name="basketName" value="${escapeHtml(b?.basketName || '')}" required /></div>
+          <div class="field"><label>Basket ID</label><input name="basketId" value="${escapeHtml(b?.basketId || '')}" placeholder="e.g. iron-support" /></div>
+          <div class="field"><label>Wellness Goal</label><input name="wellnessGoal" value="${escapeHtml(b?.wellnessGoal || '')}" placeholder="e.g. immunity" /></div>
+          <div class="field"><label>Price (₹)</label><input name="price" type="number" value="${b?.price ?? ''}" /></div>
+          <div class="field full"><label>Description</label><input name="description" value="${escapeHtml(b?.description || '')}" /></div>
+          <div class="field full"><label>Ingredient Names (comma-separated)</label><textarea name="ingredientNames" rows="2">${(b?.ingredientNames || []).join(', ')}</textarea></div>
+          <div class="field full"><label>Target Nutrients (comma-separated)</label><input name="targetNutrients" value="${(b?.targetNutrients || []).join(', ')}" /></div>
+          <div class="field full">
+            <label class="chip-toggle ${b?.isFeatured ? 'on' : ''}" id="featured-chip" style="display:inline-flex">
+              <input type="checkbox" style="display:none" ${b?.isFeatured ? 'checked' : ''} /> ⭐ Featured Basket
+            </label>
+          </div>
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Basket'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const chip = document.getElementById('featured-chip');
+  chip.addEventListener('click', (e) => { e.preventDefault(); chip.classList.toggle('on'); chip.querySelector('input').checked = chip.classList.contains('on'); });
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('form'));
+    const body = {
+      basketName: fd.get('basketName'),
+      basketId: fd.get('basketId') || undefined,
+      wellnessGoal: fd.get('wellnessGoal') || undefined,
+      price: fd.get('price') ? Number(fd.get('price')) : undefined,
+      description: fd.get('description') || undefined,
+      ingredientNames: fd.get('ingredientNames').split(',').map(s => s.trim()).filter(Boolean),
+      targetNutrients: fd.get('targetNutrients').split(',').map(s => s.trim()).filter(Boolean),
+      isFeatured: chip.classList.contains('on'),
+    };
+    if (!body.basketName) { showToast('Basket name is required', 'error'); return; }
+    try {
+      if (isEdit) await adminApi.updateBasket(b._id, body);
+      else await adminApi.createBasket(body);
+      showToast('Basket saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

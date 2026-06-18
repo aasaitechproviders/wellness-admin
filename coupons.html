@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Coupons · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  .info-banner { background: #FFF8E1; border: 1px solid #F0DDA0; color: #7A5A0A; font-size: 12.5px; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'coupons', title: 'Coupons', sub: 'Discount codes catalog',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Coupon</button>`,
+});
+
+let cache = [];
+
+content.innerHTML = `
+  <div class="info-banner">ℹ️ This manages the coupon catalog only. Applying a coupon at customer checkout isn't wired up yet — that's a separate follow-up if you want it.</div>
+
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Code</th><th>Discount</th><th>Min Order</th><th>Usage</th><th>Valid Window</th><th>Status</th><th></th></tr></thead>
+        <tbody id="body"><tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { coupons } = await adminApi.getCoupons();
+    cache = coupons;
+    document.getElementById('body').innerHTML = coupons.length ? coupons.map(c => `
+      <tr>
+        <td class="mono"><b>${escapeHtml(c.code)}</b>${c.description ? `<div class="muted" style="font-size:11px;font-family:var(--font-body)">${escapeHtml(c.description)}</div>` : ''}</td>
+        <td>${c.discountType === 'percent' ? `${c.discountValue}%${c.maxDiscount ? ` (max ${fmtMoney(c.maxDiscount)})` : ''}` : fmtMoney(c.discountValue)}</td>
+        <td>${c.minOrderValue ? fmtMoney(c.minOrderValue) : '–'}</td>
+        <td>${c.timesUsed || 0}${c.usageLimitTotal ? ` / ${c.usageLimitTotal}` : ''}<div class="muted" style="font-size:10.5px">${c.usageLimitPerFamily || 1}/family</div></td>
+        <td style="font-size:12px">${c.validFrom ? fmtDate(c.validFrom, {day:'numeric',month:'short'}) : 'Any'} – ${c.validTo ? fmtDate(c.validTo, {day:'numeric',month:'short'}) : 'Any'}</td>
+        <td><span class="pill ${c.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${c.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${c._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${c._id}')">Deactivate</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🎟️</div>No coupons yet</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this coupon?')) return;
+  try { await adminApi.deleteCoupon(id); showToast('Coupon deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function toDateInput(d) { return d ? new Date(d).toISOString().slice(0,10) : ''; }
+
+function openModal(id) {
+  const c = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!c;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Coupon' : 'Add Coupon'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+          <div class="field full"><label>Code *</label><input name="code" value="${escapeHtml(c?.code || '')}" placeholder="e.g. WELCOME10" required style="text-transform:uppercase" /></div>
+          <div class="field full"><label>Description</label><input name="description" value="${escapeHtml(c?.description || '')}" /></div>
+
+          <div class="field full">
+            <label>Discount Type *</label>
+            <div class="chip-row">
+              <label class="chip-toggle ${(!c || c.discountType==='flat') ? 'on' : ''}" data-type="flat"><input type="radio" name="discountType" value="flat" style="display:none" ${(!c || c.discountType==='flat')?'checked':''} /> Flat ₹ off</label>
+              <label class="chip-toggle ${c?.discountType==='percent' ? 'on' : ''}" data-type="percent"><input type="radio" name="discountType" value="percent" style="display:none" ${c?.discountType==='percent'?'checked':''} /> % off</label>
+            </div>
+          </div>
+
+          <div class="field"><label>Discount Value *</label><input name="discountValue" type="number" value="${c?.discountValue ?? ''}" required /></div>
+          <div class="field"><label>Max Discount (for % type)</label><input name="maxDiscount" type="number" value="${c?.maxDiscount ?? ''}" /></div>
+          <div class="field"><label>Min Order Value</label><input name="minOrderValue" type="number" value="${c?.minOrderValue ?? ''}" /></div>
+          <div class="field"><label>Usage Limit / Family</label><input name="usageLimitPerFamily" type="number" value="${c?.usageLimitPerFamily ?? 1}" /></div>
+          <div class="field"><label>Total Usage Limit</label><input name="usageLimitTotal" type="number" value="${c?.usageLimitTotal ?? ''}" placeholder="unlimited" /></div>
+          ${isEdit ? `<div class="field"><label>Times Used (read-only)</label><input value="${c.timesUsed || 0}" disabled /></div>` : ''}
+          <div class="field"><label>Valid From</label><input name="validFrom" type="date" value="${toDateInput(c?.validFrom)}" /></div>
+          <div class="field"><label>Valid To</label><input name="validTo" type="date" value="${toDateInput(c?.validTo)}" /></div>
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Coupon'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  root.querySelectorAll('[data-type]').forEach(chip => {
+    chip.addEventListener('click', () => {
+      root.querySelectorAll('[data-type]').forEach(c2 => c2.classList.remove('on'));
+      chip.classList.add('on');
+      chip.querySelector('input').checked = true;
+    });
+  });
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('form'));
+    const body = {
+      code: fd.get('code'),
+      description: fd.get('description') || undefined,
+      discountType: fd.get('discountType'),
+      discountValue: fd.get('discountValue') ? Number(fd.get('discountValue')) : undefined,
+      maxDiscount: fd.get('maxDiscount') ? Number(fd.get('maxDiscount')) : null,
+      minOrderValue: fd.get('minOrderValue') ? Number(fd.get('minOrderValue')) : null,
+      usageLimitPerFamily: fd.get('usageLimitPerFamily') ? Number(fd.get('usageLimitPerFamily')) : 1,
+      usageLimitTotal: fd.get('usageLimitTotal') ? Number(fd.get('usageLimitTotal')) : null,
+      validFrom: fd.get('validFrom') || null,
+      validTo: fd.get('validTo') || null,
+    };
+    if (!body.code) { showToast('Coupon code is required', 'error'); return; }
+    if (!body.discountValue) { showToast('Discount value is required', 'error'); return; }
+    try {
+      if (isEdit) await adminApi.updateCoupon(c._id, body);
+      else await adminApi.createCoupon(body);
+      showToast('Coupon saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

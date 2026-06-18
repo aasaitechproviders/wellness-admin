@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wellness Goals · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'goals', title: 'Wellness Goals', sub: 'Drives the recommendation engine — links a goal to a scoring field and a curated basket',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Goal</button>`,
+});
+
+let cache = [];
+const SCORE_FIELDS = ['diabetes','weightLoss','immunity','detox','antiInflammatory','satiety'];
+
+content.innerHTML = `
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Goal</th><th>Goal ID</th><th>Score Field</th><th>Max GI</th><th>Linked Basket</th><th>Status</th><th></th></tr></thead>
+        <tbody id="body"><tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { goals } = await adminApi.getGoals();
+    cache = goals;
+    document.getElementById('body').innerHTML = goals.length ? goals.map(g => `
+      <tr>
+        <td><b>${escapeHtml(g.goalName)}</b></td>
+        <td class="mono">${escapeHtml(g.goalId)}</td>
+        <td class="mono">${escapeHtml(g.scoreField || '–')}</td>
+        <td>${g.allowedGIMax ?? '–'}</td>
+        <td class="mono muted">${escapeHtml(g.basketId || '–')}</td>
+        <td><span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${g.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${g._id}')">Deactivate</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this goal? Members will no longer be able to select it.')) return;
+  try { await adminApi.deleteGoal(id); showToast('Goal deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function openModal(id) {
+  const g = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!g;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Goal' : 'Add Goal'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+          <div class="field full"><label>Goal Name *</label><input name="goalName" value="${escapeHtml(g?.goalName || '')}" required /></div>
+          <div class="field"><label>Goal ID *</label><input name="goalId" value="${escapeHtml(g?.goalId || '')}" placeholder="e.g. immunity-support" ${isEdit ? '' : 'required'} /></div>
+          <div class="field"><label>Score Field</label>
+            <select name="scoreField">${SCORE_FIELDS.map(f => `<option ${g?.scoreField===f?'selected':''}>${f}</option>`).join('')}</select>
+          </div>
+          <div class="field"><label>Max Allowed GI</label><input name="allowedGIMax" type="number" value="${g?.allowedGIMax ?? ''}" placeholder="100" /></div>
+          <div class="field"><label>Linked Basket ID</label><input name="basketId" value="${escapeHtml(g?.basketId || '')}" placeholder="must match a basket's Basket ID" /></div>
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Goal'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('form'));
+    const body = {
+      goalName: fd.get('goalName'),
+      goalId: fd.get('goalId'),
+      scoreField: fd.get('scoreField'),
+      allowedGIMax: fd.get('allowedGIMax') ? Number(fd.get('allowedGIMax')) : undefined,
+      basketId: fd.get('basketId') || undefined,
+    };
+    if (!body.goalName) { showToast('Goal name is required', 'error'); return; }
+    if (!isEdit && !body.goalId) { showToast('Goal ID is required', 'error'); return; }
+    try {
+      if (isEdit) await adminApi.updateGoal(g._id, body);
+      else await adminApi.createGoal(body);
+      showToast('Goal saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) { showToast(e.message, 'error'); }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

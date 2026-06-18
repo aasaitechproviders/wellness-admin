@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'dashboard',
+  title: 'Dashboard',
+  sub: "Today's snapshot across families, orders and revenue",
+});
+
+content.innerHTML = `
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <div class="panel">
+    <div class="panel-title">Revenue — last 30 days</div>
+    <div style="height:260px"><canvas id="chart-trend"></canvas></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:16px">
+    <div class="panel">
+      <div class="panel-title">Sales by City</div>
+      <div style="height:220px"><canvas id="chart-city"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Top 10 Items Ordered</div>
+      <div id="top-items"></div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:16px">
+    <div class="panel">
+      <div class="panel-title">Subscriptions by Plan</div>
+      <div style="height:220px"><canvas id="chart-plan"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Subscriptions by Status</div>
+      <div style="height:220px"><canvas id="chart-status"></canvas></div>
+    </div>
+  </div>
+`;
+
+const GREEN = '#2D6A35', GREEN_LIGHT = '#4A9456', GOLD = '#C9A84C', GREEN_PALE = '#C8E6CC';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.color = '#5B6B5C';
+
+function statCard(label, value, accent, unit) {
+  return `<div class="stat-card" style="--accent:${accent}">
+    <div class="label">${label}</div>
+    <div class="value">${value}${unit ? `<span class="unit">${unit}</span>` : ''}</div>
+  </div>`;
+}
+
+async function load() {
+  try {
+    const [{ dashboard: d }, { report: sales }, { report: subs }] = await Promise.all([
+      adminApi.dashboard(),
+      adminApi.salesReport(),
+      adminApi.subscriptionReport(),
+    ]);
+
+    document.getElementById('stat-grid').innerHTML = [
+      statCard('Active Families', d.totalFamilies, GREEN),
+      statCard('Total Orders', d.totalOrders, GREEN_LIGHT),
+      statCard('Revenue', fmtMoney(d.totalRevenue), GOLD),
+      statCard('Active Subscriptions', d.activeSubscriptions, GREEN),
+      statCard("Today's Orders", d.todayOrders, GREEN_LIGHT),
+      statCard('Pending Orders', d.pendingOrders, '#C0392B'),
+      statCard('Active Coupons', d.totalCoupons, GOLD),
+      statCard('Active Products', d.totalProducts, GREEN),
+    ].join('');
+
+    // Revenue trend
+    new Chart(document.getElementById('chart-trend'), {
+      type: 'line',
+      data: {
+        labels: sales.salesByDay.map(x => fmtDate(x._id, { day: 'numeric', month: 'short' })),
+        datasets: [{
+          label: 'Revenue', data: sales.salesByDay.map(x => x.revenue),
+          borderColor: GREEN, backgroundColor: 'rgba(45,106,53,0.08)', fill: true, tension: 0.35, pointRadius: 2,
+        }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+    });
+
+    // Sales by city
+    new Chart(document.getElementById('chart-city'), {
+      type: 'bar',
+      data: {
+        labels: sales.salesByCity.map(x => x._id || 'Unknown'),
+        datasets: [{ label: 'Revenue', data: sales.salesByCity.map(x => x.revenue), backgroundColor: GREEN, borderRadius: 6, maxBarThickness: 56 }],
+      },
+      options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } },
+    });
+
+    // Top items list
+    const maxCount = Math.max(1, ...sales.topItems.map(x => x.count));
+    document.getElementById('top-items').innerHTML = sales.topItems.length ? sales.topItems.map((x, i) => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span class="mono muted" style="width:18px;font-size:12px">${i + 1}</span>
+        <span style="flex:1;font-size:13px">${escapeHtml(x._id)}</span>
+        <div style="width:90px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${(x.count / maxCount) * 100}%;background:${GREEN}"></div>
+        </div>
+        <span class="mono num" style="width:28px;text-align:right;font-size:12px">${x.count}</span>
+      </div>
+    `).join('') : `<div class="empty"><div class="icon">📦</div>No order data yet</div>`;
+
+    // Subscriptions by plan
+    new Chart(document.getElementById('chart-plan'), {
+      type: 'bar',
+      data: {
+        labels: subs.byPlan.map(x => x._id || 'Unknown'),
+        datasets: [{ label: 'Subscribers', data: subs.byPlan.map(x => x.count), backgroundColor: GOLD, borderRadius: 6, maxBarThickness: 56 }],
+      },
+      options: { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { beginAtZero: true } } },
+    });
+
+    // Subscriptions by status
+    new Chart(document.getElementById('chart-status'), {
+      type: 'doughnut',
+      data: {
+        labels: subs.byStatus.map(x => x._id || 'Unknown'),
+        datasets: [{ data: subs.byStatus.map(x => x.count), backgroundColor: [GREEN, GREEN_LIGHT, GREEN_PALE, GOLD, '#C0392B'] }],
+      },
+      options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } },
+    });
+
+  } catch (e) {
+    content.innerHTML = `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
+  }
+}
+load();
+</script>
+</body>
+</html>

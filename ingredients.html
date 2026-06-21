@@ -541,9 +541,7 @@ function openModal(id) {
         await adminApi.updateIngredient(ing._id, body);
         showToast('Product updated', 'success');
         await load();
-        const fresh = cache.find(x => x._id === ing._id);
-        const section = document.getElementById('image-section');
-        if (fresh && section) section.innerHTML = renderImageSection(fresh);
+        document.getElementById('modal-root').innerHTML = '';
       } else {
         const { ingredient } = await adminApi.createIngredient(body);
         showToast('Product created — add a photo below', 'success');

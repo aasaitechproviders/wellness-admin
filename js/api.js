@@ -18,7 +18,7 @@ const Auth = {
   isLoggedIn() { return !!this.getToken(); },
   // Call at the top of every protected page
   guard() {
-    if (!this.isLoggedIn()) window.location.href = 'login.html';
+    if (!this.isLoggedIn()) window.location.href = 'index.html';
   },
 };
 
@@ -43,9 +43,9 @@ async function req(method, path, body) {
   catch (e) { throw new Error(`Server returned an invalid response (HTTP ${res.status})`); }
 
   if (res.status === 401 || res.status === 403) {
-    if (!location.pathname.endsWith('login.html')) {
+    if (!location.pathname.endsWith('index.html')) {
       Auth.clear();
-      window.location.href = 'login.html';
+      window.location.href = 'index.html';
     }
     throw new Error(data.message || 'Session expired');
   }

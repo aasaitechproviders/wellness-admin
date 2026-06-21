@@ -40,6 +40,12 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
+async function hardDelete(id, name) {
+  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
+  try { await adminApi.hardDeleteCoupon(id); showToast('Coupon permanently deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
@@ -56,6 +62,7 @@ async function load() {
         <td>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${c._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${c._id}')">Deactivate</button>
+          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${c._id}', '${escapeHtml(c.code)}')">Delete</button>
         </td>
       </tr>
     `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🎟️</div>No coupons yet</div></td></tr>`;

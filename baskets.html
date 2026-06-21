@@ -127,6 +127,18 @@
     font-size: 11px; background: #fff8e1; color: #b7860b;
     border-radius: 5px; padding: 2px 7px; display: inline-block; margin-top: 3px;
   }
+
+  /* ── Wellness goal multi-picker ────────────────── */
+  .goal-multi-wrap { display:flex; flex-wrap:wrap; gap:7px; padding:6px 0 4px; }
+  .goal-toggle {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 12px; border-radius:20px; cursor:pointer;
+    font-size:12.5px; font-weight:500; user-select:none;
+    border:1.5px solid var(--border); background:var(--white); color:var(--ink-faint);
+    transition:all .12s;
+  }
+  .goal-toggle:hover { border-color:var(--green); color:var(--green); background:var(--green-pale); }
+  .goal-toggle.selected { border-color:var(--green); background:var(--green); color:#fff; }
 </style>
 </head>
 <body>
@@ -151,7 +163,7 @@ content.innerHTML = `
         <thead>
           <tr>
             <th>Basket</th>
-            <th>Goal</th>
+            <th>Wellness Goals</th>
             <th>Products</th>
             <th>Recipes</th>
             <th>Price</th>
@@ -187,7 +199,11 @@ async function load() {
             <b>${escapeHtml(b.basketName)}</b>
             <div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div>
           </td>
-          <td>${escapeHtml(b.wellnessGoal || '–')}</td>
+          <td>
+            ${(Array.isArray(b.wellnessGoals) ? b.wellnessGoals : b.wellnessGoal ? [b.wellnessGoal] : [])
+              .map(g => `<span style="font-size:11px;background:var(--green-pale);color:var(--green);border-radius:5px;padding:2px 7px;margin:1px;display:inline-block">${escapeHtml(g)}</span>`)
+              .join('') || '–'}
+          </td>
           <td style="max-width:180px" class="muted">
             ${(b.ingredientNames || []).length
               ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
@@ -498,12 +514,9 @@ function openModal(id) {
             <input name="basketId" value="${escapeHtml(b?.basketId || '')}" placeholder="e.g. BSKT001" />
           </div>
 
-          <div class="field">
-            <label>Wellness Goal</label>
-            <select name="wellnessGoal">
-              <option value="">— select goal —</option>
-              ${goalsCache.map(g => `<option value="${escapeHtml(g.goalName)}" ${g.goalName===b?.wellnessGoal?'selected':''}>${escapeHtml(g.goalName)}</option>`).join('')}
-            </select>
+          <div class="field full">
+            <label>Wellness Goals <span style="font-weight:400;color:var(--ink-faint)">— select all that apply</span></label>
+            <div class="goal-multi-wrap" id="goal-multi-picker"></div>
           </div>
 
           <div class="field">
@@ -557,6 +570,11 @@ function openModal(id) {
   `;
 
   initProductPicker('product-picker', b?.ingredientNames || []);
+
+  // Init goal multi-picker — support both old single string and new array
+  const existingGoals = Array.isArray(b?.wellnessGoals) ? b.wellnessGoals
+    : (b?.wellnessGoal ? [b.wellnessGoal] : []);
+  initGoalMultiPicker('goal-multi-picker', existingGoals);
   initRecipeBuilder('recipe-builder', b?.recipes || []);
 
   const chip = document.getElementById('featured-chip');
@@ -576,7 +594,10 @@ function openModal(id) {
     const body = {
       basketName:      fd.get('basketName'),
       basketId:        fd.get('basketId') || undefined,
-      wellnessGoal:    fd.get('wellnessGoal') || undefined,
+      wellnessGoals:   (() => {
+        const picker = document.getElementById('goal-multi-picker');
+        return picker?._getSelected ? picker._getSelected() : [];
+      })(),
       price:           fd.get('price') !== '' ? Number(fd.get('price')) : undefined,
       description:     fd.get('description') || undefined,
       ingredientNames: selectedProducts,

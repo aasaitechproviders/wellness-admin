@@ -9,94 +9,124 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  /* ── Product picker ─────────────────────────────────────────── */
+  /* ── Product picker ─────────────────────────────────── */
   .picker-outer { position: relative; }
-
   .picker-search {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    font-family: var(--font-body);
-    font-size: 13.5px;
-    color: var(--ink);
-    background: var(--white);
-    outline: none;
-    box-sizing: border-box;
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: var(--font-body); font-size: 13.5px;
+    color: var(--ink); background: var(--white); outline: none; box-sizing: border-box;
   }
   .picker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
-
   .picker-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0; right: 0;
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.1);
-    max-height: 220px;
-    overflow-y: auto;
-    z-index: 200;
-    display: none;
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    max-height: 220px; overflow-y: auto; z-index: 200; display: none;
   }
   .picker-dropdown.open { display: block; }
-
   .picker-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 14px;
-    cursor: pointer;
-    font-size: 13.5px;
-    transition: background .12s;
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; cursor: pointer; font-size: 13.5px; transition: background .12s;
   }
   .picker-option:hover { background: var(--green-pale); }
   .picker-option.already { opacity: .45; cursor: default; pointer-events: none; }
   .picker-option .p-cat {
-    font-size: 11px;
-    background: var(--surface);
-    color: var(--ink-faint);
-    border-radius: 4px;
-    padding: 1px 6px;
-    margin-left: auto;
-    white-space: nowrap;
+    font-size: 11px; background: var(--surface); color: var(--ink-faint);
+    border-radius: 4px; padding: 1px 6px; margin-left: auto; white-space: nowrap;
   }
   .picker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
 
-  /* ── Chips ──────────────────────────────────────────────────── */
-  .chips-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    min-height: 32px;
-    padding: 8px 0 2px;
-  }
+  /* ── Product chips ──────────────────────────────────── */
+  .chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 8px 0 2px; }
   .chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: var(--green-pale);
-    color: var(--green);
-    border: 1px solid rgba(45,106,53,.2);
-    border-radius: 20px;
-    padding: 4px 10px 4px 12px;
-    font-size: 12.5px;
-    font-weight: 500;
+    display: inline-flex; align-items: center; gap: 5px;
+    background: var(--green-pale); color: var(--green);
+    border: 1px solid rgba(45,106,53,.2); border-radius: 20px;
+    padding: 4px 10px 4px 12px; font-size: 12.5px; font-weight: 500;
   }
   .chip-remove {
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    color: var(--green);
-    opacity: .7;
-    padding: 0 2px;
-    border: none;
-    background: none;
-    font-family: inherit;
+    cursor: pointer; font-size: 14px; line-height: 1; color: var(--green);
+    opacity: .7; padding: 0 2px; border: none; background: none; font-family: inherit;
   }
   .chip-remove:hover { opacity: 1; }
   .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 0; }
   .picker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
+
+  /* ── Recipe builder ─────────────────────────────────── */
+  .recipe-list { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+
+  .recipe-card {
+    border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--white); overflow: hidden;
+  }
+  .recipe-card-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .recipe-card-head input {
+    flex: 1; border: none; background: transparent;
+    font-family: var(--font-body); font-size: 13.5px; font-weight: 600;
+    color: var(--ink); outline: none;
+  }
+  .recipe-card-head input::placeholder { font-weight: 400; color: var(--ink-faint); }
+  .recipe-card-body { padding: 10px 12px; }
+
+  .step-row {
+    display: flex; align-items: flex-start; gap: 8px;
+    margin-bottom: 7px;
+  }
+  .step-bullet {
+    width: 20px; height: 20px; min-width: 20px;
+    background: var(--green-pale); color: var(--green);
+    border-radius: 50%; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 8px;
+  }
+  .step-input {
+    flex: 1; padding: 7px 10px;
+    border: 1.5px solid var(--border); border-radius: 7px;
+    font-family: var(--font-body); font-size: 13px; color: var(--ink);
+    outline: none; resize: none; min-height: 36px;
+  }
+  .step-input:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(45,106,53,.08); }
+  .step-remove {
+    padding: 6px 4px; border: none; background: none;
+    color: var(--ink-faint); cursor: pointer; font-size: 16px; line-height: 1;
+    margin-top: 5px;
+  }
+  .step-remove:hover { color: var(--red); }
+
+  .add-step-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--green); font-weight: 600;
+    border: none; background: none; cursor: pointer; padding: 4px 0; margin-top: 4px;
+  }
+  .add-step-btn:hover { opacity: .75; }
+
+  .add-recipe-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--green); font-weight: 600;
+    border: 1.5px dashed rgba(45,106,53,.35); border-radius: 10px;
+    background: var(--green-pale); cursor: pointer;
+    padding: 10px 14px; width: 100%; margin-top: 4px;
+    transition: background .12s;
+  }
+  .add-recipe-btn:hover { background: rgba(45,106,53,.12); }
+
+  .remove-recipe-btn {
+    padding: 3px 8px; border: none; background: none;
+    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1;
+    border-radius: 5px;
+  }
+  .remove-recipe-btn:hover { background: var(--red-pale); color: var(--red); }
+
+  /* ── Table recipe badge ─────────────────────────────── */
+  .recipe-badge {
+    font-size: 11px; background: #fff8e1; color: #b7860b;
+    border-radius: 5px; padding: 2px 7px; display: inline-block; margin-top: 3px;
+  }
 </style>
 </head>
 <body>
@@ -107,7 +137,7 @@
 const content = renderShell({
   active: 'baskets',
   title: 'Curated Baskets',
-  sub: 'Pre-built wellness bundles — add products via search, set a flat bundle price',
+  sub: 'Pre-built wellness bundles — add products, set a flat price, and attach recipes',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Basket</button>`,
 });
 
@@ -122,6 +152,7 @@ content.innerHTML = `
             <th>Basket</th>
             <th>Goal</th>
             <th>Products</th>
+            <th>Recipes</th>
             <th>Price</th>
             <th>Featured</th>
             <th>Status</th>
@@ -129,7 +160,7 @@ content.innerHTML = `
           </tr>
         </thead>
         <tbody id="body">
-          <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -140,37 +171,45 @@ content.innerHTML = `
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { baskets } = await adminApi.getBaskets();
     cache = baskets;
-    document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => `
-      <tr>
-        <td>
-          <b>${escapeHtml(b.basketName)}</b>
-          <div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div>
-        </td>
-        <td>${escapeHtml(b.wellnessGoal || '–')}</td>
-        <td style="max-width:200px" class="muted">
-          ${(b.ingredientNames || []).length
-            ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
-            : '<span style="color:var(--ink-faint)">No products</span>'}
-        </td>
-        <td class="num">${fmtMoney(b.price)}</td>
-        <td>${b.isFeatured ? '⭐' : '–'}</td>
-        <td>
-          <span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-            ${b.isActive === false ? 'Inactive' : 'Active'}
-          </span>
-        </td>
-        <td>
-          <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
-        </td>
-      </tr>
-    `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
+    document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => {
+      const recipeCount = (b.recipes || []).length;
+      return `
+        <tr>
+          <td>
+            <b>${escapeHtml(b.basketName)}</b>
+            <div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div>
+          </td>
+          <td>${escapeHtml(b.wellnessGoal || '–')}</td>
+          <td style="max-width:180px" class="muted">
+            ${(b.ingredientNames || []).length
+              ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
+              : '<span style="color:var(--ink-faint)">No products</span>'}
+          </td>
+          <td>
+            ${recipeCount
+              ? `<span class="recipe-badge">🍲 ${recipeCount} recipe${recipeCount > 1 ? 's' : ''}</span>`
+              : '<span class="muted">—</span>'}
+          </td>
+          <td class="num">${fmtMoney(b.price)}</td>
+          <td>${b.isFeatured ? '⭐' : '–'}</td>
+          <td>
+            <span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+              ${b.isActive === false ? 'Inactive' : 'Active'}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
+          </td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="8"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -180,17 +219,13 @@ async function deactivate(id) {
   catch (e) { showToast(e.message, 'error'); }
 }
 
-// ── Product Picker ──────────────────────────────────────────────────────────
-// containerId must point to a div that contains ALL THREE children:
-//   .picker-outer > .picker-search + .picker-dropdown
-//   .chips-wrap
-//   .picker-hint
+// ── Product Picker ───────────────────────────────────────────────────────────
 function initProductPicker(containerId, initialNames = []) {
-  const root      = document.getElementById(containerId);   // the outer wrapper
-  const searchEl  = root.querySelector('.picker-search');
-  const dropdown  = root.querySelector('.picker-dropdown');
-  const chipsEl   = root.querySelector('.chips-wrap');
-  const hintEl    = root.querySelector('.picker-hint');
+  const root     = document.getElementById(containerId);
+  const searchEl = root.querySelector('.picker-search');
+  const dropdown = root.querySelector('.picker-dropdown');
+  const chipsEl  = root.querySelector('.chips-wrap');
+  const hintEl   = root.querySelector('.picker-hint');
 
   let selected   = [...initialNames];
   let searchTimer = null;
@@ -212,8 +247,7 @@ function initProductPicker(containerId, initialNames = []) {
       chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
         btn.addEventListener('click', () => {
           selected.splice(Number(btn.dataset.idx), 1);
-          renderChips();
-          updateHint();
+          renderChips(); updateHint();
         });
       });
     }
@@ -231,14 +265,11 @@ function initProductPicker(containerId, initialNames = []) {
           <span class="p-cat">${already ? 'Added' : escapeHtml(ing.category || '')}</span>
         </div>`;
       }).join('');
-
       dropdown.querySelectorAll('.picker-option:not(.already)').forEach(opt => {
-        opt.addEventListener('mousedown', (e) => {
-          e.preventDefault(); // keep focus on search input
+        opt.addEventListener('mousedown', e => {
+          e.preventDefault();
           selected.push(opt.dataset.name);
-          renderChips();
-          searchEl.value = '';
-          dropdown.classList.remove('open');
+          renderChips(); searchEl.value = ''; dropdown.classList.remove('open');
         });
       });
     }
@@ -261,23 +292,178 @@ function initProductPicker(containerId, initialNames = []) {
     if (!q) { dropdown.classList.remove('open'); return; }
     searchTimer = setTimeout(() => doSearch(q), 250);
   });
-
-  // On focus with empty box — show all products so admin can browse
-  searchEl.addEventListener('focus', () => {
-    if (!searchEl.value.trim()) doSearch('');
-  });
-
-  searchEl.addEventListener('blur', () => {
-    setTimeout(() => dropdown.classList.remove('open'), 180);
-  });
+  searchEl.addEventListener('focus', () => { if (!searchEl.value.trim()) doSearch(''); });
+  searchEl.addEventListener('blur',  () => setTimeout(() => dropdown.classList.remove('open'), 180));
 
   renderChips();
-
-  // Expose selected list to the save handler
   root._getSelected = () => selected;
 }
 
-// ── Modal ───────────────────────────────────────────────────────────────────
+// ── Recipe Builder ───────────────────────────────────────────────────────────
+// recipes = [{ title: string, steps: string[] }]
+function initRecipeBuilder(containerId, initialRecipes = []) {
+  const root = document.getElementById(containerId);
+
+  // Deep-clone so we don't mutate the cache
+  let recipes = initialRecipes.map(r => ({
+    title: r.title || '',
+    steps: Array.isArray(r.steps) && r.steps.length ? [...r.steps] : [''],
+  }));
+
+  // If no recipes at all, start with one empty slot
+  if (!recipes.length) recipes = [{ title: '', steps: [''] }];
+
+  function render() {
+    root.innerHTML = '';
+
+    const list = document.createElement('div');
+    list.className = 'recipe-list';
+
+    recipes.forEach((recipe, ri) => {
+      const card = document.createElement('div');
+      card.className = 'recipe-card';
+
+      // ── Card header: recipe title ──
+      const head = document.createElement('div');
+      head.className = 'recipe-card-head';
+
+      const titleInput = document.createElement('input');
+      titleInput.type        = 'text';
+      titleInput.placeholder = `Recipe ${ri + 1} title — e.g. Spinach Dal Soup`;
+      titleInput.value       = recipe.title;
+      titleInput.addEventListener('input', () => { recipes[ri].title = titleInput.value; });
+
+      const removeRecipeBtn = document.createElement('button');
+      removeRecipeBtn.type      = 'button';
+      removeRecipeBtn.className = 'remove-recipe-btn';
+      removeRecipeBtn.title     = 'Remove this recipe';
+      removeRecipeBtn.textContent = '✕ Remove';
+      removeRecipeBtn.addEventListener('click', () => {
+        recipes.splice(ri, 1);
+        // Always keep at least one empty recipe card
+        if (!recipes.length) recipes = [{ title: '', steps: [''] }];
+        render();
+      });
+
+      head.appendChild(titleInput);
+      head.appendChild(removeRecipeBtn);
+
+      // ── Card body: steps ──
+      const body = document.createElement('div');
+      body.className = 'recipe-card-body';
+
+      function renderSteps() {
+        body.innerHTML = '';
+
+        recipe.steps.forEach((step, si) => {
+          const row = document.createElement('div');
+          row.className = 'step-row';
+
+          const bullet = document.createElement('div');
+          bullet.className   = 'step-bullet';
+          bullet.textContent = si + 1;
+
+          const textarea = document.createElement('textarea');
+          textarea.className   = 'step-input';
+          textarea.rows        = 1;
+          textarea.placeholder = `Step ${si + 1} — e.g. Wash and chop spinach`;
+          textarea.value       = step;
+          // Auto-expand height
+          textarea.addEventListener('input', () => {
+            recipes[ri].steps[si] = textarea.value;
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+          });
+          // Set initial height after render
+          setTimeout(() => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+          }, 0);
+
+          // Enter key adds next step
+          textarea.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              recipes[ri].steps.splice(si + 1, 0, '');
+              renderSteps();
+              // Focus the new textarea
+              setTimeout(() => {
+                const inputs = body.querySelectorAll('.step-input');
+                if (inputs[si + 1]) inputs[si + 1].focus();
+              }, 10);
+            }
+          });
+
+          const removeBtn = document.createElement('button');
+          removeBtn.type      = 'button';
+          removeBtn.className = 'step-remove';
+          removeBtn.title     = 'Remove step';
+          removeBtn.textContent = '✕';
+          removeBtn.addEventListener('click', () => {
+            recipes[ri].steps.splice(si, 1);
+            if (!recipes[ri].steps.length) recipes[ri].steps = [''];
+            renderSteps();
+          });
+
+          row.appendChild(bullet);
+          row.appendChild(textarea);
+          row.appendChild(removeBtn);
+          body.appendChild(row);
+        });
+
+        // Add step button
+        const addStepBtn = document.createElement('button');
+        addStepBtn.type      = 'button';
+        addStepBtn.className = 'add-step-btn';
+        addStepBtn.innerHTML = '+ Add step';
+        addStepBtn.addEventListener('click', () => {
+          recipes[ri].steps.push('');
+          renderSteps();
+          setTimeout(() => {
+            const inputs = body.querySelectorAll('.step-input');
+            if (inputs.length) inputs[inputs.length - 1].focus();
+          }, 10);
+        });
+        body.appendChild(addStepBtn);
+      }
+
+      renderSteps();
+      card.appendChild(head);
+      card.appendChild(body);
+      list.appendChild(card);
+    });
+
+    root.appendChild(list);
+
+    // Add Recipe button
+    const addRecipeBtn = document.createElement('button');
+    addRecipeBtn.type      = 'button';
+    addRecipeBtn.className = 'add-recipe-btn';
+    addRecipeBtn.innerHTML = '+ Add another recipe';
+    addRecipeBtn.addEventListener('click', () => {
+      recipes.push({ title: '', steps: [''] });
+      render();
+      // Scroll to new card
+      setTimeout(() => {
+        const cards = root.querySelectorAll('.recipe-card');
+        if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 50);
+    });
+    root.appendChild(addRecipeBtn);
+  }
+
+  render();
+
+  // Expose getter — returns only non-empty recipes (must have at least one non-empty step)
+  root._getRecipes = () => recipes
+    .map(r => ({
+      title: r.title.trim(),
+      steps: r.steps.map(s => s.trim()).filter(Boolean),
+    }))
+    .filter(r => r.steps.length > 0); // exclude completely empty recipes
+}
+
+// ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(id) {
   const b      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!b;
@@ -285,7 +471,7 @@ function openModal(id) {
 
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:560px">
+      <div class="modal" style="max-width:580px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Basket' : 'Add Basket'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
@@ -309,7 +495,7 @@ function openModal(id) {
 
           <div class="field">
             <label>Bundle Price (₹) *</label>
-            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required placeholder="Flat price for the whole basket" />
+            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required placeholder="Flat price for whole basket" />
           </div>
 
           <div class="field full">
@@ -317,7 +503,6 @@ function openModal(id) {
             <input name="description" value="${escapeHtml(b?.description || '')}" />
           </div>
 
-          <!-- Product picker: all three parts inside ONE wrapper div with id="product-picker" -->
           <div class="field full">
             <label>Products in this basket</label>
             <div id="product-picker">
@@ -336,6 +521,14 @@ function openModal(id) {
           </div>
 
           <div class="field full">
+            <label>
+              Recipes
+              <span style="font-weight:400;color:var(--ink-faint)">— each recipe has a title and bullet-point steps shown to the customer</span>
+            </label>
+            <div id="recipe-builder"></div>
+          </div>
+
+          <div class="field full">
             <label class="chip-toggle ${b?.isFeatured ? 'on' : ''}" id="featured-chip" style="display:inline-flex">
               <input type="checkbox" style="display:none" ${b?.isFeatured ? 'checked' : ''} /> ⭐ Featured Basket
             </label>
@@ -350,22 +543,22 @@ function openModal(id) {
     </div>
   `;
 
-  // Init picker — all three children are now inside #product-picker
   initProductPicker('product-picker', b?.ingredientNames || []);
+  initRecipeBuilder('recipe-builder', b?.recipes || []);
 
-  // Featured toggle
   const chip = document.getElementById('featured-chip');
-  chip.addEventListener('click', (e) => {
+  chip.addEventListener('click', e => {
     e.preventDefault();
     chip.classList.toggle('on');
     chip.querySelector('input').checked = chip.classList.contains('on');
   });
 
-  // Save
   document.getElementById('save').addEventListener('click', async () => {
     const fd              = new FormData(document.getElementById('form'));
     const pickerEl        = document.getElementById('product-picker');
+    const recipeBuilderEl = document.getElementById('recipe-builder');
     const selectedProducts = pickerEl._getSelected();
+    const recipes          = recipeBuilderEl._getRecipes();
 
     const body = {
       basketName:      fd.get('basketName'),
@@ -375,15 +568,15 @@ function openModal(id) {
       description:     fd.get('description') || undefined,
       ingredientNames: selectedProducts,
       targetNutrients: fd.get('targetNutrients').split(',').map(s => s.trim()).filter(Boolean),
+      recipes,
       isFeatured:      chip.classList.contains('on'),
     };
 
-    if (!body.basketName)         { showToast('Basket name is required', 'error'); return; }
-    if (body.price === undefined)  { showToast('Bundle price is required', 'error'); return; }
+    if (!body.basketName)        { showToast('Basket name is required', 'error'); return; }
+    if (body.price === undefined) { showToast('Bundle price is required', 'error'); return; }
 
     const btn = document.getElementById('save');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.disabled = true; btn.textContent = 'Saving…';
 
     try {
       if (isEdit) await adminApi.updateBasket(b._id, body);
@@ -393,8 +586,7 @@ function openModal(id) {
       load();
     } catch (e) {
       showToast(e.message, 'error');
-      btn.disabled = false;
-      btn.textContent = isEdit ? 'Save Changes' : 'Create Basket';
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Basket';
     }
   });
 }

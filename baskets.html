@@ -8,6 +8,101 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<style>
+  /* ── Product picker ─────────────────────────────────────────── */
+  .picker-wrap { position: relative; }
+
+  .picker-search {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    box-sizing: border-box;
+  }
+  .picker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
+
+  .picker-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 200;
+    display: none;
+  }
+  .picker-dropdown.open { display: block; }
+
+  .picker-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    font-size: 13.5px;
+    transition: background .12s;
+  }
+  .picker-option:hover { background: var(--green-pale); }
+  .picker-option.disabled { opacity: .4; cursor: default; pointer-events: none; }
+  .picker-option .p-cat {
+    font-size: 11px;
+    background: var(--surface);
+    color: var(--ink-faint);
+    border-radius: 4px;
+    padding: 1px 6px;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+  .picker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+
+  /* ── Chips ──────────────────────────────────────────────────── */
+  .chips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 36px;
+    padding: 6px 0 2px;
+  }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: var(--green-pale);
+    color: var(--green);
+    border: 1px solid rgba(45,106,53,.2);
+    border-radius: 20px;
+    padding: 4px 10px 4px 12px;
+    font-size: 12.5px;
+    font-weight: 500;
+  }
+  .chip-remove {
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: var(--green);
+    opacity: .7;
+    padding: 0 2px;
+    border: none;
+    background: none;
+    font-family: inherit;
+  }
+  .chip-remove:hover { opacity: 1; }
+  .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 4px 0; }
+
+  .picker-hint {
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-top: 4px;
+  }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -15,7 +110,9 @@
 <script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
-  active: 'baskets', title: 'Curated Baskets', sub: 'Pre-built wellness bundles surfaced by the recommendation engine',
+  active: 'baskets',
+  title: 'Curated Baskets',
+  sub: 'Pre-built wellness bundles — add products via search, set a flat bundle price',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Basket</button>`,
 });
 
@@ -25,8 +122,20 @@ content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Basket</th><th>Goal</th><th>Ingredients</th><th>Price</th><th>Featured</th><th>Status</th><th></th></tr></thead>
-        <tbody id="body"><tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Basket</th>
+            <th>Goal</th>
+            <th>Products</th>
+            <th>Price</th>
+            <th>Featured</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="body">
+          <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -42,12 +151,23 @@ async function load() {
     cache = baskets;
     document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => `
       <tr>
-        <td><b>${escapeHtml(b.basketName)}</b><div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div></td>
+        <td>
+          <b>${escapeHtml(b.basketName)}</b>
+          <div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div>
+        </td>
         <td>${escapeHtml(b.wellnessGoal || '–')}</td>
-        <td style="max-width:220px" class="muted">${(b.ingredientNames || []).slice(0,4).join(', ')}${(b.ingredientNames||[]).length > 4 ? '…' : ''}</td>
+        <td style="max-width:200px" class="muted">
+          ${(b.ingredientNames || []).length
+            ? (b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : ''))
+            : '<span style="color:var(--ink-faint)">No products</span>'}
+        </td>
         <td class="num">${fmtMoney(b.price)}</td>
         <td>${b.isFeatured ? '⭐' : '–'}</td>
-        <td><span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${b.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td>
+          <span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+            ${b.isActive === false ? 'Inactive' : 'Active'}
+          </span>
+        </td>
         <td>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
@@ -61,34 +181,163 @@ async function load() {
 
 async function deactivate(id) {
   if (!confirm('Deactivate this basket? It will stop appearing in recommendations.')) return;
-  try { await adminApi.deleteBasket(id); showToast('Basket deactivated', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+  try {
+    await adminApi.deleteBasket(id);
+    showToast('Basket deactivated', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
+// ── Product Picker logic ────────────────────────────────────────────────────
+function initProductPicker(containerId, initialNames = []) {
+  const container = document.getElementById(containerId);
+  const searchEl  = container.querySelector('.picker-search');
+  const dropdown  = container.querySelector('.picker-dropdown');
+  const chipsEl   = container.querySelector('.chips-wrap');
+
+  let selected = [...initialNames]; // array of ingredient name strings
+  let searchTimer = null;
+
+  function renderChips() {
+    if (!selected.length) {
+      chipsEl.innerHTML = `<span class="chips-empty">No products selected — search above to add</span>`;
+      return;
+    }
+    chipsEl.innerHTML = selected.map((name, i) => `
+      <span class="chip">
+        ${escapeHtml(name)}
+        <button class="chip-remove" data-idx="${i}" title="Remove">✕</button>
+      </span>
+    `).join('');
+    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selected.splice(Number(btn.dataset.idx), 1);
+        renderChips();
+      });
+    });
+  }
+
+  function renderDropdown(items) {
+    if (!items.length) {
+      dropdown.innerHTML = `<div class="picker-empty">No products found</div>`;
+    } else {
+      dropdown.innerHTML = items.map(ing => {
+        const already = selected.includes(ing.name);
+        return `
+          <div class="picker-option ${already ? 'disabled' : ''}" data-name="${escapeHtml(ing.name)}">
+            <span>${escapeHtml(ing.name)}</span>
+            ${already ? '<span class="p-cat">Added</span>' : `<span class="p-cat">${escapeHtml(ing.category || '')}</span>`}
+          </div>
+        `;
+      }).join('');
+      dropdown.querySelectorAll('.picker-option:not(.disabled)').forEach(opt => {
+        opt.addEventListener('mousedown', (e) => {
+          e.preventDefault(); // prevent blur before click
+          selected.push(opt.dataset.name);
+          renderChips();
+          searchEl.value = '';
+          dropdown.classList.remove('open');
+        });
+      });
+    }
+    dropdown.classList.add('open');
+  }
+
+  async function doSearch(q) {
+    try {
+      const { ingredients } = await adminApi.getIngredients({ search: q, limit: 30 });
+      renderDropdown(ingredients);
+    } catch (e) {
+      dropdown.innerHTML = `<div class="picker-empty">Search failed</div>`;
+      dropdown.classList.add('open');
+    }
+  }
+
+  searchEl.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = searchEl.value.trim();
+    if (!q) { dropdown.classList.remove('open'); return; }
+    // Show all results when first focusing or short query
+    searchTimer = setTimeout(() => doSearch(q), 250);
+  });
+
+  // Show all products on focus if box is empty
+  searchEl.addEventListener('focus', () => {
+    if (!searchEl.value.trim()) doSearch('');
+  });
+
+  searchEl.addEventListener('blur', () => {
+    // Delay so mousedown on option fires first
+    setTimeout(() => dropdown.classList.remove('open'), 180);
+  });
+
+  renderChips();
+
+  // Expose getter for the save handler
+  container._getSelected = () => selected;
+}
+
+// ── Modal ───────────────────────────────────────────────────────────────────
 function openModal(id) {
-  const b = id ? cache.find(x => x._id === id) : null;
+  const b      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!b;
-  const root = document.getElementById('modal-root');
+  const root   = document.getElementById('modal-root');
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal">
+      <div class="modal" style="max-width:560px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Basket' : 'Add Basket'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
         <form id="form" class="form-grid">
-          <div class="field"><label>Basket Name *</label><input name="basketName" value="${escapeHtml(b?.basketName || '')}" required /></div>
-          <div class="field"><label>Basket ID</label><input name="basketId" value="${escapeHtml(b?.basketId || '')}" placeholder="e.g. iron-support" /></div>
-          <div class="field"><label>Wellness Goal</label><input name="wellnessGoal" value="${escapeHtml(b?.wellnessGoal || '')}" placeholder="e.g. immunity" /></div>
-          <div class="field"><label>Price (₹)</label><input name="price" type="number" value="${b?.price ?? ''}" /></div>
-          <div class="field full"><label>Description</label><input name="description" value="${escapeHtml(b?.description || '')}" /></div>
-          <div class="field full"><label>Ingredient Names (comma-separated)</label><textarea name="ingredientNames" rows="2">${(b?.ingredientNames || []).join(', ')}</textarea></div>
-          <div class="field full"><label>Target Nutrients (comma-separated)</label><input name="targetNutrients" value="${(b?.targetNutrients || []).join(', ')}" /></div>
+
+          <div class="field">
+            <label>Basket Name *</label>
+            <input name="basketName" value="${escapeHtml(b?.basketName || '')}" required />
+          </div>
+
+          <div class="field">
+            <label>Basket ID</label>
+            <input name="basketId" value="${escapeHtml(b?.basketId || '')}" placeholder="e.g. BSKT001" />
+          </div>
+
+          <div class="field">
+            <label>Wellness Goal</label>
+            <input name="wellnessGoal" value="${escapeHtml(b?.wellnessGoal || '')}" placeholder="e.g. Iron Support" />
+          </div>
+
+          <div class="field">
+            <label>Bundle Price (₹) * <span style="font-weight:400;color:var(--ink-faint)">— flat price for this basket</span></label>
+            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required />
+          </div>
+
+          <div class="field full">
+            <label>Description</label>
+            <input name="description" value="${escapeHtml(b?.description || '')}" />
+          </div>
+
+          <div class="field full">
+            <label>Products in this basket</label>
+            <div class="picker-wrap" id="product-picker">
+              <input class="picker-search" type="text" placeholder="Search products to add…" autocomplete="off" />
+              <div class="picker-dropdown"></div>
+            </div>
+            <div class="chips-wrap" style="margin-top:8px"></div>
+            <div class="picker-hint">${(b?.ingredientNames || []).length} product(s) currently in basket</div>
+          </div>
+
+          <div class="field full">
+            <label>Target Nutrients (comma-separated)</label>
+            <input name="targetNutrients" value="${(b?.targetNutrients || []).join(', ')}" placeholder="e.g. Iron, Folate, Vitamin C" />
+          </div>
+
           <div class="field full">
             <label class="chip-toggle ${b?.isFeatured ? 'on' : ''}" id="featured-chip" style="display:inline-flex">
               <input type="checkbox" style="display:none" ${b?.isFeatured ? 'checked' : ''} /> ⭐ Featured Basket
             </label>
           </div>
+
         </form>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
@@ -98,29 +347,52 @@ function openModal(id) {
     </div>
   `;
 
-  const chip = document.getElementById('featured-chip');
-  chip.addEventListener('click', (e) => { e.preventDefault(); chip.classList.toggle('on'); chip.querySelector('input').checked = chip.classList.contains('on'); });
+  // Init product picker with existing ingredient names
+  initProductPicker('product-picker', b?.ingredientNames || []);
 
+  // Featured toggle
+  const chip = document.getElementById('featured-chip');
+  chip.addEventListener('click', (e) => {
+    e.preventDefault();
+    chip.classList.toggle('on');
+    chip.querySelector('input').checked = chip.classList.contains('on');
+  });
+
+  // Save
   document.getElementById('save').addEventListener('click', async () => {
-    const fd = new FormData(document.getElementById('form'));
+    const fd   = new FormData(document.getElementById('form'));
+    const picker = document.getElementById('product-picker');
+    const selectedProducts = picker._getSelected();
+
     const body = {
-      basketName: fd.get('basketName'),
-      basketId: fd.get('basketId') || undefined,
-      wellnessGoal: fd.get('wellnessGoal') || undefined,
-      price: fd.get('price') ? Number(fd.get('price')) : undefined,
-      description: fd.get('description') || undefined,
-      ingredientNames: fd.get('ingredientNames').split(',').map(s => s.trim()).filter(Boolean),
+      basketName:      fd.get('basketName'),
+      basketId:        fd.get('basketId') || undefined,
+      wellnessGoal:    fd.get('wellnessGoal') || undefined,
+      price:           fd.get('price') !== '' ? Number(fd.get('price')) : undefined,
+      description:     fd.get('description') || undefined,
+      ingredientNames: selectedProducts,
       targetNutrients: fd.get('targetNutrients').split(',').map(s => s.trim()).filter(Boolean),
-      isFeatured: chip.classList.contains('on'),
+      isFeatured:      chip.classList.contains('on'),
     };
-    if (!body.basketName) { showToast('Basket name is required', 'error'); return; }
+
+    if (!body.basketName)        { showToast('Basket name is required', 'error'); return; }
+    if (body.price === undefined) { showToast('Bundle price is required', 'error'); return; }
+
+    const btn = document.getElementById('save');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
     try {
       if (isEdit) await adminApi.updateBasket(b._id, body);
-      else await adminApi.createBasket(body);
+      else        await adminApi.createBasket(body);
       showToast('Basket saved', 'success');
       document.getElementById('modal-root').innerHTML = '';
       load();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Create Basket';
+    }
   });
 }
 

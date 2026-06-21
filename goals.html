@@ -15,19 +15,30 @@
 <script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
-  active: 'goals', title: 'Wellness Goals', sub: 'Drives the recommendation engine — links a goal to a scoring field and a curated basket',
+  active: 'goals',
+  title: 'Wellness Goals',
+  sub: 'Goals shown to customers during onboarding — drives personalised basket recommendations',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Goal</button>`,
 });
 
 let cache = [];
-const SCORE_FIELDS = ['diabetes','weightLoss','immunity','detox','antiInflammatory','satiety'];
 
 content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Goal</th><th>Goal ID</th><th>Score Field</th><th>Max GI</th><th>Linked Basket</th><th>Status</th><th></th></tr></thead>
-        <tbody id="body"><tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Goal Name</th>
+            <th>Goal ID</th>
+            <th>Description</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="body">
+          <tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -37,7 +48,7 @@ content.innerHTML = `
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { goals } = await adminApi.getGoals();
     cache = goals;
@@ -45,31 +56,37 @@ async function load() {
       <tr>
         <td><b>${escapeHtml(g.goalName)}</b></td>
         <td class="mono">${escapeHtml(g.goalId)}</td>
-        <td class="mono">${escapeHtml(g.scoreField || '–')}</td>
-        <td>${g.allowedGIMax ?? '–'}</td>
-        <td class="mono muted">${escapeHtml(g.basketId || '–')}</td>
-        <td><span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${g.isActive === false ? 'Inactive' : 'Active'}</span></td>
+        <td class="muted">${escapeHtml(g.description || '–')}</td>
         <td>
+          <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+            ${g.isActive === false ? 'Inactive' : 'Active'}
+          </span>
+        </td>
+        <td style="display:flex;gap:6px">
           <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${g._id}')">Deactivate</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
         </td>
       </tr>
-    `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
+    `).join('') : `<tr><td colspan="5"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="5"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
-async function deactivate(id) {
-  if (!confirm('Deactivate this goal? Members will no longer be able to select it.')) return;
-  try { await adminApi.deleteGoal(id); showToast('Goal deactivated', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+async function confirmDelete(id, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await adminApi.hardDeleteGoal(id);
+    showToast('Goal deleted', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
 }
 
 function openModal(id) {
-  const g = id ? cache.find(x => x._id === id) : null;
+  const g      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!g;
-  const root = document.getElementById('modal-root');
+  const root   = document.getElementById('modal-root');
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
       <div class="modal">
@@ -78,13 +95,24 @@ function openModal(id) {
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
         <form id="form" class="form-grid">
-          <div class="field full"><label>Goal Name *</label><input name="goalName" value="${escapeHtml(g?.goalName || '')}" required /></div>
-          <div class="field"><label>Goal ID *</label><input name="goalId" value="${escapeHtml(g?.goalId || '')}" placeholder="e.g. immunity-support" ${isEdit ? '' : 'required'} /></div>
-          <div class="field"><label>Score Field</label>
-            <select name="scoreField">${SCORE_FIELDS.map(f => `<option ${g?.scoreField===f?'selected':''}>${f}</option>`).join('')}</select>
+
+          <div class="field full">
+            <label>Goal Name *</label>
+            <input name="goalName" value="${escapeHtml(g?.goalName || '')}" placeholder="e.g. Immunity Support" required />
           </div>
-          <div class="field"><label>Max Allowed GI</label><input name="allowedGIMax" type="number" value="${g?.allowedGIMax ?? ''}" placeholder="100" /></div>
-          <div class="field"><label>Linked Basket ID</label><input name="basketId" value="${escapeHtml(g?.basketId || '')}" placeholder="must match a basket's Basket ID" /></div>
+
+          <div class="field full">
+            <label>Goal ID *</label>
+            <input name="goalId" value="${escapeHtml(g?.goalId || '')}"
+              placeholder="e.g. GOAL001"
+              ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
+          </div>
+
+          <div class="field full">
+            <label>Description</label>
+            <input name="description" value="${escapeHtml(g?.description || '')}" placeholder="Brief description shown to customers" />
+          </div>
+
         </form>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
@@ -95,23 +123,30 @@ function openModal(id) {
   `;
 
   document.getElementById('save').addEventListener('click', async () => {
-    const fd = new FormData(document.getElementById('form'));
+    const fd   = new FormData(document.getElementById('form'));
     const body = {
-      goalName: fd.get('goalName'),
-      goalId: fd.get('goalId'),
-      scoreField: fd.get('scoreField'),
-      allowedGIMax: fd.get('allowedGIMax') ? Number(fd.get('allowedGIMax')) : undefined,
-      basketId: fd.get('basketId') || undefined,
+      goalName:    fd.get('goalName'),
+      goalId:      fd.get('goalId'),
+      description: fd.get('description') || undefined,
     };
-    if (!body.goalName) { showToast('Goal name is required', 'error'); return; }
+
+    if (!body.goalName)          { showToast('Goal name is required', 'error'); return; }
     if (!isEdit && !body.goalId) { showToast('Goal ID is required', 'error'); return; }
+
+    const btn = document.getElementById('save');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
     try {
       if (isEdit) await adminApi.updateGoal(g._id, body);
-      else await adminApi.createGoal(body);
+      else        await adminApi.createGoal(body);
       showToast('Goal saved', 'success');
       document.getElementById('modal-root').innerHTML = '';
       load();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Create Goal';
+    }
   });
 }
 

@@ -142,6 +142,7 @@ const content = renderShell({
 });
 
 let cache = [];
+let goalsCache = [];
 
 content.innerHTML = `
   <div class="panel">
@@ -173,6 +174,9 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
+    if (!goalsCache.length) {
+      try { const { goals } = await adminApi.getGoals(); goalsCache = goals.filter(g => g.isActive !== false); } catch(e) {}
+    }
     const { baskets } = await adminApi.getBaskets();
     cache = baskets;
     document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => {
@@ -211,6 +215,12 @@ async function load() {
   } catch (e) {
     document.getElementById('body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
+}
+
+async function hardDelete(id, name) {
+  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
+  try { await adminApi.hardDeleteBasket(id); showToast('Basket permanently deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
 }
 
 async function deactivate(id) {
@@ -490,7 +500,10 @@ function openModal(id) {
 
           <div class="field">
             <label>Wellness Goal</label>
-            <input name="wellnessGoal" value="${escapeHtml(b?.wellnessGoal || '')}" placeholder="e.g. Iron Support" />
+            <select name="wellnessGoal">
+              <option value="">— select goal —</option>
+              ${goalsCache.map(g => `<option value="${escapeHtml(g.goalName)}" ${g.goalName===b?.wellnessGoal?'selected':''}>${escapeHtml(g.goalName)}</option>`).join('')}
+            </select>
           </div>
 
           <div class="field">

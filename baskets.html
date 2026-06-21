@@ -495,6 +495,43 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
+// ── Wellness Goal Multi-Picker ───────────────────────────────────────────────
+function initGoalMultiPicker(containerId, currentGoals) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+
+  let selected = Array.isArray(currentGoals) ? [...currentGoals]
+    : (currentGoals ? [currentGoals] : []);
+
+  if (!goalsCache.length) {
+    wrap.innerHTML = `<span style="color:var(--ink-faint);font-size:12.5px">No goals found — add them in Wellness Goals first</span>`;
+    wrap._getSelected = () => selected;
+    return;
+  }
+
+  wrap.innerHTML = goalsCache.map(g => `
+    <span class="goal-toggle ${selected.includes(g.goalName) ? 'selected' : ''}"
+          data-goal="${escapeHtml(g.goalName)}">
+      ${escapeHtml(g.goalName)}
+    </span>
+  `).join('');
+
+  wrap.querySelectorAll('.goal-toggle').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const goal = chip.dataset.goal;
+      if (selected.includes(goal)) {
+        selected = selected.filter(s => s !== goal);
+        chip.classList.remove('selected');
+      } else {
+        selected.push(goal);
+        chip.classList.add('selected');
+      }
+    });
+  });
+
+  wrap._getSelected = () => selected;
+}
+
 async function openModal(id) {
   // Ensure goals are loaded before rendering picker
   if (!goalsCache.length) {
@@ -584,7 +621,7 @@ async function openModal(id) {
 
   initProductPicker('product-picker', b?.ingredientNames || []);
 
-  // Init goal multi-picker — support both old single string and new array
+  // Init goal multi-picker
   const existingGoals = Array.isArray(b?.wellnessGoals) ? b.wellnessGoals
     : (b?.wellnessGoal ? [b.wellnessGoal] : []);
   initGoalMultiPicker('goal-multi-picker', existingGoals);

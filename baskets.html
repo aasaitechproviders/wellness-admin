@@ -10,7 +10,7 @@
 <link rel="stylesheet" href="css/admin.css" />
 <style>
   /* ── Product picker ─────────────────────────────────────────── */
-  .picker-wrap { position: relative; }
+  .picker-outer { position: relative; }
 
   .picker-search {
     width: 100%;
@@ -51,7 +51,7 @@
     transition: background .12s;
   }
   .picker-option:hover { background: var(--green-pale); }
-  .picker-option.disabled { opacity: .4; cursor: default; pointer-events: none; }
+  .picker-option.already { opacity: .45; cursor: default; pointer-events: none; }
   .picker-option .p-cat {
     font-size: 11px;
     background: var(--surface);
@@ -68,8 +68,8 @@
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    min-height: 36px;
-    padding: 6px 0 2px;
+    min-height: 32px;
+    padding: 8px 0 2px;
   }
   .chip {
     display: inline-flex;
@@ -95,13 +95,8 @@
     font-family: inherit;
   }
   .chip-remove:hover { opacity: 1; }
-  .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 4px 0; }
-
-  .picker-hint {
-    font-size: 11.5px;
-    color: var(--ink-faint);
-    margin-top: 4px;
-  }
+  .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 0; }
+  .picker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -158,7 +153,7 @@ async function load() {
         <td>${escapeHtml(b.wellnessGoal || '–')}</td>
         <td style="max-width:200px" class="muted">
           ${(b.ingredientNames || []).length
-            ? (b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : ''))
+            ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
             : '<span style="color:var(--ink-faint)">No products</span>'}
         </td>
         <td class="num">${fmtMoney(b.price)}</td>
@@ -181,40 +176,48 @@ async function load() {
 
 async function deactivate(id) {
   if (!confirm('Deactivate this basket? It will stop appearing in recommendations.')) return;
-  try {
-    await adminApi.deleteBasket(id);
-    showToast('Basket deactivated', 'success');
-    load();
-  } catch (e) { showToast(e.message, 'error'); }
+  try { await adminApi.deleteBasket(id); showToast('Basket deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
 }
 
-// ── Product Picker logic ────────────────────────────────────────────────────
+// ── Product Picker ──────────────────────────────────────────────────────────
+// containerId must point to a div that contains ALL THREE children:
+//   .picker-outer > .picker-search + .picker-dropdown
+//   .chips-wrap
+//   .picker-hint
 function initProductPicker(containerId, initialNames = []) {
-  const container = document.getElementById(containerId);
-  const searchEl  = container.querySelector('.picker-search');
-  const dropdown  = container.querySelector('.picker-dropdown');
-  const chipsEl   = container.querySelector('.chips-wrap');
+  const root      = document.getElementById(containerId);   // the outer wrapper
+  const searchEl  = root.querySelector('.picker-search');
+  const dropdown  = root.querySelector('.picker-dropdown');
+  const chipsEl   = root.querySelector('.chips-wrap');
+  const hintEl    = root.querySelector('.picker-hint');
 
-  let selected = [...initialNames]; // array of ingredient name strings
+  let selected   = [...initialNames];
   let searchTimer = null;
+
+  function updateHint() {
+    if (hintEl) hintEl.textContent = `${selected.length} product(s) in basket`;
+  }
 
   function renderChips() {
     if (!selected.length) {
       chipsEl.innerHTML = `<span class="chips-empty">No products selected — search above to add</span>`;
-      return;
-    }
-    chipsEl.innerHTML = selected.map((name, i) => `
-      <span class="chip">
-        ${escapeHtml(name)}
-        <button class="chip-remove" data-idx="${i}" title="Remove">✕</button>
-      </span>
-    `).join('');
-    chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', () => {
-        selected.splice(Number(btn.dataset.idx), 1);
-        renderChips();
+    } else {
+      chipsEl.innerHTML = selected.map((name, i) => `
+        <span class="chip">
+          ${escapeHtml(name)}
+          <button class="chip-remove" data-idx="${i}" title="Remove">✕</button>
+        </span>
+      `).join('');
+      chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selected.splice(Number(btn.dataset.idx), 1);
+          renderChips();
+          updateHint();
+        });
       });
-    });
+    }
+    updateHint();
   }
 
   function renderDropdown(items) {
@@ -223,16 +226,15 @@ function initProductPicker(containerId, initialNames = []) {
     } else {
       dropdown.innerHTML = items.map(ing => {
         const already = selected.includes(ing.name);
-        return `
-          <div class="picker-option ${already ? 'disabled' : ''}" data-name="${escapeHtml(ing.name)}">
-            <span>${escapeHtml(ing.name)}</span>
-            ${already ? '<span class="p-cat">Added</span>' : `<span class="p-cat">${escapeHtml(ing.category || '')}</span>`}
-          </div>
-        `;
+        return `<div class="picker-option ${already ? 'already' : ''}" data-name="${escapeHtml(ing.name)}">
+          <span>${escapeHtml(ing.name)}</span>
+          <span class="p-cat">${already ? 'Added' : escapeHtml(ing.category || '')}</span>
+        </div>`;
       }).join('');
-      dropdown.querySelectorAll('.picker-option:not(.disabled)').forEach(opt => {
+
+      dropdown.querySelectorAll('.picker-option:not(.already)').forEach(opt => {
         opt.addEventListener('mousedown', (e) => {
-          e.preventDefault(); // prevent blur before click
+          e.preventDefault(); // keep focus on search input
           selected.push(opt.dataset.name);
           renderChips();
           searchEl.value = '';
@@ -245,10 +247,10 @@ function initProductPicker(containerId, initialNames = []) {
 
   async function doSearch(q) {
     try {
-      const { ingredients } = await adminApi.getIngredients({ search: q, limit: 30 });
+      const { ingredients } = await adminApi.getIngredients({ search: q, limit: 40 });
       renderDropdown(ingredients);
     } catch (e) {
-      dropdown.innerHTML = `<div class="picker-empty">Search failed</div>`;
+      dropdown.innerHTML = `<div class="picker-empty">Search failed — ${escapeHtml(e.message)}</div>`;
       dropdown.classList.add('open');
     }
   }
@@ -257,24 +259,22 @@ function initProductPicker(containerId, initialNames = []) {
     clearTimeout(searchTimer);
     const q = searchEl.value.trim();
     if (!q) { dropdown.classList.remove('open'); return; }
-    // Show all results when first focusing or short query
     searchTimer = setTimeout(() => doSearch(q), 250);
   });
 
-  // Show all products on focus if box is empty
+  // On focus with empty box — show all products so admin can browse
   searchEl.addEventListener('focus', () => {
     if (!searchEl.value.trim()) doSearch('');
   });
 
   searchEl.addEventListener('blur', () => {
-    // Delay so mousedown on option fires first
     setTimeout(() => dropdown.classList.remove('open'), 180);
   });
 
   renderChips();
 
-  // Expose getter for the save handler
-  container._getSelected = () => selected;
+  // Expose selected list to the save handler
+  root._getSelected = () => selected;
 }
 
 // ── Modal ───────────────────────────────────────────────────────────────────
@@ -308,8 +308,8 @@ function openModal(id) {
           </div>
 
           <div class="field">
-            <label>Bundle Price (₹) * <span style="font-weight:400;color:var(--ink-faint)">— flat price for this basket</span></label>
-            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required />
+            <label>Bundle Price (₹) *</label>
+            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required placeholder="Flat price for the whole basket" />
           </div>
 
           <div class="field full">
@@ -317,14 +317,17 @@ function openModal(id) {
             <input name="description" value="${escapeHtml(b?.description || '')}" />
           </div>
 
+          <!-- Product picker: all three parts inside ONE wrapper div with id="product-picker" -->
           <div class="field full">
             <label>Products in this basket</label>
-            <div class="picker-wrap" id="product-picker">
-              <input class="picker-search" type="text" placeholder="Search products to add…" autocomplete="off" />
-              <div class="picker-dropdown"></div>
+            <div id="product-picker">
+              <div class="picker-outer">
+                <input class="picker-search" type="text" placeholder="Search products to add…" autocomplete="off" />
+                <div class="picker-dropdown"></div>
+              </div>
+              <div class="chips-wrap"></div>
+              <div class="picker-hint"></div>
             </div>
-            <div class="chips-wrap" style="margin-top:8px"></div>
-            <div class="picker-hint">${(b?.ingredientNames || []).length} product(s) currently in basket</div>
           </div>
 
           <div class="field full">
@@ -347,7 +350,7 @@ function openModal(id) {
     </div>
   `;
 
-  // Init product picker with existing ingredient names
+  // Init picker — all three children are now inside #product-picker
   initProductPicker('product-picker', b?.ingredientNames || []);
 
   // Featured toggle
@@ -360,9 +363,9 @@ function openModal(id) {
 
   // Save
   document.getElementById('save').addEventListener('click', async () => {
-    const fd   = new FormData(document.getElementById('form'));
-    const picker = document.getElementById('product-picker');
-    const selectedProducts = picker._getSelected();
+    const fd              = new FormData(document.getElementById('form'));
+    const pickerEl        = document.getElementById('product-picker');
+    const selectedProducts = pickerEl._getSelected();
 
     const body = {
       basketName:      fd.get('basketName'),
@@ -375,8 +378,8 @@ function openModal(id) {
       isFeatured:      chip.classList.contains('on'),
     };
 
-    if (!body.basketName)        { showToast('Basket name is required', 'error'); return; }
-    if (body.price === undefined) { showToast('Bundle price is required', 'error'); return; }
+    if (!body.basketName)         { showToast('Basket name is required', 'error'); return; }
+    if (body.price === undefined)  { showToast('Bundle price is required', 'error'); return; }
 
     const btn = document.getElementById('save');
     btn.disabled = true;

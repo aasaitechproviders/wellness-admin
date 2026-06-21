@@ -8,76 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
-<style>
-  /* ── Basket picker ─────────────────────────────────── */
-  .bpicker-outer { position: relative; }
-  .bpicker-search {
-    width: 100%; padding: 9px 12px;
-    border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--font-body); font-size: 13.5px;
-    color: var(--ink); background: var(--white); outline: none; box-sizing: border-box;
-  }
-  .bpicker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
-  .bpicker-dropdown {
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--white); border: 1.5px solid var(--border);
-    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
-    max-height: 240px; overflow-y: auto; z-index: 200; display: none;
-  }
-  .bpicker-dropdown.open { display: block; }
-  .bpicker-option {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 14px; cursor: pointer; font-size: 13.5px; transition: background .12s;
-  }
-  .bpicker-option:hover { background: var(--green-pale); }
-  .bpicker-option.already { opacity: .4; cursor: default; pointer-events: none; }
-  .bpicker-option .bp-meta { margin-left: auto; text-align: right; font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
-  .bpicker-option .bp-price-tag { font-weight: 600; color: var(--green); font-size: 12px; }
-  .bpicker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
-
-  /* ── Basket chips ──────────────────────────────────── */
-  .bchips-wrap { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; padding: 8px 0 4px; }
-  .bchip {
-    display: inline-flex; align-items: center; gap: 0;
-    background: var(--green-pale); border: 1px solid rgba(45,106,53,.25);
-    border-radius: 10px; padding: 6px 10px 6px 12px; font-size: 12.5px;
-  }
-  .bchip-info { display: flex; flex-direction: column; }
-  .bchip-name { font-weight: 600; color: var(--ink); }
-  .bchip-price { font-size: 11px; color: var(--green); font-weight: 500; }
-  .bchip-remove {
-    cursor: pointer; font-size: 15px; line-height: 1; color: var(--green);
-    opacity: .65; padding: 0 2px 0 8px; border: none; background: none; font-family: inherit;
-  }
-  .bchip-remove:hover { opacity: 1; }
-  .bchips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 4px 0; }
-  .bpicker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
-
-  /* ── Discount preview card ─────────────────────────── */
-  .discount-preview {
-    background: var(--green-pale); border: 1px solid rgba(45,106,53,.2);
-    border-radius: 10px; padding: 12px 14px; margin-top: 10px;
-    font-size: 12.5px; display: none;
-  }
-  .discount-preview.visible { display: block; }
-  .discount-preview table { width: 100%; border-collapse: collapse; }
-  .discount-preview td { padding: 3px 0; }
-  .discount-preview td:last-child { text-align: right; font-weight: 600; }
-  .discount-preview .dp-final { color: var(--green); font-size: 14px; font-weight: 700; }
-  .discount-preview .dp-save  { color: #c0392b; font-size: 11px; }
-
-  /* ── Table tags ────────────────────────────────────── */
-  .plan-basket-tag {
-    display: inline-block; font-size: 11px;
-    background: var(--green-pale); color: var(--green);
-    border-radius: 5px; padding: 2px 7px; margin: 2px 2px 0 0;
-  }
-  .freq-badge {
-    display: inline-block; font-size: 11px; font-weight: 600;
-    background: var(--surface); color: var(--ink-faint);
-    border-radius: 5px; padding: 2px 7px; margin-top: 3px;
-  }
-</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -87,12 +17,11 @@
 const content = renderShell({
   active: 'subscription-plans',
   title: 'Subscription Packages',
-  sub: 'Frequency + discount plans — customer picks a basket and pays the discounted subscription price',
+  sub: 'Delivery frequency plans with a % discount applied on the basket price at checkout',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Package</button>`,
 });
 
-let planCache   = [];
-let basketCache = [];
+let planCache = [];
 
 content.innerHTML = `
   <div class="panel">
@@ -102,15 +31,14 @@ content.innerHTML = `
           <tr>
             <th>Package</th>
             <th>Frequency</th>
+            <th>Deliveries / Cycle</th>
             <th>Discount</th>
-            <th>Linked Baskets</th>
-            <th>Example Price</th>
             <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="body">
-          <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -119,15 +47,6 @@ content.innerHTML = `
 `;
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
-
-// Shared price formula (mirrors backend logic exactly)
-function calcSubPrice(basketPrice, dpc, dtype, dval) {
-  const subtotal       = basketPrice * (dpc || 1);
-  const discountAmount = dtype === 'percent'
-    ? Math.round(subtotal * (dval || 0) / 100)
-    : Math.min(dval || 0, subtotal);
-  return { subtotal, discountAmount, final: Math.max(0, subtotal - discountAmount) };
-}
 
 function freqLabel(p) {
   const dpc = p.deliveriesPerCycle || 1;
@@ -138,74 +57,50 @@ function freqLabel(p) {
   if (dpc === 7  && dur === 7)  return 'Daily';
   if (dpc === 1  && dur === 15) return 'Bi-weekly';
   if (dpc === 1  && dur === 30) return 'Monthly';
-  return `${dpc}× / ${dur}d`;
+  return `${dpc}× per ${dur} days`;
 }
 
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
-    const [{ plans }, { baskets }] = await Promise.all([
-      adminApi.getPlans(),
-      adminApi.getBaskets(),
-    ]);
-    planCache   = plans;
-    basketCache = baskets;
-
+    const { plans } = await adminApi.getPlans();
+    planCache = plans;
     document.getElementById('body').innerHTML = plans.length ? plans.map(p => {
-      const linked  = p.baskets || [];
-      const dtype   = p.discountType  || 'percent';
-      const dval    = p.discountValue || 0;
-      const dpc     = p.deliveriesPerCycle || 1;
+      const dtype = p.discountType  || 'percent';
+      const dval  = p.discountValue || 0;
       const discountLabel = dval
         ? (dtype === 'percent' ? `${dval}% off` : `₹${dval} off`)
         : 'No discount';
-
-      // Show example price using the first linked basket
-      const exampleBasket = linked[0];
-      const examplePrice  = exampleBasket
-        ? calcSubPrice(exampleBasket.price, dpc, dtype, dval)
-        : null;
 
       return `
         <tr>
           <td>
             <b>${escapeHtml(p.planName)}</b>
+            <div class="mono muted" style="font-size:11px">${escapeHtml(p.planId || '')}</div>
             ${p.description ? `<div class="muted" style="font-size:11px">${escapeHtml(p.description)}</div>` : ''}
-            <div class="freq-badge">${freqLabel(p)}</div>
           </td>
-          <td>${p.duration} days · ${dpc}× delivery</td>
+          <td>${p.duration || 7} days</td>
+          <td>${p.deliveriesPerCycle || 1}× — ${freqLabel(p)}</td>
           <td>
             <span style="color:${dval ? '#c0392b' : 'var(--ink-faint)'}; font-weight:${dval ? 600 : 400}">
               ${escapeHtml(discountLabel)}
             </span>
           </td>
           <td>
-            ${linked.length
-              ? linked.map(b => `<span class="plan-basket-tag">${escapeHtml(b.basketName)}</span>`).join('')
-              : `<span class="muted">— none linked</span>`}
-          </td>
-          <td class="num">
-            ${examplePrice
-              ? `<span style="text-decoration:line-through;color:var(--ink-faint);font-size:11px">${fmtMoney(examplePrice.subtotal)}</span>
-                 <span style="color:var(--green);font-weight:700;display:block">${fmtMoney(examplePrice.final)}</span>
-                 <span style="font-size:10px;color:var(--ink-faint)">per ${p.duration}d cycle</span>`
-              : '–'}
-          </td>
-          <td>
             <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
               ${p.isActive === false ? 'Inactive' : 'Active'}
             </span>
           </td>
-          <td>
+          <td style="display:flex;gap:6px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
             <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
             <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${p._id}', '${escapeHtml(p.planName)}')">Delete</button>
           </td>
         </tr>
       `;
-    }).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
+    }).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -216,136 +111,19 @@ async function hardDelete(id, name) {
 }
 
 async function deactivate(id) {
-  if (!confirm('Deactivate this package? Customers will no longer be able to subscribe to it.')) return;
+  if (!confirm('Deactivate this package?')) return;
   try { await adminApi.deletePlan(id); showToast('Package deactivated', 'success'); load(); }
   catch (e) { showToast(e.message, 'error'); }
 }
 
-// ── Basket Picker ────────────────────────────────────────────────────────────
-function initBasketPicker(containerId, initialBasketIds, getDiscountParams) {
-  const root     = document.getElementById(containerId);
-  const searchEl = root.querySelector('.bpicker-search');
-  const dropdown = root.querySelector('.bpicker-dropdown');
-  const chipsEl  = root.querySelector('.bchips-wrap');
-  const hintEl   = root.querySelector('.bpicker-hint');
-  const previewEl= root.querySelector('.discount-preview');
-
-  let selected   = basketCache.filter(b => initialBasketIds.includes(b.basketId));
-  let searchTimer = null;
-
-  function updateHint() {
-    if (hintEl) hintEl.textContent = `${selected.length} basket(s) linked to this plan`;
-  }
-
-  function updatePreview() {
-    if (!previewEl || !selected.length) {
-      if (previewEl) previewEl.classList.remove('visible');
-      return;
-    }
-    const { dpc, dtype, dval } = getDiscountParams();
-    const rows = selected.map(b => {
-      const { subtotal, discountAmount, final } = calcSubPrice(b.price, dpc, dtype, dval);
-      return `
-        <tr>
-          <td>${escapeHtml(b.basketName)}<br>
-            <span class="muted" style="font-size:11px">${fmtMoney(b.price)} × ${dpc} delivery${dpc>1?'s':''}</span>
-          </td>
-          <td>
-            <span class="dp-save">−${fmtMoney(discountAmount)}</span><br>
-            <span class="dp-final">${fmtMoney(final)}</span>
-          </td>
-        </tr>
-      `;
-    }).join('');
-    previewEl.innerHTML = `
-      <div style="font-weight:600;margin-bottom:8px;font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px">
-        Subscription Price Preview
-      </div>
-      <table>${rows}</table>
-    `;
-    previewEl.classList.add('visible');
-  }
-
-  function renderChips() {
-    if (!selected.length) {
-      chipsEl.innerHTML = `<span class="bchips-empty">No baskets linked — search above to add</span>`;
-    } else {
-      chipsEl.innerHTML = selected.map((b, i) => `
-        <span class="bchip">
-          <span class="bchip-info">
-            <span class="bchip-name">${escapeHtml(b.basketName)}</span>
-            <span class="bchip-price">${fmtMoney(b.price)} / delivery</span>
-          </span>
-          <button class="bchip-remove" data-idx="${i}" title="Remove">✕</button>
-        </span>
-      `).join('');
-      chipsEl.querySelectorAll('.bchip-remove').forEach(btn => {
-        btn.addEventListener('click', () => {
-          selected.splice(Number(btn.dataset.idx), 1);
-          renderChips(); updateHint(); updatePreview();
-        });
-      });
-    }
-    updateHint(); updatePreview();
-  }
-
-  function renderDropdown(query) {
-    const q       = query.toLowerCase();
-    const active  = basketCache.filter(b => b.isActive !== false);
-    const results = q ? active.filter(b => b.basketName.toLowerCase().includes(q)) : active;
-    if (!results.length) {
-      dropdown.innerHTML = `<div class="bpicker-empty">No baskets found</div>`;
-    } else {
-      dropdown.innerHTML = results.map(b => {
-        const already = selected.some(s => s.basketId === b.basketId);
-        const items   = (b.ingredientNames || []).slice(0, 3).join(', ');
-        return `
-          <div class="bpicker-option ${already ? 'already' : ''}" data-basket-id="${escapeHtml(b.basketId)}">
-            <div>
-              <div style="font-weight:600">${escapeHtml(b.basketName)}</div>
-              ${items ? `<div style="font-size:11px;color:var(--ink-faint)">${escapeHtml(items)}${(b.ingredientNames||[]).length>3?'…':''}</div>` : ''}
-            </div>
-            <div class="bp-meta">
-              <div class="bp-price-tag">${fmtMoney(b.price)}</div>
-              <div>${already ? 'Added' : (b.ingredientNames||[]).length + ' products'}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-      dropdown.querySelectorAll('.bpicker-option:not(.already)').forEach(opt => {
-        opt.addEventListener('mousedown', e => {
-          e.preventDefault();
-          const basket = basketCache.find(b => b.basketId === opt.dataset.basketId);
-          if (basket) selected.push(basket);
-          renderChips(); searchEl.value = ''; dropdown.classList.remove('open');
-        });
-      });
-    }
-    dropdown.classList.add('open');
-  }
-
-  searchEl.addEventListener('input',  () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderDropdown(searchEl.value.trim()), 200); });
-  searchEl.addEventListener('focus',  () => renderDropdown(searchEl.value.trim()));
-  searchEl.addEventListener('blur',   () => setTimeout(() => dropdown.classList.remove('open'), 180));
-
-  renderChips();
-
-  root._getSelectedIds   = () => selected.map(b => b.basketId);
-  root._refreshPreview   = updatePreview; // called when discount fields change
-}
-
-// ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(id) {
   const p      = id ? planCache.find(x => x._id === id) : null;
   const isEdit = !!p;
-  const existingIds = p
-    ? (Array.isArray(p.basketIds) ? p.basketIds : p.basketId ? [p.basketId] : [])
-    : [];
+  const root   = document.getElementById('modal-root');
 
-  const root = document.getElementById('modal-root');
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:580px">
+      <div class="modal">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Package' : 'Add Package'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
@@ -354,33 +132,33 @@ function openModal(id) {
 
           <div class="field full">
             <label>Package Name *</label>
-            <input name="planName" value="${escapeHtml(p?.planName || '')}" required />
+            <input name="planName" value="${escapeHtml(p?.planName || '')}" placeholder="e.g. Weekly Plan" required />
           </div>
 
           <div class="field">
             <label>Plan ID *</label>
-            <input name="planId" value="${escapeHtml(p?.planId || '')}" placeholder="e.g. weekly-once"
+            <input name="planId" value="${escapeHtml(p?.planId || '')}"
+              placeholder="e.g. PLAN001"
               ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
           </div>
 
           <div class="field">
             <label>Cycle Length *</label>
             <select name="duration">
-              <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>7 days</option>
-              <option value="15" ${p?.duration === 15 ? 'selected' : ''}>15 days</option>
-              <option value="30" ${p?.duration === 30 ? 'selected' : ''}>30 days</option>
+              <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>7 days (Weekly)</option>
+              <option value="15" ${p?.duration === 15 ? 'selected' : ''}>15 days (Bi-Weekly)</option>
+              <option value="30" ${p?.duration === 30 ? 'selected' : ''}>30 days (Monthly)</option>
             </select>
           </div>
 
           <div class="field full">
-            <label>Deliveries per cycle * <span style="font-weight:400;color:var(--ink-faint)">— how many times the basket is delivered in one cycle</span></label>
-            <select name="deliveriesPerCycle" id="sel-dpc">
-              <option value="1"  ${(p?.deliveriesPerCycle ?? 1) === 1  ? 'selected' : ''}>1 — Once per cycle (e.g. weekly once)</option>
-              <option value="2"  ${p?.deliveriesPerCycle === 2  ? 'selected' : ''}>2 — Twice per cycle (e.g. twice a week)</option>
+            <label>Deliveries per cycle *</label>
+            <select name="deliveriesPerCycle">
+              <option value="1"  ${(p?.deliveriesPerCycle ?? 1) === 1  ? 'selected' : ''}>1 — Once per cycle</option>
+              <option value="2"  ${p?.deliveriesPerCycle === 2  ? 'selected' : ''}>2 — Twice per cycle</option>
               <option value="3"  ${p?.deliveriesPerCycle === 3  ? 'selected' : ''}>3 — Three times per cycle</option>
               <option value="4"  ${p?.deliveriesPerCycle === 4  ? 'selected' : ''}>4 — Four times per cycle</option>
-              <option value="7"  ${p?.deliveriesPerCycle === 7  ? 'selected' : ''}>7 — Daily (every day in cycle)</option>
-              <option value="14" ${p?.deliveriesPerCycle === 14 ? 'selected' : ''}>14 — Twice daily</option>
+              <option value="7"  ${p?.deliveriesPerCycle === 7  ? 'selected' : ''}>7 — Daily</option>
             </select>
           </div>
 
@@ -388,36 +166,19 @@ function openModal(id) {
             <label>Discount Type</label>
             <select name="discountType" id="sel-dtype">
               <option value="percent" ${(p?.discountType ?? 'percent') === 'percent' ? 'selected' : ''}>Percentage (%)</option>
-              <option value="flat"    ${p?.discountType === 'flat'    ? 'selected' : ''}>Flat Amount (₹)</option>
+              <option value="flat"    ${p?.discountType === 'flat' ? 'selected' : ''}>Flat Amount (₹)</option>
             </select>
           </div>
 
           <div class="field">
-            <label>Discount Value <span style="font-weight:400;color:var(--ink-faint)" id="discount-unit-hint">(% off subtotal)</span></label>
-            <input name="discountValue" id="inp-dval" type="number" min="0" max="100"
-              value="${p?.discountValue ?? 0}"
-              placeholder="0 = no discount" />
+            <label>Discount Value <span id="discount-hint" style="font-weight:400;color:var(--ink-faint)">(% off basket price)</span></label>
+            <input name="discountValue" id="inp-dval" type="number" min="0"
+              value="${p?.discountValue ?? 0}" placeholder="0 = no discount" />
           </div>
 
           <div class="field full">
-            <label>
-              Linked Baskets *
-              <span style="font-weight:400;color:var(--ink-faint)">— customer picks one; subscription price = (basket × deliveries) − discount</span>
-            </label>
-            <div id="basket-picker">
-              <div class="bpicker-outer">
-                <input class="bpicker-search" type="text" placeholder="Search baskets to add…" autocomplete="off" />
-                <div class="bpicker-dropdown"></div>
-              </div>
-              <div class="bchips-wrap"></div>
-              <div class="bpicker-hint"></div>
-              <div class="discount-preview"></div>
-            </div>
-          </div>
-
-          <div class="field full">
-            <label>Description <span style="font-weight:400;color:var(--ink-faint)">(shown to customers)</span></label>
-            <input name="description" value="${escapeHtml(p?.description || '')}" placeholder="e.g. Best value for daily wellness" />
+            <label>Description <span style="font-weight:400;color:var(--ink-faint)">(optional — shown to customers)</span></label>
+            <input name="description" value="${escapeHtml(p?.description || '')}" placeholder="e.g. Best value for weekly wellness" />
           </div>
 
         </form>
@@ -429,54 +190,26 @@ function openModal(id) {
     </div>
   `;
 
-  // Discount type → update hint label and max attribute
-  const selDtype   = document.getElementById('sel-dtype');
-  const inpDval    = document.getElementById('inp-dval');
-  const unitHint   = document.getElementById('discount-unit-hint');
-  const selDpc     = document.getElementById('sel-dpc');
+  // Update discount hint when type changes
+  const selDtype = document.getElementById('sel-dtype');
+  const inpDval  = document.getElementById('inp-dval');
+  const hint     = document.getElementById('discount-hint');
 
-  function updateDiscountHint() {
+  selDtype.addEventListener('change', () => {
     if (selDtype.value === 'percent') {
-      unitHint.textContent = '(% off subtotal)';
+      hint.textContent = '(% off basket price)';
       inpDval.max = 100;
     } else {
-      unitHint.textContent = '(₹ off subtotal)';
+      hint.textContent = '(₹ off basket price)';
       inpDval.removeAttribute('max');
     }
-  }
-  selDtype.addEventListener('change', () => { updateDiscountHint(); refreshPreview(); });
-  inpDval.addEventListener('input',   () => refreshPreview());
-  selDpc.addEventListener('change',   () => refreshPreview());
-  updateDiscountHint();
-
-  // Getter for current discount params — used by picker preview
-  function getDiscountParams() {
-    return {
-      dpc:   Number(selDpc.value)   || 1,
-      dtype: selDtype.value,
-      dval:  Number(inpDval.value)  || 0,
-    };
-  }
-
-  initBasketPicker('basket-picker', existingIds, getDiscountParams);
-
-  function refreshPreview() {
-    const picker = document.getElementById('basket-picker');
-    if (picker._refreshPreview) picker._refreshPreview();
-  }
-
-  // Trigger initial preview if editing
-  if (isEdit && existingIds.length) setTimeout(refreshPreview, 50);
+  });
 
   document.getElementById('save').addEventListener('click', async () => {
-    const fd        = new FormData(document.getElementById('form'));
-    const pickerEl  = document.getElementById('basket-picker');
-    const basketIds = pickerEl._getSelectedIds();
-
+    const fd   = new FormData(document.getElementById('form'));
     const body = {
       planName:           fd.get('planName'),
       planId:             fd.get('planId'),
-      basketIds,
       duration:           Number(fd.get('duration')),
       deliveriesPerCycle: Number(fd.get('deliveriesPerCycle')) || 1,
       discountType:       fd.get('discountType'),
@@ -486,7 +219,6 @@ function openModal(id) {
 
     if (!body.planName)          { showToast('Package name is required', 'error'); return; }
     if (!isEdit && !body.planId) { showToast('Plan ID is required', 'error'); return; }
-    if (!basketIds.length)       { showToast('Link at least one basket', 'error'); return; }
     if (body.discountType === 'percent' && body.discountValue > 100) {
       showToast('Percentage discount cannot exceed 100', 'error'); return;
     }
@@ -502,7 +234,8 @@ function openModal(id) {
       load();
     } catch (e) {
       showToast(e.message, 'error');
-      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Package';
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Create Package';
     }
   });
 }

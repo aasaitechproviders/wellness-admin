@@ -60,7 +60,7 @@ function renderShell({ active, title, sub, actions = '' }) {
   document.getElementById('logout-btn').addEventListener('click', () => {
     if (confirm('Log out of the admin console?')) {
       Auth.clear();
-      window.location.href = 'login.html';
+      window.location.href = 'index.html';
     }
   });
 

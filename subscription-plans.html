@@ -9,28 +9,103 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  .basket-preview {
-    background: var(--green-pale);
-    border: 1px solid var(--border);
+  /* ── Basket picker ─────────────────────────────────── */
+  .bpicker-outer { position: relative; }
+
+  .bpicker-search {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--white);
+    outline: none;
+    box-sizing: border-box;
+  }
+  .bpicker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
+
+  .bpicker-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--white);
+    border: 1.5px solid var(--border);
     border-radius: 10px;
-    padding: 12px 14px;
-    margin-top: 6px;
-    font-size: 13px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 200;
     display: none;
   }
-  .basket-preview.visible { display: block; }
-  .basket-preview .bp-name { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
-  .basket-preview .bp-price { color: var(--green); font-weight: 700; font-size: 15px; }
-  .basket-preview .bp-items { color: var(--ink-faint); font-size: 12px; margin-top: 3px; }
+  .bpicker-dropdown.open { display: block; }
+
+  .bpicker-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 13.5px;
+    transition: background .12s;
+  }
+  .bpicker-option:hover { background: var(--green-pale); }
+  .bpicker-option.already { opacity: .4; cursor: default; pointer-events: none; }
+  .bpicker-option .bp-meta {
+    margin-left: auto;
+    text-align: right;
+    font-size: 11px;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .bpicker-option .bp-price-tag {
+    font-weight: 600;
+    color: var(--green);
+    font-size: 12px;
+  }
+  .bpicker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+
+  /* ── Basket chips ──────────────────────────────────── */
+  .bchips-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 32px;
+    padding: 8px 0 4px;
+  }
+  .bchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    background: var(--green-pale);
+    border: 1px solid rgba(45,106,53,.25);
+    border-radius: 10px;
+    padding: 6px 10px 6px 12px;
+    font-size: 12.5px;
+  }
+  .bchip-info { display: flex; flex-direction: column; }
+  .bchip-name { font-weight: 600; color: var(--ink); }
+  .bchip-price { font-size: 11px; color: var(--green); font-weight: 500; }
+  .bchip-remove {
+    cursor: pointer; font-size: 15px; line-height: 1;
+    color: var(--green); opacity: .65; padding: 0 2px 0 8px;
+    border: none; background: none; font-family: inherit;
+  }
+  .bchip-remove:hover { opacity: 1; }
+  .bchips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 4px 0; }
+
+  /* ── Table basket tags ─────────────────────────────── */
   .plan-basket-tag {
+    display: inline-block;
     font-size: 11px;
     background: var(--green-pale);
     color: var(--green);
     border-radius: 5px;
     padding: 2px 7px;
-    display: inline-block;
-    margin-top: 3px;
+    margin: 2px 2px 0 0;
   }
+  .bpicker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
 </style>
 </head>
 <body>
@@ -41,12 +116,12 @@
 const content = renderShell({
   active: 'subscription-plans',
   title: 'Subscription Packages',
-  sub: 'Frequency plans (Weekly / Bi-Weekly / Monthly) linked to a curated basket — price comes from the basket',
+  sub: 'Frequency plans linked to one or more curated baskets — customer chooses a basket when subscribing',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Package</button>`,
 });
 
 let planCache   = [];
-let basketCache = []; // all baskets pre-loaded for the dropdown
+let basketCache = [];
 
 content.innerHTML = `
   <div class="panel">
@@ -56,8 +131,8 @@ content.innerHTML = `
           <tr>
             <th>Package</th>
             <th>Frequency</th>
-            <th>Linked Basket</th>
-            <th>Basket Price</th>
+            <th>Linked Baskets</th>
+            <th>Price Range</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -76,7 +151,6 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
-    // Load plans and baskets in parallel
     const [{ plans }, { baskets }] = await Promise.all([
       adminApi.getPlans(),
       adminApi.getBaskets(),
@@ -85,7 +159,13 @@ async function load() {
     basketCache = baskets;
 
     document.getElementById('body').innerHTML = plans.length ? plans.map(p => {
-      const basket = p.basket;
+      // baskets[] is enriched by backend; fall back to empty
+      const linked = p.baskets || [];
+      const prices = linked.map(b => b.price).filter(x => x != null);
+      const priceRange = prices.length === 0 ? '–'
+        : prices.length === 1 ? fmtMoney(prices[0])
+        : `${fmtMoney(Math.min(...prices))} – ${fmtMoney(Math.max(...prices))}`;
+
       return `
         <tr>
           <td>
@@ -94,12 +174,11 @@ async function load() {
           </td>
           <td>${p.duration} days</td>
           <td>
-            ${basket
-              ? `<b>${escapeHtml(basket.basketName)}</b>
-                 <div class="plan-basket-tag">${escapeHtml(basket.basketId || '')}</div>`
-              : `<span class="muted">— not linked</span>`}
+            ${linked.length
+              ? linked.map(b => `<span class="plan-basket-tag">${escapeHtml(b.basketName)}</span>`).join('')
+              : `<span class="muted">— none linked</span>`}
           </td>
-          <td class="num">${basket ? fmtMoney(basket.price) : '–'}</td>
+          <td class="num">${priceRange}</td>
           <td>
             <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
               ${p.isActive === false ? 'Inactive' : 'Active'}
@@ -119,31 +198,126 @@ async function load() {
 
 async function deactivate(id) {
   if (!confirm('Deactivate this package? Customers will no longer be able to subscribe to it.')) return;
-  try {
-    await adminApi.deletePlan(id);
-    showToast('Package deactivated', 'success');
-    load();
-  } catch (e) { showToast(e.message, 'error'); }
+  try { await adminApi.deletePlan(id); showToast('Package deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
 }
 
-function buildBasketOptions(selectedBasketId) {
-  const activeBaskets = basketCache.filter(b => b.isActive !== false);
-  if (!activeBaskets.length) return `<option value="">— no active baskets —</option>`;
-  return activeBaskets.map(b =>
-    `<option value="${escapeHtml(b.basketId)}" ${b.basketId === selectedBasketId ? 'selected' : ''}>
-      ${escapeHtml(b.basketName)} — ${fmtMoney(b.price)}
-    </option>`
-  ).join('');
+// ── Basket Picker ────────────────────────────────────────────────────────────
+// All three children (.bpicker-outer, .bchips-wrap, .bpicker-hint) must be
+// inside the element with the given containerId.
+function initBasketPicker(containerId, initialBasketIds = []) {
+  const root      = document.getElementById(containerId);
+  const searchEl  = root.querySelector('.bpicker-search');
+  const dropdown  = root.querySelector('.bpicker-dropdown');
+  const chipsEl   = root.querySelector('.bchips-wrap');
+  const hintEl    = root.querySelector('.bpicker-hint');
+
+  // Work with full basket objects so we can show name + price in chips
+  let selected = basketCache.filter(b => initialBasketIds.includes(b.basketId));
+  let searchTimer = null;
+
+  function updateHint() {
+    if (hintEl) hintEl.textContent = `${selected.length} basket(s) linked to this plan`;
+  }
+
+  function renderChips() {
+    if (!selected.length) {
+      chipsEl.innerHTML = `<span class="bchips-empty">No baskets linked — search above to add</span>`;
+    } else {
+      chipsEl.innerHTML = selected.map((b, i) => `
+        <span class="bchip">
+          <span class="bchip-info">
+            <span class="bchip-name">${escapeHtml(b.basketName)}</span>
+            <span class="bchip-price">${fmtMoney(b.price)}</span>
+          </span>
+          <button class="bchip-remove" data-idx="${i}" title="Remove">✕</button>
+        </span>
+      `).join('');
+      chipsEl.querySelectorAll('.bchip-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          selected.splice(Number(btn.dataset.idx), 1);
+          renderChips();
+          updateHint();
+        });
+      });
+    }
+    updateHint();
+  }
+
+  function getActiveBaskets() {
+    return basketCache.filter(b => b.isActive !== false);
+  }
+
+  function renderDropdown(query) {
+    const q       = query.toLowerCase();
+    const active  = getActiveBaskets();
+    const results = q ? active.filter(b => b.basketName.toLowerCase().includes(q)) : active;
+
+    if (!results.length) {
+      dropdown.innerHTML = `<div class="bpicker-empty">No baskets found</div>`;
+    } else {
+      dropdown.innerHTML = results.map(b => {
+        const already = selected.some(s => s.basketId === b.basketId);
+        const items   = (b.ingredientNames || []).slice(0, 3).join(', ');
+        return `
+          <div class="bpicker-option ${already ? 'already' : ''}" data-basket-id="${escapeHtml(b.basketId)}">
+            <div>
+              <div style="font-weight:600">${escapeHtml(b.basketName)}</div>
+              ${items ? `<div style="font-size:11px;color:var(--ink-faint)">${escapeHtml(items)}${(b.ingredientNames||[]).length > 3 ? '…' : ''}</div>` : ''}
+            </div>
+            <div class="bp-meta">
+              <div class="bp-price-tag">${fmtMoney(b.price)}</div>
+              <div>${already ? 'Added' : (b.ingredientNames||[]).length + ' products'}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      dropdown.querySelectorAll('.bpicker-option:not(.already)').forEach(opt => {
+        opt.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const basket = basketCache.find(b => b.basketId === opt.dataset.basketId);
+          if (basket) selected.push(basket);
+          renderChips();
+          searchEl.value = '';
+          dropdown.classList.remove('open');
+        });
+      });
+    }
+    dropdown.classList.add('open');
+  }
+
+  searchEl.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => renderDropdown(searchEl.value.trim()), 200);
+  });
+
+  searchEl.addEventListener('focus', () => renderDropdown(searchEl.value.trim()));
+
+  searchEl.addEventListener('blur', () => {
+    setTimeout(() => dropdown.classList.remove('open'), 180);
+  });
+
+  renderChips();
+
+  // Expose getter to save handler — returns array of basketId strings
+  root._getSelectedIds = () => selected.map(b => b.basketId);
 }
 
+// ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(id) {
   const p      = id ? planCache.find(x => x._id === id) : null;
   const isEdit = !!p;
-  const root   = document.getElementById('modal-root');
 
+  // Resolve existing basketIds (support legacy single basketId too)
+  const existingIds = p
+    ? (Array.isArray(p.basketIds) ? p.basketIds : p.basketId ? [p.basketId] : [])
+    : [];
+
+  const root = document.getElementById('modal-root');
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal">
+      <div class="modal" style="max-width:560px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Package' : 'Add Package'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
@@ -158,11 +332,12 @@ function openModal(id) {
           <div class="field">
             <label>Plan ID *</label>
             <input name="planId" value="${escapeHtml(p?.planId || '')}"
-              placeholder="e.g. weekly" ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
+              placeholder="e.g. weekly"
+              ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
           </div>
 
           <div class="field">
-            <label>Frequency (days) *</label>
+            <label>Frequency *</label>
             <select name="duration">
               <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>Weekly — 7 days</option>
               <option value="15" ${p?.duration === 15 ? 'selected' : ''}>Bi-Weekly — 15 days</option>
@@ -171,15 +346,18 @@ function openModal(id) {
           </div>
 
           <div class="field full">
-            <label>Linked Basket * <span style="font-weight:400;color:var(--ink-faint)">(price is taken from the basket)</span></label>
-            <select name="basketId" id="basket-select" required>
-              <option value="">— choose a basket —</option>
-              ${buildBasketOptions(p?.basketId || '')}
-            </select>
-            <div class="basket-preview" id="basket-preview">
-              <div class="bp-name" id="bp-name"></div>
-              <div class="bp-price" id="bp-price"></div>
-              <div class="bp-items" id="bp-items"></div>
+            <label>
+              Linked Baskets *
+              <span style="font-weight:400;color:var(--ink-faint)">— customer picks one when subscribing; price comes from the chosen basket</span>
+            </label>
+            <!-- All three picker parts are inside #basket-picker so querySelector works -->
+            <div id="basket-picker">
+              <div class="bpicker-outer">
+                <input class="bpicker-search" type="text" placeholder="Search baskets to add…" autocomplete="off" />
+                <div class="bpicker-dropdown"></div>
+              </div>
+              <div class="bchips-wrap"></div>
+              <div class="bpicker-hint"></div>
             </div>
           </div>
 
@@ -197,46 +375,25 @@ function openModal(id) {
     </div>
   `;
 
-  // Basket preview — show details when a basket is selected
-  const basketSelect  = document.getElementById('basket-select');
-  const preview       = document.getElementById('basket-preview');
-  const bpName        = document.getElementById('bp-name');
-  const bpPrice       = document.getElementById('bp-price');
-  const bpItems       = document.getElementById('bp-items');
-
-  function updatePreview() {
-    const bid    = basketSelect.value;
-    const basket = basketCache.find(b => b.basketId === bid);
-    if (basket) {
-      bpName.textContent  = basket.basketName;
-      bpPrice.textContent = fmtMoney(basket.price) + ' / delivery';
-      const items = (basket.ingredientNames || []);
-      bpItems.textContent = items.length
-        ? items.slice(0, 5).join(', ') + (items.length > 5 ? ` +${items.length - 5} more` : '')
-        : 'No items listed yet';
-      preview.classList.add('visible');
-    } else {
-      preview.classList.remove('visible');
-    }
-  }
-
-  basketSelect.addEventListener('change', updatePreview);
-  // Show preview immediately if editing an existing plan
-  if (p?.basketId) updatePreview();
+  // Basket picker initialised after HTML is in DOM
+  initBasketPicker('basket-picker', existingIds);
 
   document.getElementById('save').addEventListener('click', async () => {
-    const fd = new FormData(document.getElementById('form'));
+    const fd         = new FormData(document.getElementById('form'));
+    const pickerEl   = document.getElementById('basket-picker');
+    const basketIds  = pickerEl._getSelectedIds();
+
     const body = {
       planName:    fd.get('planName'),
       planId:      fd.get('planId'),
-      basketId:    fd.get('basketId'),
+      basketIds,
       duration:    Number(fd.get('duration')),
       description: fd.get('description') || undefined,
     };
 
-    if (!body.planName)  { showToast('Package name is required', 'error'); return; }
+    if (!body.planName)          { showToast('Package name is required', 'error'); return; }
     if (!isEdit && !body.planId) { showToast('Plan ID is required', 'error'); return; }
-    if (!body.basketId)  { showToast('Please select a basket', 'error'); return; }
+    if (!basketIds.length)       { showToast('Link at least one basket', 'error'); return; }
 
     const btn = document.getElementById('save');
     btn.disabled = true;

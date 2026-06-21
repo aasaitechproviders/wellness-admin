@@ -156,6 +156,14 @@ const content = renderShell({
 let cache = [];
 let goalsCache = [];
 
+// Load goals immediately on page load so they're ready when modal opens
+(async () => {
+  try {
+    const { goals } = await adminApi.getGoals();
+    goalsCache = goals.filter(g => g.isActive !== false);
+  } catch(e) {}
+})();
+
 content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
@@ -186,9 +194,6 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
-    if (!goalsCache.length) {
-      try { const { goals } = await adminApi.getGoals(); goalsCache = goals.filter(g => g.isActive !== false); } catch(e) {}
-    }
     const { baskets } = await adminApi.getBaskets();
     cache = baskets;
     document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => {
@@ -490,7 +495,15 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
-function openModal(id) {
+async function openModal(id) {
+  // Ensure goals are loaded before rendering picker
+  if (!goalsCache.length) {
+    try {
+      const { goals } = await adminApi.getGoals();
+      goalsCache = goals.filter(g => g.isActive !== false);
+    } catch(e) {}
+  }
+
   const b      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!b;
   const root   = document.getElementById('modal-root');

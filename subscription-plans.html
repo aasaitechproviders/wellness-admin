@@ -11,101 +11,72 @@
 <style>
   /* ── Basket picker ─────────────────────────────────── */
   .bpicker-outer { position: relative; }
-
   .bpicker-search {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1.5px solid var(--border);
-    border-radius: 8px;
-    font-family: var(--font-body);
-    font-size: 13.5px;
-    color: var(--ink);
-    background: var(--white);
-    outline: none;
-    box-sizing: border-box;
+    width: 100%; padding: 9px 12px;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: var(--font-body); font-size: 13.5px;
+    color: var(--ink); background: var(--white); outline: none; box-sizing: border-box;
   }
   .bpicker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
-
   .bpicker-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0; right: 0;
-    background: var(--white);
-    border: 1.5px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.1);
-    max-height: 240px;
-    overflow-y: auto;
-    z-index: 200;
-    display: none;
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    max-height: 240px; overflow-y: auto; z-index: 200; display: none;
   }
   .bpicker-dropdown.open { display: block; }
-
   .bpicker-option {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    cursor: pointer;
-    font-size: 13.5px;
-    transition: background .12s;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; cursor: pointer; font-size: 13.5px; transition: background .12s;
   }
   .bpicker-option:hover { background: var(--green-pale); }
   .bpicker-option.already { opacity: .4; cursor: default; pointer-events: none; }
-  .bpicker-option .bp-meta {
-    margin-left: auto;
-    text-align: right;
-    font-size: 11px;
-    color: var(--ink-faint);
-    white-space: nowrap;
-  }
-  .bpicker-option .bp-price-tag {
-    font-weight: 600;
-    color: var(--green);
-    font-size: 12px;
-  }
+  .bpicker-option .bp-meta { margin-left: auto; text-align: right; font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+  .bpicker-option .bp-price-tag { font-weight: 600; color: var(--green); font-size: 12px; }
   .bpicker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
 
   /* ── Basket chips ──────────────────────────────────── */
-  .bchips-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-height: 32px;
-    padding: 8px 0 4px;
-  }
+  .bchips-wrap { display: flex; flex-wrap: wrap; gap: 8px; min-height: 32px; padding: 8px 0 4px; }
   .bchip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0;
-    background: var(--green-pale);
-    border: 1px solid rgba(45,106,53,.25);
-    border-radius: 10px;
-    padding: 6px 10px 6px 12px;
-    font-size: 12.5px;
+    display: inline-flex; align-items: center; gap: 0;
+    background: var(--green-pale); border: 1px solid rgba(45,106,53,.25);
+    border-radius: 10px; padding: 6px 10px 6px 12px; font-size: 12.5px;
   }
   .bchip-info { display: flex; flex-direction: column; }
   .bchip-name { font-weight: 600; color: var(--ink); }
   .bchip-price { font-size: 11px; color: var(--green); font-weight: 500; }
   .bchip-remove {
-    cursor: pointer; font-size: 15px; line-height: 1;
-    color: var(--green); opacity: .65; padding: 0 2px 0 8px;
-    border: none; background: none; font-family: inherit;
+    cursor: pointer; font-size: 15px; line-height: 1; color: var(--green);
+    opacity: .65; padding: 0 2px 0 8px; border: none; background: none; font-family: inherit;
   }
   .bchip-remove:hover { opacity: 1; }
   .bchips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 4px 0; }
-
-  /* ── Table basket tags ─────────────────────────────── */
-  .plan-basket-tag {
-    display: inline-block;
-    font-size: 11px;
-    background: var(--green-pale);
-    color: var(--green);
-    border-radius: 5px;
-    padding: 2px 7px;
-    margin: 2px 2px 0 0;
-  }
   .bpicker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
+
+  /* ── Discount preview card ─────────────────────────── */
+  .discount-preview {
+    background: var(--green-pale); border: 1px solid rgba(45,106,53,.2);
+    border-radius: 10px; padding: 12px 14px; margin-top: 10px;
+    font-size: 12.5px; display: none;
+  }
+  .discount-preview.visible { display: block; }
+  .discount-preview table { width: 100%; border-collapse: collapse; }
+  .discount-preview td { padding: 3px 0; }
+  .discount-preview td:last-child { text-align: right; font-weight: 600; }
+  .discount-preview .dp-final { color: var(--green); font-size: 14px; font-weight: 700; }
+  .discount-preview .dp-save  { color: #c0392b; font-size: 11px; }
+
+  /* ── Table tags ────────────────────────────────────── */
+  .plan-basket-tag {
+    display: inline-block; font-size: 11px;
+    background: var(--green-pale); color: var(--green);
+    border-radius: 5px; padding: 2px 7px; margin: 2px 2px 0 0;
+  }
+  .freq-badge {
+    display: inline-block; font-size: 11px; font-weight: 600;
+    background: var(--surface); color: var(--ink-faint);
+    border-radius: 5px; padding: 2px 7px; margin-top: 3px;
+  }
 </style>
 </head>
 <body>
@@ -116,7 +87,7 @@
 const content = renderShell({
   active: 'subscription-plans',
   title: 'Subscription Packages',
-  sub: 'Frequency plans linked to one or more curated baskets — customer chooses a basket when subscribing',
+  sub: 'Frequency + discount plans — customer picks a basket and pays the discounted subscription price',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Package</button>`,
 });
 
@@ -131,14 +102,15 @@ content.innerHTML = `
           <tr>
             <th>Package</th>
             <th>Frequency</th>
+            <th>Discount</th>
             <th>Linked Baskets</th>
-            <th>Price Range</th>
+            <th>Example Price</th>
             <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody id="body">
-          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -148,8 +120,29 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
+// Shared price formula (mirrors backend logic exactly)
+function calcSubPrice(basketPrice, dpc, dtype, dval) {
+  const subtotal       = basketPrice * (dpc || 1);
+  const discountAmount = dtype === 'percent'
+    ? Math.round(subtotal * (dval || 0) / 100)
+    : Math.min(dval || 0, subtotal);
+  return { subtotal, discountAmount, final: Math.max(0, subtotal - discountAmount) };
+}
+
+function freqLabel(p) {
+  const dpc = p.deliveriesPerCycle || 1;
+  const dur = p.duration || 7;
+  if (dpc === 1  && dur === 7)  return 'Once a week';
+  if (dpc === 2  && dur === 7)  return 'Twice a week';
+  if (dpc === 3  && dur === 7)  return '3× a week';
+  if (dpc === 7  && dur === 7)  return 'Daily';
+  if (dpc === 1  && dur === 15) return 'Bi-weekly';
+  if (dpc === 1  && dur === 30) return 'Monthly';
+  return `${dpc}× / ${dur}d`;
+}
+
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const [{ plans }, { baskets }] = await Promise.all([
       adminApi.getPlans(),
@@ -159,26 +152,45 @@ async function load() {
     basketCache = baskets;
 
     document.getElementById('body').innerHTML = plans.length ? plans.map(p => {
-      // baskets[] is enriched by backend; fall back to empty
-      const linked = p.baskets || [];
-      const prices = linked.map(b => b.price).filter(x => x != null);
-      const priceRange = prices.length === 0 ? '–'
-        : prices.length === 1 ? fmtMoney(prices[0])
-        : `${fmtMoney(Math.min(...prices))} – ${fmtMoney(Math.max(...prices))}`;
+      const linked  = p.baskets || [];
+      const dtype   = p.discountType  || 'percent';
+      const dval    = p.discountValue || 0;
+      const dpc     = p.deliveriesPerCycle || 1;
+      const discountLabel = dval
+        ? (dtype === 'percent' ? `${dval}% off` : `₹${dval} off`)
+        : 'No discount';
+
+      // Show example price using the first linked basket
+      const exampleBasket = linked[0];
+      const examplePrice  = exampleBasket
+        ? calcSubPrice(exampleBasket.price, dpc, dtype, dval)
+        : null;
 
       return `
         <tr>
           <td>
             <b>${escapeHtml(p.planName)}</b>
             ${p.description ? `<div class="muted" style="font-size:11px">${escapeHtml(p.description)}</div>` : ''}
+            <div class="freq-badge">${freqLabel(p)}</div>
           </td>
-          <td>${p.duration} days</td>
+          <td>${p.duration} days · ${dpc}× delivery</td>
+          <td>
+            <span style="color:${dval ? '#c0392b' : 'var(--ink-faint)'}; font-weight:${dval ? 600 : 400}">
+              ${escapeHtml(discountLabel)}
+            </span>
+          </td>
           <td>
             ${linked.length
               ? linked.map(b => `<span class="plan-basket-tag">${escapeHtml(b.basketName)}</span>`).join('')
               : `<span class="muted">— none linked</span>`}
           </td>
-          <td class="num">${priceRange}</td>
+          <td class="num">
+            ${examplePrice
+              ? `<span style="text-decoration:line-through;color:var(--ink-faint);font-size:11px">${fmtMoney(examplePrice.subtotal)}</span>
+                 <span style="color:var(--green);font-weight:700;display:block">${fmtMoney(examplePrice.final)}</span>
+                 <span style="font-size:10px;color:var(--ink-faint)">per ${p.duration}d cycle</span>`
+              : '–'}
+          </td>
           <td>
             <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
               ${p.isActive === false ? 'Inactive' : 'Active'}
@@ -190,9 +202,9 @@ async function load() {
           </td>
         </tr>
       `;
-    }).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
+    }).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -203,21 +215,48 @@ async function deactivate(id) {
 }
 
 // ── Basket Picker ────────────────────────────────────────────────────────────
-// All three children (.bpicker-outer, .bchips-wrap, .bpicker-hint) must be
-// inside the element with the given containerId.
-function initBasketPicker(containerId, initialBasketIds = []) {
-  const root      = document.getElementById(containerId);
-  const searchEl  = root.querySelector('.bpicker-search');
-  const dropdown  = root.querySelector('.bpicker-dropdown');
-  const chipsEl   = root.querySelector('.bchips-wrap');
-  const hintEl    = root.querySelector('.bpicker-hint');
+function initBasketPicker(containerId, initialBasketIds, getDiscountParams) {
+  const root     = document.getElementById(containerId);
+  const searchEl = root.querySelector('.bpicker-search');
+  const dropdown = root.querySelector('.bpicker-dropdown');
+  const chipsEl  = root.querySelector('.bchips-wrap');
+  const hintEl   = root.querySelector('.bpicker-hint');
+  const previewEl= root.querySelector('.discount-preview');
 
-  // Work with full basket objects so we can show name + price in chips
-  let selected = basketCache.filter(b => initialBasketIds.includes(b.basketId));
+  let selected   = basketCache.filter(b => initialBasketIds.includes(b.basketId));
   let searchTimer = null;
 
   function updateHint() {
     if (hintEl) hintEl.textContent = `${selected.length} basket(s) linked to this plan`;
+  }
+
+  function updatePreview() {
+    if (!previewEl || !selected.length) {
+      if (previewEl) previewEl.classList.remove('visible');
+      return;
+    }
+    const { dpc, dtype, dval } = getDiscountParams();
+    const rows = selected.map(b => {
+      const { subtotal, discountAmount, final } = calcSubPrice(b.price, dpc, dtype, dval);
+      return `
+        <tr>
+          <td>${escapeHtml(b.basketName)}<br>
+            <span class="muted" style="font-size:11px">${fmtMoney(b.price)} × ${dpc} delivery${dpc>1?'s':''}</span>
+          </td>
+          <td>
+            <span class="dp-save">−${fmtMoney(discountAmount)}</span><br>
+            <span class="dp-final">${fmtMoney(final)}</span>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    previewEl.innerHTML = `
+      <div style="font-weight:600;margin-bottom:8px;font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px">
+        Subscription Price Preview
+      </div>
+      <table>${rows}</table>
+    `;
+    previewEl.classList.add('visible');
   }
 
   function renderChips() {
@@ -228,7 +267,7 @@ function initBasketPicker(containerId, initialBasketIds = []) {
         <span class="bchip">
           <span class="bchip-info">
             <span class="bchip-name">${escapeHtml(b.basketName)}</span>
-            <span class="bchip-price">${fmtMoney(b.price)}</span>
+            <span class="bchip-price">${fmtMoney(b.price)} / delivery</span>
           </span>
           <button class="bchip-remove" data-idx="${i}" title="Remove">✕</button>
         </span>
@@ -236,23 +275,17 @@ function initBasketPicker(containerId, initialBasketIds = []) {
       chipsEl.querySelectorAll('.bchip-remove').forEach(btn => {
         btn.addEventListener('click', () => {
           selected.splice(Number(btn.dataset.idx), 1);
-          renderChips();
-          updateHint();
+          renderChips(); updateHint(); updatePreview();
         });
       });
     }
-    updateHint();
-  }
-
-  function getActiveBaskets() {
-    return basketCache.filter(b => b.isActive !== false);
+    updateHint(); updatePreview();
   }
 
   function renderDropdown(query) {
     const q       = query.toLowerCase();
-    const active  = getActiveBaskets();
+    const active  = basketCache.filter(b => b.isActive !== false);
     const results = q ? active.filter(b => b.basketName.toLowerCase().includes(q)) : active;
-
     if (!results.length) {
       dropdown.innerHTML = `<div class="bpicker-empty">No baskets found</div>`;
     } else {
@@ -263,7 +296,7 @@ function initBasketPicker(containerId, initialBasketIds = []) {
           <div class="bpicker-option ${already ? 'already' : ''}" data-basket-id="${escapeHtml(b.basketId)}">
             <div>
               <div style="font-weight:600">${escapeHtml(b.basketName)}</div>
-              ${items ? `<div style="font-size:11px;color:var(--ink-faint)">${escapeHtml(items)}${(b.ingredientNames||[]).length > 3 ? '…' : ''}</div>` : ''}
+              ${items ? `<div style="font-size:11px;color:var(--ink-faint)">${escapeHtml(items)}${(b.ingredientNames||[]).length>3?'…':''}</div>` : ''}
             </div>
             <div class="bp-meta">
               <div class="bp-price-tag">${fmtMoney(b.price)}</div>
@@ -272,44 +305,32 @@ function initBasketPicker(containerId, initialBasketIds = []) {
           </div>
         `;
       }).join('');
-
       dropdown.querySelectorAll('.bpicker-option:not(.already)').forEach(opt => {
-        opt.addEventListener('mousedown', (e) => {
+        opt.addEventListener('mousedown', e => {
           e.preventDefault();
           const basket = basketCache.find(b => b.basketId === opt.dataset.basketId);
           if (basket) selected.push(basket);
-          renderChips();
-          searchEl.value = '';
-          dropdown.classList.remove('open');
+          renderChips(); searchEl.value = ''; dropdown.classList.remove('open');
         });
       });
     }
     dropdown.classList.add('open');
   }
 
-  searchEl.addEventListener('input', () => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => renderDropdown(searchEl.value.trim()), 200);
-  });
-
-  searchEl.addEventListener('focus', () => renderDropdown(searchEl.value.trim()));
-
-  searchEl.addEventListener('blur', () => {
-    setTimeout(() => dropdown.classList.remove('open'), 180);
-  });
+  searchEl.addEventListener('input',  () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => renderDropdown(searchEl.value.trim()), 200); });
+  searchEl.addEventListener('focus',  () => renderDropdown(searchEl.value.trim()));
+  searchEl.addEventListener('blur',   () => setTimeout(() => dropdown.classList.remove('open'), 180));
 
   renderChips();
 
-  // Expose getter to save handler — returns array of basketId strings
-  root._getSelectedIds = () => selected.map(b => b.basketId);
+  root._getSelectedIds   = () => selected.map(b => b.basketId);
+  root._refreshPreview   = updatePreview; // called when discount fields change
 }
 
 // ── Modal ────────────────────────────────────────────────────────────────────
 function openModal(id) {
   const p      = id ? planCache.find(x => x._id === id) : null;
   const isEdit = !!p;
-
-  // Resolve existing basketIds (support legacy single basketId too)
   const existingIds = p
     ? (Array.isArray(p.basketIds) ? p.basketIds : p.basketId ? [p.basketId] : [])
     : [];
@@ -317,7 +338,7 @@ function openModal(id) {
   const root = document.getElementById('modal-root');
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:560px">
+      <div class="modal" style="max-width:580px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Package' : 'Add Package'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
@@ -331,26 +352,51 @@ function openModal(id) {
 
           <div class="field">
             <label>Plan ID *</label>
-            <input name="planId" value="${escapeHtml(p?.planId || '')}"
-              placeholder="e.g. weekly"
+            <input name="planId" value="${escapeHtml(p?.planId || '')}" placeholder="e.g. weekly-once"
               ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
           </div>
 
           <div class="field">
-            <label>Frequency *</label>
+            <label>Cycle Length *</label>
             <select name="duration">
-              <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>Weekly — 7 days</option>
-              <option value="15" ${p?.duration === 15 ? 'selected' : ''}>Bi-Weekly — 15 days</option>
-              <option value="30" ${p?.duration === 30 ? 'selected' : ''}>Monthly — 30 days</option>
+              <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>7 days</option>
+              <option value="15" ${p?.duration === 15 ? 'selected' : ''}>15 days</option>
+              <option value="30" ${p?.duration === 30 ? 'selected' : ''}>30 days</option>
             </select>
+          </div>
+
+          <div class="field full">
+            <label>Deliveries per cycle * <span style="font-weight:400;color:var(--ink-faint)">— how many times the basket is delivered in one cycle</span></label>
+            <select name="deliveriesPerCycle" id="sel-dpc">
+              <option value="1"  ${(p?.deliveriesPerCycle ?? 1) === 1  ? 'selected' : ''}>1 — Once per cycle (e.g. weekly once)</option>
+              <option value="2"  ${p?.deliveriesPerCycle === 2  ? 'selected' : ''}>2 — Twice per cycle (e.g. twice a week)</option>
+              <option value="3"  ${p?.deliveriesPerCycle === 3  ? 'selected' : ''}>3 — Three times per cycle</option>
+              <option value="4"  ${p?.deliveriesPerCycle === 4  ? 'selected' : ''}>4 — Four times per cycle</option>
+              <option value="7"  ${p?.deliveriesPerCycle === 7  ? 'selected' : ''}>7 — Daily (every day in cycle)</option>
+              <option value="14" ${p?.deliveriesPerCycle === 14 ? 'selected' : ''}>14 — Twice daily</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Discount Type</label>
+            <select name="discountType" id="sel-dtype">
+              <option value="percent" ${(p?.discountType ?? 'percent') === 'percent' ? 'selected' : ''}>Percentage (%)</option>
+              <option value="flat"    ${p?.discountType === 'flat'    ? 'selected' : ''}>Flat Amount (₹)</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Discount Value <span style="font-weight:400;color:var(--ink-faint)" id="discount-unit-hint">(% off subtotal)</span></label>
+            <input name="discountValue" id="inp-dval" type="number" min="0" max="100"
+              value="${p?.discountValue ?? 0}"
+              placeholder="0 = no discount" />
           </div>
 
           <div class="field full">
             <label>
               Linked Baskets *
-              <span style="font-weight:400;color:var(--ink-faint)">— customer picks one when subscribing; price comes from the chosen basket</span>
+              <span style="font-weight:400;color:var(--ink-faint)">— customer picks one; subscription price = (basket × deliveries) − discount</span>
             </label>
-            <!-- All three picker parts are inside #basket-picker so querySelector works -->
             <div id="basket-picker">
               <div class="bpicker-outer">
                 <input class="bpicker-search" type="text" placeholder="Search baskets to add…" autocomplete="off" />
@@ -358,12 +404,13 @@ function openModal(id) {
               </div>
               <div class="bchips-wrap"></div>
               <div class="bpicker-hint"></div>
+              <div class="discount-preview"></div>
             </div>
           </div>
 
           <div class="field full">
-            <label>Description</label>
-            <input name="description" value="${escapeHtml(p?.description || '')}" placeholder="Optional note shown to customers" />
+            <label>Description <span style="font-weight:400;color:var(--ink-faint)">(shown to customers)</span></label>
+            <input name="description" value="${escapeHtml(p?.description || '')}" placeholder="e.g. Best value for daily wellness" />
           </div>
 
         </form>
@@ -375,29 +422,70 @@ function openModal(id) {
     </div>
   `;
 
-  // Basket picker initialised after HTML is in DOM
-  initBasketPicker('basket-picker', existingIds);
+  // Discount type → update hint label and max attribute
+  const selDtype   = document.getElementById('sel-dtype');
+  const inpDval    = document.getElementById('inp-dval');
+  const unitHint   = document.getElementById('discount-unit-hint');
+  const selDpc     = document.getElementById('sel-dpc');
+
+  function updateDiscountHint() {
+    if (selDtype.value === 'percent') {
+      unitHint.textContent = '(% off subtotal)';
+      inpDval.max = 100;
+    } else {
+      unitHint.textContent = '(₹ off subtotal)';
+      inpDval.removeAttribute('max');
+    }
+  }
+  selDtype.addEventListener('change', () => { updateDiscountHint(); refreshPreview(); });
+  inpDval.addEventListener('input',   () => refreshPreview());
+  selDpc.addEventListener('change',   () => refreshPreview());
+  updateDiscountHint();
+
+  // Getter for current discount params — used by picker preview
+  function getDiscountParams() {
+    return {
+      dpc:   Number(selDpc.value)   || 1,
+      dtype: selDtype.value,
+      dval:  Number(inpDval.value)  || 0,
+    };
+  }
+
+  initBasketPicker('basket-picker', existingIds, getDiscountParams);
+
+  function refreshPreview() {
+    const picker = document.getElementById('basket-picker');
+    if (picker._refreshPreview) picker._refreshPreview();
+  }
+
+  // Trigger initial preview if editing
+  if (isEdit && existingIds.length) setTimeout(refreshPreview, 50);
 
   document.getElementById('save').addEventListener('click', async () => {
-    const fd         = new FormData(document.getElementById('form'));
-    const pickerEl   = document.getElementById('basket-picker');
-    const basketIds  = pickerEl._getSelectedIds();
+    const fd        = new FormData(document.getElementById('form'));
+    const pickerEl  = document.getElementById('basket-picker');
+    const basketIds = pickerEl._getSelectedIds();
 
     const body = {
-      planName:    fd.get('planName'),
-      planId:      fd.get('planId'),
+      planName:           fd.get('planName'),
+      planId:             fd.get('planId'),
       basketIds,
-      duration:    Number(fd.get('duration')),
-      description: fd.get('description') || undefined,
+      duration:           Number(fd.get('duration')),
+      deliveriesPerCycle: Number(fd.get('deliveriesPerCycle')) || 1,
+      discountType:       fd.get('discountType'),
+      discountValue:      Number(fd.get('discountValue')) || 0,
+      description:        fd.get('description') || undefined,
     };
 
     if (!body.planName)          { showToast('Package name is required', 'error'); return; }
     if (!isEdit && !body.planId) { showToast('Plan ID is required', 'error'); return; }
     if (!basketIds.length)       { showToast('Link at least one basket', 'error'); return; }
+    if (body.discountType === 'percent' && body.discountValue > 100) {
+      showToast('Percentage discount cannot exceed 100', 'error'); return;
+    }
 
     const btn = document.getElementById('save');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
+    btn.disabled = true; btn.textContent = 'Saving…';
 
     try {
       if (isEdit) await adminApi.updatePlan(p._id, body);
@@ -407,8 +495,7 @@ function openModal(id) {
       load();
     } catch (e) {
       showToast(e.message, 'error');
-      btn.disabled = false;
-      btn.textContent = isEdit ? 'Save Changes' : 'Create Package';
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Package';
     }
   });
 }

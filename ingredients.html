@@ -89,6 +89,8 @@ const COOKING_OPTS  = ['RAW', 'Cooked', 'Both'];
 const STORAGE_OPTS  = ['Ambient', 'Refrigerated'];
 const FRIENDLY_4    = ['Low', 'Moderate', 'High', 'Excellent'];
 const YES_NO        = ['Yes', 'No'];
+const TASTE_OPTS    = ['Sweet', 'Sour', 'Salty', 'Bitter', 'Umami', 'Hot', 'Astringent'];
+const SEASONAL_OPTS = ['All Time', 'Winter', 'Summer', 'Southwest Monsoon', 'Northeast/Retreating Monsoon'];
 
 const SCORE_FIELDS = [
   { key: 'diabetes',         label: 'Diabetes Score' },
@@ -108,7 +110,6 @@ content.innerHTML = `
     <input type="text" id="f-search" placeholder="Search products…" />
     <select id="f-cat">
       <option value="">All categories</option>
-      ${CATEGORIES.map(c => `<option>${c}</option>`).join('')}
     </select>
     <div class="spacer"></div>
   </div>
@@ -155,10 +156,19 @@ async function load() {
     if (!state.search && !state.category) {
       const counts = {};
       ingredients.forEach(i => { counts[i.category] = (counts[i.category]||0)+1; });
+
+      // Update count badges
       document.getElementById('cat-counts').innerHTML =
         Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([cat,n]) =>
           `<div class="cat-count"><b>${n}</b>${escapeHtml(cat||'Uncategorised')}</div>`
         ).join('') + `<div class="cat-count"><b>${ingredients.length}</b>Total</div>`;
+
+      // Update category filter dropdown — only show categories that exist in the data
+      const existingCats = Object.keys(counts).filter(Boolean).sort();
+      const fCat = document.getElementById('f-cat');
+      const currentVal = fCat.value;
+      fCat.innerHTML = `<option value="">All categories</option>` +
+        existingCats.map(c => `<option value="${escapeHtml(c)}" ${c===currentVal?'selected':''}>${escapeHtml(c)}</option>`).join('');
     }
 
     if (!ingredients.length) {
@@ -330,9 +340,9 @@ function openModal(id) {
                       <div class="goal-picker-hint">Click goals to select — used by the recommendation engine</div>
                     </div>
                   `, true)}
-                  ${fieldDiv('Seasonal',     textField('seasonal',     ing?.seasonal,     'e.g. Summer, Year-round'))}
+                  ${fieldDiv('Seasonal',     selField('seasonal',     SEASONAL_OPTS, ing?.seasonal))}
                   ${fieldDiv('Shelf Life',   textField('shelfLife',    ing?.shelfLife,    'e.g. 3–5 days refrigerated'))}
-                  ${fieldDiv('Taste Profile',textField('tasteProfile', ing?.tasteProfile, 'e.g. Earthy, Mild, Bitter'), true)}
+                  ${fieldDiv('Taste Profile', selField('tasteProfile', TASTE_OPTS, ing?.tasteProfile))}
                 `)}
 
                 <!-- 2. SUITABILITY -->

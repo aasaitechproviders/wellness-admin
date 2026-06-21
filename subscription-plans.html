@@ -8,6 +8,30 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<style>
+  .basket-preview {
+    background: var(--green-pale);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 6px;
+    font-size: 13px;
+    display: none;
+  }
+  .basket-preview.visible { display: block; }
+  .basket-preview .bp-name { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .basket-preview .bp-price { color: var(--green); font-weight: 700; font-size: 15px; }
+  .basket-preview .bp-items { color: var(--ink-faint); font-size: 12px; margin-top: 3px; }
+  .plan-basket-tag {
+    font-size: 11px;
+    background: var(--green-pale);
+    color: var(--green);
+    border-radius: 5px;
+    padding: 2px 7px;
+    display: inline-block;
+    margin-top: 3px;
+  }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -15,18 +39,32 @@
 <script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
-  active: 'subscription-plans', title: 'Subscription Packages', sub: 'Curated bundle pricing tiers — the plan price IS the bundle price',
+  active: 'subscription-plans',
+  title: 'Subscription Packages',
+  sub: 'Frequency plans (Weekly / Bi-Weekly / Monthly) linked to a curated basket — price comes from the basket',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Package</button>`,
 });
 
-let cache = [];
+let planCache   = [];
+let basketCache = []; // all baskets pre-loaded for the dropdown
 
 content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Package</th><th>Plan ID</th><th>Duration</th><th>Price</th><th>Status</th><th></th></tr></thead>
-        <tbody id="body"><tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+        <thead>
+          <tr>
+            <th>Package</th>
+            <th>Frequency</th>
+            <th>Linked Basket</th>
+            <th>Basket Price</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="body">
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -38,21 +76,42 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
-    const { plans } = await adminApi.getPlans();
-    cache = plans;
-    document.getElementById('body').innerHTML = plans.length ? plans.map(p => `
-      <tr>
-        <td><b>${escapeHtml(p.planName)}</b>${p.description ? `<div class="muted" style="font-size:11px">${escapeHtml(p.description)}</div>` : ''}</td>
-        <td class="mono">${escapeHtml(p.planId)}</td>
-        <td>${p.duration} days</td>
-        <td class="num">${fmtMoney(p.price)}</td>
-        <td><span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${p.isActive === false ? 'Inactive' : 'Active'}</span></td>
-        <td>
-          <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
-        </td>
-      </tr>
-    `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
+    // Load plans and baskets in parallel
+    const [{ plans }, { baskets }] = await Promise.all([
+      adminApi.getPlans(),
+      adminApi.getBaskets(),
+    ]);
+    planCache   = plans;
+    basketCache = baskets;
+
+    document.getElementById('body').innerHTML = plans.length ? plans.map(p => {
+      const basket = p.basket;
+      return `
+        <tr>
+          <td>
+            <b>${escapeHtml(p.planName)}</b>
+            ${p.description ? `<div class="muted" style="font-size:11px">${escapeHtml(p.description)}</div>` : ''}
+          </td>
+          <td>${p.duration} days</td>
+          <td>
+            ${basket
+              ? `<b>${escapeHtml(basket.basketName)}</b>
+                 <div class="plan-basket-tag">${escapeHtml(basket.basketId || '')}</div>`
+              : `<span class="muted">— not linked</span>`}
+          </td>
+          <td class="num">${basket ? fmtMoney(basket.price) : '–'}</td>
+          <td>
+            <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+              ${p.isActive === false ? 'Inactive' : 'Active'}
+            </span>
+          </td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
+          </td>
+        </tr>
+      `;
+    }).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">📦</div>No subscription packages yet</div></td></tr>`;
   } catch (e) {
     document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
@@ -60,14 +119,28 @@ async function load() {
 
 async function deactivate(id) {
   if (!confirm('Deactivate this package? Customers will no longer be able to subscribe to it.')) return;
-  try { await adminApi.deletePlan(id); showToast('Package deactivated', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+  try {
+    await adminApi.deletePlan(id);
+    showToast('Package deactivated', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function buildBasketOptions(selectedBasketId) {
+  const activeBaskets = basketCache.filter(b => b.isActive !== false);
+  if (!activeBaskets.length) return `<option value="">— no active baskets —</option>`;
+  return activeBaskets.map(b =>
+    `<option value="${escapeHtml(b.basketId)}" ${b.basketId === selectedBasketId ? 'selected' : ''}>
+      ${escapeHtml(b.basketName)} — ${fmtMoney(b.price)}
+    </option>`
+  ).join('');
 }
 
 function openModal(id) {
-  const p = id ? cache.find(x => x._id === id) : null;
+  const p      = id ? planCache.find(x => x._id === id) : null;
   const isEdit = !!p;
-  const root = document.getElementById('modal-root');
+  const root   = document.getElementById('modal-root');
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
       <div class="modal">
@@ -76,11 +149,45 @@ function openModal(id) {
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
         <form id="form" class="form-grid">
-          <div class="field full"><label>Package Name *</label><input name="planName" value="${escapeHtml(p?.planName || '')}" required /></div>
-          <div class="field"><label>Plan ID *</label><input name="planId" value="${escapeHtml(p?.planId || '')}" placeholder="e.g. weekly" ${isEdit ? '' : 'required'} /></div>
-          <div class="field"><label>Duration (days)</label><input name="duration" type="number" value="${p?.duration ?? 7}" /></div>
-          <div class="field full"><label>Price (₹) — this is the full bundle price, not a separate fee *</label><input name="price" type="number" value="${p?.price ?? ''}" required /></div>
-          <div class="field full"><label>Description</label><input name="description" value="${escapeHtml(p?.description || '')}" /></div>
+
+          <div class="field full">
+            <label>Package Name *</label>
+            <input name="planName" value="${escapeHtml(p?.planName || '')}" required />
+          </div>
+
+          <div class="field">
+            <label>Plan ID *</label>
+            <input name="planId" value="${escapeHtml(p?.planId || '')}"
+              placeholder="e.g. weekly" ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
+          </div>
+
+          <div class="field">
+            <label>Frequency (days) *</label>
+            <select name="duration">
+              <option value="7"  ${(p?.duration ?? 7)  === 7  ? 'selected' : ''}>Weekly — 7 days</option>
+              <option value="15" ${p?.duration === 15 ? 'selected' : ''}>Bi-Weekly — 15 days</option>
+              <option value="30" ${p?.duration === 30 ? 'selected' : ''}>Monthly — 30 days</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label>Linked Basket * <span style="font-weight:400;color:var(--ink-faint)">(price is taken from the basket)</span></label>
+            <select name="basketId" id="basket-select" required>
+              <option value="">— choose a basket —</option>
+              ${buildBasketOptions(p?.basketId || '')}
+            </select>
+            <div class="basket-preview" id="basket-preview">
+              <div class="bp-name" id="bp-name"></div>
+              <div class="bp-price" id="bp-price"></div>
+              <div class="bp-items" id="bp-items"></div>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Description</label>
+            <input name="description" value="${escapeHtml(p?.description || '')}" placeholder="Optional note shown to customers" />
+          </div>
+
         </form>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
@@ -90,25 +197,62 @@ function openModal(id) {
     </div>
   `;
 
+  // Basket preview — show details when a basket is selected
+  const basketSelect  = document.getElementById('basket-select');
+  const preview       = document.getElementById('basket-preview');
+  const bpName        = document.getElementById('bp-name');
+  const bpPrice       = document.getElementById('bp-price');
+  const bpItems       = document.getElementById('bp-items');
+
+  function updatePreview() {
+    const bid    = basketSelect.value;
+    const basket = basketCache.find(b => b.basketId === bid);
+    if (basket) {
+      bpName.textContent  = basket.basketName;
+      bpPrice.textContent = fmtMoney(basket.price) + ' / delivery';
+      const items = (basket.ingredientNames || []);
+      bpItems.textContent = items.length
+        ? items.slice(0, 5).join(', ') + (items.length > 5 ? ` +${items.length - 5} more` : '')
+        : 'No items listed yet';
+      preview.classList.add('visible');
+    } else {
+      preview.classList.remove('visible');
+    }
+  }
+
+  basketSelect.addEventListener('change', updatePreview);
+  // Show preview immediately if editing an existing plan
+  if (p?.basketId) updatePreview();
+
   document.getElementById('save').addEventListener('click', async () => {
     const fd = new FormData(document.getElementById('form'));
     const body = {
-      planName: fd.get('planName'),
-      planId: fd.get('planId'),
-      duration: fd.get('duration') ? Number(fd.get('duration')) : 7,
-      price: fd.get('price') ? Number(fd.get('price')) : undefined,
+      planName:    fd.get('planName'),
+      planId:      fd.get('planId'),
+      basketId:    fd.get('basketId'),
+      duration:    Number(fd.get('duration')),
       description: fd.get('description') || undefined,
     };
-    if (!body.planName) { showToast('Package name is required', 'error'); return; }
+
+    if (!body.planName)  { showToast('Package name is required', 'error'); return; }
     if (!isEdit && !body.planId) { showToast('Plan ID is required', 'error'); return; }
-    if (body.price === undefined) { showToast('Price is required', 'error'); return; }
+    if (!body.basketId)  { showToast('Please select a basket', 'error'); return; }
+
+    const btn = document.getElementById('save');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
     try {
       if (isEdit) await adminApi.updatePlan(p._id, body);
-      else await adminApi.createPlan(body);
+      else        await adminApi.createPlan(body);
       showToast('Package saved', 'success');
       document.getElementById('modal-root').innerHTML = '';
       load();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Create Package';
+    }
   });
 }
 

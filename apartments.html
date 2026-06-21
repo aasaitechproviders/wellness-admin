@@ -36,6 +36,12 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
+async function hardDelete(id, name) {
+  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
+  try { await adminApi.hardDeleteApartment(id); showToast('Apartment permanently deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
 async function load() {
   document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
@@ -51,6 +57,7 @@ async function load() {
         <td>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${a._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${a._id}')">Deactivate</button>
+          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${a._id}', '${escapeHtml(a.apartmentName)}')">Delete</button>
         </td>
       </tr>
     `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;

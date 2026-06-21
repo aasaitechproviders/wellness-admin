@@ -196,7 +196,7 @@ async function load() {
       return;
     }
     document.getElementById('grid').innerHTML = ingredients.map(ing => {
-      const top = SCORE_FIELDS.filter(f=>((ing.wellnessScores?.[f.key] ?? ing?.[f.flatKey] ?? 0))>=70).slice(0,2);
+      const top = SCORE_FIELDS.filter(f=>((ing.wellnessScores?.[f.key] ?? ing?.[f.flatKey] ?? 0))>0).sort((a,b)=>((ing.wellnessScores?.[b.key]??ing?.[b.flatKey]??0)-(ing.wellnessScores?.[a.key]??ing?.[a.flatKey]??0))).slice(0,3);
       return `
         <div class="product-card">
           <div class="product-thumb">

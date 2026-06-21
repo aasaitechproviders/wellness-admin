@@ -35,25 +35,7 @@
   .form-section-body { padding:14px 14px 6px; }
   .form-section-body .form-grid { margin:0; }
 
-  /* ── Combo-select (select + add-new) ───────────── */
-  .combo-wrap { display:flex; flex-direction:column; gap:5px; }
-  .combo-new-row { display:flex; gap:6px; align-items:center; }
-  .combo-new-input {
-    flex:1; padding:8px 10px;
-    border:1.5px solid var(--green); border-radius:8px;
-    font-family:var(--font-body); font-size:13px; color:var(--ink); outline:none;
-  }
-  .combo-new-input:focus { box-shadow:0 0 0 3px rgba(45,106,53,.1); }
-  .combo-cancel-btn {
-    padding:6px 10px; border:none; background:var(--surface);
-    border-radius:7px; cursor:pointer; font-size:12px; color:var(--ink-faint);
-  }
-  .combo-cancel-btn:hover { color:var(--red); }
-  .combo-badge {
-    font-size:11px; background:var(--green-pale); color:var(--green);
-    border-radius:5px; padding:2px 8px; display:inline-flex; align-items:center; gap:5px;
-  }
-  .combo-badge button { border:none; background:none; cursor:pointer; color:var(--green); font-size:13px; padding:0; line-height:1; }
+  /* fixed dropdowns only — no combo widget */
 
   /* ── Image ─────────────────────────────────────── */
   .img-drop { border:1.5px dashed var(--border); border-radius:10px; padding:18px 14px; text-align:center; cursor:pointer; background:var(--cream-deep); transition:border-color .15s; }
@@ -64,6 +46,19 @@
   .cat-counts { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
   .cat-count { background:var(--white); border:1px solid var(--border); border-radius:10px; padding:8px 14px; font-size:12.5px; }
   .cat-count b { display:block; font-size:20px; font-weight:700; color:var(--green); }
+
+  /* ── Best-For goal picker ───────────────────────── */
+  .goal-picker { display:flex; flex-wrap:wrap; gap:7px; padding:6px 0 2px; }
+  .goal-option {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 12px; border-radius:20px; cursor:pointer; font-size:12.5px; font-weight:500;
+    border:1.5px solid var(--border); background:var(--white); color:var(--ink-faint);
+    transition:all .12s; user-select:none;
+  }
+  .goal-option:hover { border-color:var(--green); color:var(--green); background:var(--green-pale); }
+  .goal-option.selected { border-color:var(--green); background:var(--green); color:#fff; }
+  .goal-option .goal-icon { font-size:14px; }
+  .goal-picker-hint { font-size:11.5px; color:var(--ink-faint); margin-top:4px; }
 </style>
 </head>
 <body>
@@ -79,19 +74,21 @@ const content = renderShell({
 });
 
 let state = { search: '', category: '', page: 1, limit: 200 };
-let cache = [];
+let cache      = [];
+let goalsCache = []; // loaded once from /admin/goals
 
 // ── Option lists ─────────────────────────────────────────────────────────────
 // These are the DEFAULTS. Admin can add new values from within the modal —
 // new values are stored per-session in these arrays and remembered across
 // opens within the same page load.
-let CATEGORIES    = ['Vegetables', 'Leafy Vegetables', 'Fruits', 'Microgreens', 'Herbs & Spices', 'Others'];
-let SERVING_UNITS = ['g', 'Kg', 'mg', 'ml', 'Liter'];
-let SUITABILITY_4 = ['Not Suitable', 'Low', 'Medium', 'Excellent'];
-let COOKING_OPTS  = ['Raw', 'Cooked', 'Both'];
-let STORAGE_OPTS  = ['Ambient', 'Refrigerated'];
-let FRIENDLY_4    = ['Low', 'Moderate', 'High', 'Excellent'];
-let YES_NO        = ['Yes', 'No'];
+// Fixed dropdown options — values exactly as per spec
+const CATEGORIES    = ['Veg', 'Fruits', 'MG', 'Leafy Vegetables', 'Herbs & Spices', 'Others'];
+const SERVING_UNITS = ['g', 'Kg', 'mg', 'ml', 'Liter'];
+const SUITABILITY_4 = ['Not Suitable', 'Low', 'Medium', 'Excellent'];
+const COOKING_OPTS  = ['RAW', 'Cooked', 'Both'];
+const STORAGE_OPTS  = ['Ambient', 'Refrigerated'];
+const FRIENDLY_4    = ['Low', 'Moderate', 'High', 'Excellent'];
+const YES_NO        = ['Yes', 'No'];
 
 const SCORE_FIELDS = [
   { key: 'diabetes',         label: 'Diabetes Score' },
@@ -139,6 +136,14 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 async function load() {
   document.getElementById('grid').innerHTML = `<div class="loading-row" style="grid-column:1/-1"><div class="spinner"></div></div>`;
   try {
+    // Load goals once so the bestFor picker has live options
+    if (!goalsCache.length) {
+      try {
+        const { goals } = await adminApi.getGoals();
+        goalsCache = goals.filter(g => g.isActive !== false);
+      } catch(e) { /* non-fatal — picker falls back to empty */ }
+    }
+
     const { ingredients } = await adminApi.getIngredients(state);
     cache = ingredients;
 
@@ -190,154 +195,18 @@ async function deactivate(id) {
   catch(e) { showToast(e.message,'error'); }
 }
 
-// ── Combo-select widget ───────────────────────────────────────────────────────
-//
-// Each combo renders:
-//   <div class="combo-wrap" data-combo="fieldName" data-list="CATEGORIES">
-//     <select>…options… <option value="__new__">＋ Add new…</option></select>
-//     [hidden new-value row]
-//   </div>
-//
-// getValue(fieldName) reads the final resolved value.
-// After the modal innerHTML is set, call initCombos() to wire up all combos.
-
-// Registry of current values — keyed by fieldName
-const comboValues = {};
-
-function comboHTML(fieldName, optList, currentVal, placeholder) {
-  // If current value is set but not in the list, add it (e.g. loaded from DB)
-  if (currentVal && !optList.includes(currentVal)) optList.push(currentVal);
-
-  const placeholderOpt = placeholder ? `<option value="">${escapeHtml(placeholder)}</option>` : '';
-  const opts = optList.map(o =>
-    `<option value="${escapeHtml(o)}" ${o===currentVal?'selected':''}>${escapeHtml(o)}</option>`
-  ).join('');
-
-  return `
-    <div class="combo-wrap" data-combo="${fieldName}" data-list-ref="${fieldName}">
-      <select class="combo-select">
-        ${placeholderOpt}
-        ${opts}
-        <option value="__new__">＋ Add new value…</option>
-      </select>
-      <!-- new-value row, hidden by default -->
-      <div class="combo-new-row" style="display:none">
-        <input class="combo-new-input" type="text" placeholder="Type new value and press Enter…" />
-        <button type="button" class="combo-cancel-btn" title="Cancel">✕</button>
-      </div>
-      <!-- badge shows confirmed custom value -->
-      <div class="combo-badge-wrap" style="display:none">
-        <span class="combo-badge">
-          <span class="combo-badge-text"></span>
-          <button type="button" title="Clear">✕</button>
-        </span>
-      </div>
-    </div>`;
+// Fixed dropdowns — no combo widget needed
+// Simple select helper used for all fixed-option fields
+function selField(name, opts, currentVal) {
+  const options = [`<option value="">— select —</option>`]
+    .concat(opts.map(o => `<option value="${escapeHtml(o)}" ${o===currentVal?'selected':''}>${escapeHtml(o)}</option>`))
+    .join('');
+  return `<select name="${name}">${options}</select>`;
 }
 
-// Map fieldName → which mutable array it should push new values into
-const LIST_MAP = {
-  category:            () => CATEGORIES,
-  servingUnit:         () => SERVING_UNITS,
-  juiceSuitability:    () => SUITABILITY_4,
-  saladSuitability:    () => SUITABILITY_4,
-  cookingSuitability:  () => COOKING_OPTS,
-  storageType:         () => STORAGE_OPTS,
-  kidFriendly:         () => FRIENDLY_4,
-  seniorFriendly:      () => FRIENDLY_4,
-  diabeticFriendly:    () => FRIENDLY_4,
-  microgreenCompatible:() => YES_NO,
-};
-
-function initCombos(container) {
-  container.querySelectorAll('[data-combo]').forEach(wrap => {
-    const fieldName  = wrap.dataset.combo;
-    const selectEl   = wrap.querySelector('.combo-select');
-    const newRow     = wrap.querySelector('.combo-new-row');
-    const newInput   = wrap.querySelector('.combo-new-input');
-    const cancelBtn  = wrap.querySelector('.combo-cancel-btn');
-    const badgeWrap  = wrap.querySelector('.combo-badge-wrap');
-    const badgeText  = wrap.querySelector('.combo-badge-text');
-    const badgeClear = wrap.querySelector('.combo-badge button');
-
-    // Initialise stored value from current select
-    comboValues[fieldName] = selectEl.value === '__new__' ? '' : selectEl.value;
-
-    function showNewRow() {
-      selectEl.style.display = 'none';
-      newRow.style.display   = 'flex';
-      newInput.value         = '';
-      newInput.focus();
-    }
-
-    function confirmNew(val) {
-      val = val.trim();
-      if (!val) { cancelNew(); return; }
-
-      // Add to the shared list so other combos of the same type see it too
-      const arr = LIST_MAP[fieldName] ? LIST_MAP[fieldName]() : null;
-      if (arr && !arr.includes(val)) arr.push(val);
-
-      // Also add as <option> to this select so if admin cancels the badge they can re-pick it
-      const existing = [...selectEl.options].find(o => o.value === val);
-      if (!existing) {
-        const opt = document.createElement('option');
-        opt.value = val; opt.text = val;
-        selectEl.insertBefore(opt, selectEl.querySelector('option[value="__new__"]'));
-      }
-      selectEl.value = val;
-
-      // Show badge, hide new row
-      newRow.style.display      = 'none';
-      badgeText.textContent     = val;
-      badgeWrap.style.display   = 'block';
-      selectEl.style.display    = 'none'; // keep hidden while badge shown
-      comboValues[fieldName]    = val;
-    }
-
-    function cancelNew() {
-      newRow.style.display   = 'none';
-      selectEl.style.display = 'block';
-      // Revert select to whatever was chosen before
-      if (comboValues[fieldName] && comboValues[fieldName] !== '__new__') {
-        selectEl.value = comboValues[fieldName];
-      } else {
-        selectEl.value = '';
-      }
-    }
-
-    function clearBadge() {
-      badgeWrap.style.display = 'none';
-      selectEl.style.display  = 'block';
-      selectEl.value          = '';
-      comboValues[fieldName]  = '';
-    }
-
-    selectEl.addEventListener('change', () => {
-      if (selectEl.value === '__new__') { showNewRow(); return; }
-      comboValues[fieldName] = selectEl.value;
-    });
-
-    newInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') { e.preventDefault(); confirmNew(newInput.value); }
-      if (e.key === 'Escape') cancelNew();
-    });
-
-    cancelBtn.addEventListener('click', cancelNew);
-    badgeClear.addEventListener('click', clearBadge);
-
-    // If the current value is custom (set from a previous "Add new"), show badge immediately
-    const currentVal = comboValues[fieldName];
-    if (currentVal && currentVal !== '' && currentVal !== '__new__') {
-      // Check if it was a pre-existing value — if so just leave select showing
-      // (badge is only for newly typed values; pre-existing ones show in the <select>)
-    }
-  });
-}
-
-// Read the final value from a combo field
-function getCombo(fieldName) {
-  return comboValues[fieldName] || null;
+// Read a named <select> value from the form
+function getSelect(fd, name) {
+  return fd.get(name) || null;
 }
 
 // ── Field helpers ─────────────────────────────────────────────────────────────
@@ -382,6 +251,49 @@ function renderImageSection(ing) {
     </label>`;
 }
 
+// ── Best-For Goal Picker ──────────────────────────────────────────────────────
+// Renders toggle chips for each active wellness goal.
+// bestForCurrent = comma-separated string or array from DB.
+function initGoalPicker(containerId, bestForCurrent) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // Normalise to array
+  let selected = [];
+  if (Array.isArray(bestForCurrent)) selected = [...bestForCurrent];
+  else if (typeof bestForCurrent === 'string' && bestForCurrent.trim())
+    selected = bestForCurrent.split(',').map(s => s.trim()).filter(Boolean);
+
+  const GOAL_ICONS = {
+    'Immunity':'🛡️','Iron Support':'🩸','Protein Support':'💪',
+    'Weight Management':'⚖️','Kids Nutrition':'👶','Senior Wellness':'🧓',
+    'Heart Health':'❤️','Gut Health':'🫁','Diabetes':'🩺',
+    'Detox':'🌿','Anti-Inflammatory':'🔥','default':'✅',
+  };
+
+  function render() {
+    if (!goalsCache.length) {
+      container.innerHTML = `<span class="goal-picker-hint" style="color:var(--ink-faint)">No wellness goals found — add them in Wellness Goals first</span>`;
+      return;
+    }
+    container.innerHTML = goalsCache.map(g => {
+      const icon = GOAL_ICONS[g.goalName] || GOAL_ICONS.default;
+      return `<span class="goal-option ${selected.includes(g.goalName) ? 'selected' : ''}" data-goal="${escapeHtml(g.goalName)}">
+        <span class="goal-icon">${icon}</span>${escapeHtml(g.goalName)}
+      </span>`;
+    }).join('');
+    container.querySelectorAll('.goal-option').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const goal = chip.dataset.goal;
+        if (selected.includes(goal)) { selected = selected.filter(s => s !== goal); chip.classList.remove('selected'); }
+        else { selected.push(goal); chip.classList.add('selected'); }
+      });
+    });
+  }
+  render();
+  container._getSelected = () => selected;
+}
+
 // ── Modal ──────────────────────────────────────────────────────────────────────
 function openModal(id) {
   const ing    = id ? cache.find(x => x._id === id) : null;
@@ -410,9 +322,14 @@ function openModal(id) {
                 <!-- 1. BASIC INFO -->
                 ${sectionWrap('🌿','Basic Information',`
                   ${fieldDiv('Ingredient Name *', textField('name', ing?.name, 'e.g. Spinach'), true)}
-                  ${fieldDiv('Category',    comboHTML('category',    [...CATEGORIES],    ing?.category,    '— select or add new —'))}
-                  ${fieldDiv('Serving Unit', comboHTML('servingUnit', [...SERVING_UNITS], ing?.servingUnit, '— select or add new —'))}
-                  ${fieldDiv('Best For (wellness tags)', textField('bestFor', ing?.bestFor, 'e.g. Iron, Immunity, Digestion'), true)}
+                  ${fieldDiv('Category',    selField('category',    CATEGORIES,    ing?.category))}
+                  ${fieldDiv('Serving Unit', selField('servingUnit', SERVING_UNITS, ing?.servingUnit))}
+                  ${fieldDiv('Best For (wellness goals)', `
+                    <div id="goal-picker-wrap">
+                      <div class="goal-picker" id="goal-picker"></div>
+                      <div class="goal-picker-hint">Click goals to select — used by the recommendation engine</div>
+                    </div>
+                  `, true)}
                   ${fieldDiv('Seasonal',     textField('seasonal',     ing?.seasonal,     'e.g. Summer, Year-round'))}
                   ${fieldDiv('Shelf Life',   textField('shelfLife',    ing?.shelfLife,    'e.g. 3–5 days refrigerated'))}
                   ${fieldDiv('Taste Profile',textField('tasteProfile', ing?.tasteProfile, 'e.g. Earthy, Mild, Bitter'), true)}
@@ -420,14 +337,14 @@ function openModal(id) {
 
                 <!-- 2. SUITABILITY -->
                 ${sectionWrap('✅','Suitability',`
-                  ${fieldDiv('Juice Suitability',     comboHTML('juiceSuitability',     [...SUITABILITY_4], su.juiceSuitability,     '— select or add new —'))}
-                  ${fieldDiv('Salad Suitability',     comboHTML('saladSuitability',     [...SUITABILITY_4], su.saladSuitability,     '— select or add new —'))}
-                  ${fieldDiv('Cooking Suitability',   comboHTML('cookingSuitability',   [...COOKING_OPTS],  su.cookingSuitability,   '— select or add new —'))}
-                  ${fieldDiv('Storage Type',          comboHTML('storageType',          [...STORAGE_OPTS],  su.storageType,          '— select or add new —'))}
-                  ${fieldDiv('Kid Friendly',          comboHTML('kidFriendly',          [...FRIENDLY_4],    su.kidFriendly,          '— select or add new —'))}
-                  ${fieldDiv('Senior Friendly',       comboHTML('seniorFriendly',       [...FRIENDLY_4],    su.seniorFriendly,       '— select or add new —'))}
-                  ${fieldDiv('Diabetic Friendly',     comboHTML('diabeticFriendly',     [...FRIENDLY_4],    su.diabeticFriendly,     '— select or add new —'))}
-                  ${fieldDiv('Microgreen Compatible', comboHTML('microgreenCompatible', [...YES_NO],        su.microgreenCompatible, '— select or add new —'))}
+                  ${fieldDiv('Juice Suitability',     selField('juiceSuitability',     SUITABILITY_4, su.juiceSuitability))}
+                  ${fieldDiv('Salad Suitability',     selField('saladSuitability',     SUITABILITY_4, su.saladSuitability))}
+                  ${fieldDiv('Cooking Suitability',   selField('cookingSuitability',   COOKING_OPTS,  su.cookingSuitability))}
+                  ${fieldDiv('Storage Type',          selField('storageType',          STORAGE_OPTS,  su.storageType))}
+                  ${fieldDiv('Kid Friendly',          selField('kidFriendly',          FRIENDLY_4,    su.kidFriendly))}
+                  ${fieldDiv('Senior Friendly',       selField('seniorFriendly',       FRIENDLY_4,    su.seniorFriendly))}
+                  ${fieldDiv('Diabetic Friendly',     selField('diabeticFriendly',     FRIENDLY_4,    su.diabeticFriendly))}
+                  ${fieldDiv('Microgreen Compatible', selField('microgreenCompatible', YES_NO,        su.microgreenCompatible))}
                 `)}
 
                 <!-- 3. NUTRITION -->
@@ -481,8 +398,8 @@ function openModal(id) {
       </div>
     </div>`;
 
-  // Wire up all combo widgets now that HTML is in the DOM
-  initCombos(root);
+  // Wire up the Best-For goal picker
+  initGoalPicker('goal-picker', ing?.bestFor || []);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   document.getElementById('ing-save').addEventListener('click', async () => {
@@ -492,22 +409,26 @@ function openModal(id) {
 
     const body = {
       name:         fd.get('name'),
-      category:     getCombo('category'),
-      servingUnit:  getCombo('servingUnit'),
-      bestFor:      str('bestFor'),
+      category:     getSelect(fd, 'category'),
+      servingUnit:  getSelect(fd, 'servingUnit'),
+      bestFor: (() => {
+        const picker = document.getElementById('goal-picker');
+        const vals = picker?._getSelected ? picker._getSelected() : [];
+        return vals.length ? vals.join(',') : null;
+      })(),
       seasonal:     str('seasonal'),
       shelfLife:    str('shelfLife'),
       tasteProfile: str('tasteProfile'),
 
       suitability: {
-        juiceSuitability:     getCombo('juiceSuitability'),
-        saladSuitability:     getCombo('saladSuitability'),
-        cookingSuitability:   getCombo('cookingSuitability'),
-        storageType:          getCombo('storageType'),
-        kidFriendly:          getCombo('kidFriendly'),
-        seniorFriendly:       getCombo('seniorFriendly'),
-        diabeticFriendly:     getCombo('diabeticFriendly'),
-        microgreenCompatible: getCombo('microgreenCompatible'),
+        juiceSuitability:     getSelect(fd, 'juiceSuitability'),
+        saladSuitability:     getSelect(fd, 'saladSuitability'),
+        cookingSuitability:   getSelect(fd, 'cookingSuitability'),
+        storageType:          getSelect(fd, 'storageType'),
+        kidFriendly:          getSelect(fd, 'kidFriendly'),
+        seniorFriendly:       getSelect(fd, 'seniorFriendly'),
+        diabeticFriendly:     getSelect(fd, 'diabeticFriendly'),
+        microgreenCompatible: getSelect(fd, 'microgreenCompatible'),
       },
 
       nutrition: {

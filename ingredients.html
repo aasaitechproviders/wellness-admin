@@ -82,26 +82,46 @@ let goalsCache = []; // loaded once from /admin/goals
 // new values are stored per-session in these arrays and remembered across
 // opens within the same page load.
 // Fixed dropdown options — values exactly as per spec
-const CATEGORIES    = ['Vegetables', 'Fruits', 'MG', 'Leafy Vegetables', 'Herbs & Spices', 'Others'];
+const CATEGORIES    = ['Vegetable', 'Veg', 'Fruits', 'MG', 'Leafy Vegetables', 'Herbs & Spices', 'Others'];
 const SERVING_UNITS = ['g', 'Kg', 'mg', 'ml', 'Liter'];
-const SUITABILITY_4 = ['Not Suitable', 'Low', 'Medium', 'Excellent'];
-const COOKING_OPTS  = ['RAW', 'Cooked', 'Both'];
-const STORAGE_OPTS  = ['Ambient', 'Refrigerated'];
-const FRIENDLY_4    = ['Low', 'Moderate', 'High', 'Excellent'];
+// Suitability — expanded to include actual DB values from Excel import
+const SUITABILITY_4 = ['Not Suitable', 'Low', 'Moderate', 'Good', 'Medium', 'Excellent', 'Yes'];
+const COOKING_OPTS  = ['RAW', 'Raw', 'Cooked', 'Both', 'Raw/Both'];
+const STORAGE_OPTS  = ['Ambient', 'Ambient/Cool', 'Cool/Ambient', 'Refrigerated', 'Cool/Refrigerated'];
+const FRIENDLY_4    = ['Low', 'Moderate', 'High', 'Excellent', 'Good', 'Poor', 'Yes'];
 const YES_NO        = ['Yes', 'No'];
-const TASTE_OPTS    = ['Sweet', 'Sour', 'Salty', 'Bitter', 'Umami', 'Hot', 'Astringent'];
-const SEASONAL_OPTS = ['All Time', 'Winter', 'Summer', 'Southwest Monsoon', 'Northeast/Retreating Monsoon'];
-
-const SCORE_FIELDS = [
-  { key: 'diabetes',         label: 'Diabetes Score' },
-  { key: 'weightLoss',       label: 'Weight Loss Score' },
-  { key: 'immunity',         label: 'Immunity Score' },
-  { key: 'detox',            label: 'Detox Score' },
-  { key: 'satiety',          label: 'Satiety Score' },
-  { key: 'antiInflammatory', label: 'Anti-Inflam. Score' },
+// Taste — free compound values from DB kept as-is; dropdown shows all real values
+const TASTE_OPTS    = [
+  'Sweet','Sour','Salty','Bitter','Umami','Hot','Astringent',
+  'Mild/Cooling','Mild/Neutral','Mild/Fresh','Mild/Light','Mild/Sweet','Mild/Crisp',
+  'Mild/Nutty','Mild/Earthy','Mild/Fibrous','Mild/Starchy','Mild/Bitter','Mild/Leafy',
+  'Mild/Soft','Mild/Watery','Fresh/Cooling','Fresh/Earthy','Fresh/Citrusy',
+  'Sharp/Fresh','Earthy/Sweet','Earthy/Fibrous','Earthy/Starchy','Earthy/Nutty',
+  'Earthy/Fresh','Earthy/Strong','Earthy/Starchy','Crunchy/Earthy','Peppery/Bitter',
+  'Tangy/Fresh','Tangy/Sour','Spicy/Sharp','Sweet/Earthy','Sweet/Fresh','Sweet/Mild',
+  'Sweet/Tangy','Sweet/Aromatic','Sweet/Creamy','Sweet/Juicy','Sweet/Tart',
+  'Sweet/Caramel','Very Sweet','Sweet/Honeyed','Sweet/Chewy','Sweet/Tropical',
+  'Sweet/Floral','Sweet/Malty','Sweet/Sour','Sweet/Soft','Sweet/Traditional',
+  'Sweet/Citrus','Sour/Astringent','Sour/Citrus','Sour/Fresh','Sour/Tangy',
+  'Sweet/Astringent','Bitter/Earthy','Bitter/Citrus','Bitter/Sweet','Slightly Bitter',
+  'Aromatic/Bitter','Creamy/Mild','Creamy/Neutral'
+];
+// Seasonal — matches real DB values
+const SEASONAL_OPTS = [
+  'Year-round','All Time','Summer','Winter','Monsoon','Summer/Monsoon',
+  'Autumn','Autumn/Winter','Southwest Monsoon','Northeast/Retreating Monsoon'
 ];
 
-const EMJ = { Vegetables:'🥦','Leafy Vegetables':'🥬',Fruits:'🍎',Microgreens:'🌱','Herbs & Spices':'🌿',default:'🥗' };
+const SCORE_FIELDS = [
+  { key: 'diabetes',         label: 'Diabetes Score',       flatKey: 'Diabetes_Score'          },
+  { key: 'weightLoss',       label: 'Weight Loss Score',    flatKey: 'Weightloss_Score'        },
+  { key: 'immunity',         label: 'Immunity Score',       flatKey: 'Immunity_Score'          },
+  { key: 'detox',            label: 'Detox Score',          flatKey: 'Detox_Score'             },
+  { key: 'satiety',          label: 'Satiety Score',        flatKey: 'Satiety_Score'           },
+  { key: 'antiInflammatory', label: 'Anti-Inflam. Score',   flatKey: 'AntiInflammatory_Score'  },
+];
+
+const EMJ = { Vegetable:'🥦',Vegetables:'🥦',Veg:'🥦','Leafy Vegetables':'🥬',Fruits:'🍎',MG:'🌱',Microgreens:'🌱','Herbs & Spices':'🌿',default:'🥗' };
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 content.innerHTML = `
@@ -176,7 +196,7 @@ async function load() {
       return;
     }
     document.getElementById('grid').innerHTML = ingredients.map(ing => {
-      const top = SCORE_FIELDS.filter(f=>(ing.wellnessScores?.[f.key]||0)>=70).slice(0,2);
+      const top = SCORE_FIELDS.filter(f=>((ing.wellnessScores?.[f.key] ?? ing?.[f.flatKey] ?? 0))>=70).slice(0,2);
       return `
         <div class="product-card">
           <div class="product-thumb">
@@ -185,7 +205,7 @@ async function load() {
           </div>
           <div class="product-body">
             <div class="pname">${escapeHtml(ing.name)}</div>
-            <div class="pmeta">${escapeHtml(ing.category||'–')}${ing.glycemic?.gi?` · GI ${ing.glycemic.gi}`:''}${ing.nutrition?.calories?` · ${ing.nutrition.calories} kcal`:''}</div>
+            <div class="pmeta">${escapeHtml(ing.category||'–')}${(ing.glycemic?.gi||ing?.GI)?` · GI ${ing.glycemic?.gi||ing?.GI}`:''}${(ing.nutrition?.calories||ing?.['Calories_100g (Kcal)'])?` · ${ing.nutrition?.calories||ing?.['Calories_100g (Kcal)']} kcal`:''}</div>
             <div class="wellness-mini">${top.map(f=>`<span>${f.label}</span>`).join('')}</div>
             <div class="pactions">
               <button class="btn btn-outline btn-sm" style="flex:1" onclick="openModal('${ing._id}')">Edit</button>
@@ -309,10 +329,15 @@ function openModal(id) {
   const ing    = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!ing;
 
+  // Read nested (new saves) with flat fallback (Excel-imported legacy data)
   const n  = ing?.nutrition      || {};
   const g  = ing?.glycemic       || {};
   const ws = ing?.wellnessScores || {};
   const su = ing?.suitability    || {};
+
+  // Flat field helpers — reads nested first, falls back to flat Excel-imported field
+  const nv = (nestedVal, flatKey) => nestedVal ?? ing?.[flatKey] ?? null;
+  const sv = (nestedVal, flatKey) => nestedVal || ing?.[flatKey] || null;
 
   const root = document.getElementById('modal-root');
   root.innerHTML = `
@@ -333,55 +358,55 @@ function openModal(id) {
                 ${sectionWrap('🌿','Basic Information',`
                   ${fieldDiv('Ingredient Name *', textField('name', ing?.name, 'e.g. Spinach'), true)}
                   ${fieldDiv('Category',    selField('category',    CATEGORIES,    ing?.category))}
-                  ${fieldDiv('Serving Unit', selField('servingUnit', SERVING_UNITS, ing?.servingUnit))}
+                  ${fieldDiv('Serving Unit', selField('servingUnit', SERVING_UNITS, sv(ing?.servingUnit, 'Serving_Unit')))}
                   ${fieldDiv('Best For (wellness goals)', `
                     <div id="goal-picker-wrap">
                       <div class="goal-picker" id="goal-picker"></div>
                       <div class="goal-picker-hint">Click goals to select — used by the recommendation engine</div>
                     </div>
                   `, true)}
-                  ${fieldDiv('Seasonal',     selField('seasonal',     SEASONAL_OPTS, ing?.seasonal))}
-                  ${fieldDiv('Shelf Life',   textField('shelfLife',    ing?.shelfLife,    'e.g. 3–5 days refrigerated'))}
-                  ${fieldDiv('Taste Profile', selField('tasteProfile', TASTE_OPTS, ing?.tasteProfile))}
+                  ${fieldDiv('Seasonal',     selField('seasonal',     SEASONAL_OPTS, sv(ing?.seasonal, 'Seasonal')))}
+                  ${fieldDiv('Shelf Life',   textField('shelfLife',    sv(ing?.shelfLife, 'Shelf_Life'),    'e.g. 3–5 days refrigerated'))}
+                  ${fieldDiv('Taste Profile', selField('tasteProfile', TASTE_OPTS, sv(ing?.tasteProfile, 'Taste_Profile')))}
                 `)}
 
                 <!-- 2. SUITABILITY -->
                 ${sectionWrap('✅','Suitability',`
-                  ${fieldDiv('Juice Suitability',     selField('juiceSuitability',     SUITABILITY_4, su.juiceSuitability))}
-                  ${fieldDiv('Salad Suitability',     selField('saladSuitability',     SUITABILITY_4, su.saladSuitability))}
-                  ${fieldDiv('Cooking Suitability',   selField('cookingSuitability',   COOKING_OPTS,  su.cookingSuitability))}
-                  ${fieldDiv('Storage Type',          selField('storageType',          STORAGE_OPTS,  su.storageType))}
-                  ${fieldDiv('Kid Friendly',          selField('kidFriendly',          FRIENDLY_4,    su.kidFriendly))}
-                  ${fieldDiv('Senior Friendly',       selField('seniorFriendly',       FRIENDLY_4,    su.seniorFriendly))}
-                  ${fieldDiv('Diabetic Friendly',     selField('diabeticFriendly',     FRIENDLY_4,    su.diabeticFriendly))}
-                  ${fieldDiv('Microgreen Compatible', selField('microgreenCompatible', YES_NO,        su.microgreenCompatible))}
+                  ${fieldDiv('Juice Suitability',     selField('juiceSuitability',     SUITABILITY_4, sv(su.juiceSuitability,     'Juice_Suitability')))}
+                  ${fieldDiv('Salad Suitability',     selField('saladSuitability',     SUITABILITY_4, sv(su.saladSuitability,     'Salad_Suitability')))}
+                  ${fieldDiv('Cooking Suitability',   selField('cookingSuitability',   COOKING_OPTS,  sv(su.cookingSuitability,   'Cooking_Suitability')))}
+                  ${fieldDiv('Storage Type',          selField('storageType',          STORAGE_OPTS,  sv(su.storageType,          'Storage_Type')))}
+                  ${fieldDiv('Kid Friendly',          selField('kidFriendly',          FRIENDLY_4,    sv(su.kidFriendly,          'Kid_Friendly')))}
+                  ${fieldDiv('Senior Friendly',       selField('seniorFriendly',       FRIENDLY_4,    sv(su.seniorFriendly,       'Senior_Friendly')))}
+                  ${fieldDiv('Diabetic Friendly',     selField('diabeticFriendly',     FRIENDLY_4,    sv(su.diabeticFriendly,     'Diabetic_Friendly')))}
+                  ${fieldDiv('Microgreen Compatible', selField('microgreenCompatible', YES_NO,        sv(su.microgreenCompatible, 'Microgreen_Compatible')))}
                 `)}
 
                 <!-- 3. NUTRITION -->
                 ${sectionWrap('🧬','Nutrition (per 100g)',`
-                  ${fieldDiv('Calories (kcal)', numField('calories',  n.calories))}
-                  ${fieldDiv('Carbs (g)',        numField('carbs',     n.carbs))}
-                  ${fieldDiv('Fiber (g)',         numField('fiber',     n.fiber))}
-                  ${fieldDiv('Protein (g)',       numField('protein',   n.protein))}
-                  ${fieldDiv('Fat (g)',           numField('fat',       n.fat))}
-                  ${fieldDiv('Sugar (g)',         numField('sugar',     n.sugar))}
-                  ${fieldDiv('Iron (mg)',         numField('iron',      n.iron))}
-                  ${fieldDiv('Calcium (mg)',      numField('calcium',   n.calcium))}
-                  ${fieldDiv('Magnesium (mg)',    numField('magnesium', n.magnesium))}
-                  ${fieldDiv('Potassium (mg)',    numField('potassium', n.potassium))}
-                  ${fieldDiv('Vitamin C (mg)',    numField('vitaminC',  n.vitaminC))}
+                  ${fieldDiv('Calories (kcal)', numField('calories',  nv(n.calories,  'Calories_100g (Kcal)')))}
+                  ${fieldDiv('Carbs (g)',        numField('carbs',     nv(n.carbs,     'Carbs_100g')))}
+                  ${fieldDiv('Fiber (g)',         numField('fiber',     nv(n.fiber,     'Fiber_100g')))}
+                  ${fieldDiv('Protein (g)',       numField('protein',   nv(n.protein,   'Protein_100g')))}
+                  ${fieldDiv('Fat (g)',           numField('fat',       nv(n.fat,       'Fat_100g')))}
+                  ${fieldDiv('Sugar (g)',         numField('sugar',     nv(n.sugar,     'Sugar_100g')))}
+                  ${fieldDiv('Iron (mg)',         numField('iron',      nv(n.iron,      'Iron_mg')))}
+                  ${fieldDiv('Calcium (mg)',      numField('calcium',   nv(n.calcium,   'Calcium_mg')))}
+                  ${fieldDiv('Magnesium (mg)',    numField('magnesium', nv(n.magnesium, 'Magnesium_mg')))}
+                  ${fieldDiv('Potassium (mg)',    numField('potassium', nv(n.potassium, 'Potassium_mg')))}
+                  ${fieldDiv('Vitamin C (mg)',    numField('vitaminC',  nv(n.vitaminC,  'VitaminC_mg')))}
                 `)}
 
                 <!-- 4. GLYCEMIC -->
                 ${sectionWrap('📊','Glycemic',`
-                  ${fieldDiv('Glycemic Index (GI)', numField('gi', g.gi))}
-                  ${fieldDiv('Glycemic Load (GL)',  numField('gl', g.gl))}
+                  ${fieldDiv('Glycemic Index (GI)', numField('gi', nv(g.gi, 'GI')))}
+                  ${fieldDiv('Glycemic Load (GL)',  numField('gl', nv(g.gl, 'GL')))}
                 `)}
 
                 <!-- 5. WELLNESS SCORES -->
                 ${sectionWrap('🎯','Wellness Scores (0 – 100)',`
                   ${SCORE_FIELDS.map(f =>
-                    fieldDiv(f.label, `<input name="score_${f.key}" type="number" min="0" max="100" step="1" value="${ws[f.key]??''}" placeholder="0–100" />`)
+                    fieldDiv(f.label, `<input name="score_${f.key}" type="number" min="0" max="100" step="1" value="${nv(ws[f.key], f.flatKey)??''}" placeholder="0–100" />`)
                   ).join('')}
                 `)}
 
@@ -409,7 +434,7 @@ function openModal(id) {
     </div>`;
 
   // Wire up the Best-For goal picker
-  initGoalPicker('goal-picker', ing?.bestFor || []);
+  initGoalPicker('goal-picker', ing?.bestFor || ing?.Best_For || []);
 
   // ── Save ──────────────────────────────────────────────────────────────────
   document.getElementById('ing-save').addEventListener('click', async () => {

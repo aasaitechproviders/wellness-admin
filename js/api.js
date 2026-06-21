@@ -87,6 +87,7 @@ const adminApi = {
   createIngredient:         (body)   => req('POST', '/admin/ingredients', body),
   updateIngredient:         (id, body) => req('PUT', `/admin/ingredients/${id}`, body),
   deleteIngredient:         (id)     => req('DELETE', `/admin/ingredients/${id}`),
+  hardDeleteIngredient:     (id)     => req('DELETE', `/admin/ingredients/${id}/hard`),
   // Step 1 — get a signed S3 PUT URL
   presignIngredientImage:   (id, mimeType) => req('GET', `/admin/ingredients/${id}/image/presign${qs({ mimeType })}`),
   // Step 3 — tell backend the upload is done so it saves imageKey+imageUrl to MongoDB
@@ -95,34 +96,39 @@ const adminApi = {
   deleteIngredientImage:    (id) => req('DELETE', `/admin/ingredients/${id}/image`),
 
   // Subscription Packages
-  getPlans:   () => req('GET', '/admin/subscription-plans'),
-  createPlan: (body) => req('POST', '/admin/subscription-plans', body),
-  updatePlan: (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
-  deletePlan: (id) => req('DELETE', `/admin/subscription-plans/${id}`),
+  getPlans:         () => req('GET', '/admin/subscription-plans'),
+  createPlan:       (body) => req('POST', '/admin/subscription-plans', body),
+  updatePlan:       (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
+  deletePlan:       (id) => req('DELETE', `/admin/subscription-plans/${id}`),
+  hardDeletePlan:   (id) => req('DELETE', `/admin/subscription-plans/${id}/hard`),
 
   // Wellness Goals
-  getGoals:   () => req('GET', '/admin/goals'),
-  createGoal: (body) => req('POST', '/admin/goals', body),
-  updateGoal: (id, body) => req('PUT', `/admin/goals/${id}`, body),
-  deleteGoal: (id) => req('DELETE', `/admin/goals/${id}`),
+  getGoals:         () => req('GET', '/admin/goals'),
+  createGoal:       (body) => req('POST', '/admin/goals', body),
+  updateGoal:       (id, body) => req('PUT', `/admin/goals/${id}`, body),
+  deleteGoal:       (id) => req('DELETE', `/admin/goals/${id}`),
+  hardDeleteGoal:   (id) => req('DELETE', `/admin/goals/${id}/hard`),
 
   // Coupons
-  getCoupons:   () => req('GET', '/admin/coupons'),
-  createCoupon: (body) => req('POST', '/admin/coupons', body),
-  updateCoupon: (id, body) => req('PUT', `/admin/coupons/${id}`, body),
-  deleteCoupon: (id) => req('DELETE', `/admin/coupons/${id}`),
+  getCoupons:       () => req('GET', '/admin/coupons'),
+  createCoupon:     (body) => req('POST', '/admin/coupons', body),
+  updateCoupon:     (id, body) => req('PUT', `/admin/coupons/${id}`, body),
+  deleteCoupon:     (id) => req('DELETE', `/admin/coupons/${id}`),
+  hardDeleteCoupon: (id) => req('DELETE', `/admin/coupons/${id}/hard`),
 
   // Curated Baskets
-  getBaskets:   () => req('GET', '/admin/baskets'),
-  createBasket: (body) => req('POST', '/admin/baskets', body),
-  updateBasket: (id, body) => req('PUT', `/admin/baskets/${id}`, body),
-  deleteBasket: (id) => req('DELETE', `/admin/baskets/${id}`),
+  getBaskets:         () => req('GET', '/admin/baskets'),
+  createBasket:       (body) => req('POST', '/admin/baskets', body),
+  updateBasket:       (id, body) => req('PUT', `/admin/baskets/${id}`, body),
+  deleteBasket:       (id) => req('DELETE', `/admin/baskets/${id}`),
+  hardDeleteBasket:   (id) => req('DELETE', `/admin/baskets/${id}/hard`),
 
   // Apartments
-  getApartments:   () => req('GET', '/admin/apartments'),
-  createApartment: (body) => req('POST', '/admin/apartments', body),
-  updateApartment: (id, body) => req('PUT', `/admin/apartments/${id}`, body),
-  deleteApartment: (id) => req('DELETE', `/admin/apartments/${id}`),
+  getApartments:       () => req('GET', '/admin/apartments'),
+  createApartment:     (body) => req('POST', '/admin/apartments', body),
+  updateApartment:     (id, body) => req('PUT', `/admin/apartments/${id}`, body),
+  deleteApartment:     (id) => req('DELETE', `/admin/apartments/${id}`),
+  hardDeleteApartment: (id) => req('DELETE', `/admin/apartments/${id}/hard`),
 };
 
 function showToast(msg, type = 'default') {

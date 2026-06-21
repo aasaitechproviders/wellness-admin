@@ -210,6 +210,7 @@ async function load() {
             <div class="pactions">
               <button class="btn btn-outline btn-sm" style="flex:1" onclick="openModal('${ing._id}')">Edit</button>
               <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${ing._id}')">${ing.isActive===false?'Deactivated':'Deactivate'}</button>
+              <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${ing._id}', '${escapeHtml(ing.name)}')">Delete</button>
             </div>
           </div>
         </div>`;
@@ -217,6 +218,12 @@ async function load() {
   } catch(e) {
     document.getElementById('grid').innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
   }
+}
+
+async function hardDelete(id, name) {
+  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
+  try { await adminApi.hardDeleteIngredient(id); showToast('Product permanently deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
 }
 
 async function deactivate(id) {

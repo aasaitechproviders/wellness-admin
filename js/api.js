@@ -82,14 +82,17 @@ const adminApi = {
   updateMember:   (id, memberId, body) => req('PUT', `/admin/customers/${id}/members/${memberId}`, body),
   deleteMember:   (id, memberId) => req('DELETE', `/admin/customers/${id}/members/${memberId}`),
 
-  // Products (Ingredients) + Images
-  getIngredients:        (params) => req('GET', `/admin/ingredients${qs(params)}`),
-  createIngredient:      (body) => req('POST', '/admin/ingredients', body),
-  updateIngredient:      (id, body) => req('PUT', `/admin/ingredients/${id}`, body),
-  deleteIngredient:      (id) => req('DELETE', `/admin/ingredients/${id}`),
-  uploadIngredientImage: (id, imageBase64, mimeType) => req('PUT', `/admin/ingredients/${id}/image`, { imageBase64, mimeType }),
-  deleteIngredientImage: (id) => req('DELETE', `/admin/ingredients/${id}/image`),
-  ingredientImageUrl:    (id) => `${API_BASE}/admin/ingredients/${id}/image`,
+  // Products (Ingredients) + Images (S3 presign flow)
+  getIngredients:           (params) => req('GET', `/admin/ingredients${qs(params)}`),
+  createIngredient:         (body)   => req('POST', '/admin/ingredients', body),
+  updateIngredient:         (id, body) => req('PUT', `/admin/ingredients/${id}`, body),
+  deleteIngredient:         (id)     => req('DELETE', `/admin/ingredients/${id}`),
+  // Step 1 — get a signed S3 PUT URL
+  presignIngredientImage:   (id, mimeType) => req('GET', `/admin/ingredients/${id}/image/presign${qs({ mimeType })}`),
+  // Step 3 — tell backend the upload is done so it saves imageKey+imageUrl to MongoDB
+  confirmIngredientImage:   (id, imageKey, imageUrl) => req('POST', `/admin/ingredients/${id}/image/confirm`, { imageKey, imageUrl }),
+  // Delete from S3 + clear MongoDB
+  deleteIngredientImage:    (id) => req('DELETE', `/admin/ingredients/${id}/image`),
 
   // Subscription Packages
   getPlans:   () => req('GET', '/admin/subscription-plans'),
@@ -145,11 +148,12 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
-// Resize + compress an image File client-side before upload, so we stay well
-// under the server's 1.5MB decoded cap. Returns { base64, mimeType }.
-function compressImageFile(file, maxDim = 800, quality = 0.82) {
+// Resize + compress an image client-side before upload.
+// Returns a Blob so we can PUT it directly to S3.
+// maxDim=1200 keeps good quality; S3 has no size concern like Lambda did.
+function compressImageToBlob(file, maxDim = 1200, quality = 0.88) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img    = new Image();
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Could not read file'));
     reader.onload = () => {
@@ -163,11 +167,41 @@ function compressImageFile(file, maxDim = 800, quality = 0.82) {
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve({ base64: dataUrl.split(',')[1], mimeType: 'image/jpeg' });
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('Image compression failed')); return; }
+          resolve({ blob, mimeType: 'image/jpeg' });
+        }, 'image/jpeg', quality);
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
+}
+
+// Full S3 presign upload flow:
+//   1. Get signed PUT URL from Lambda
+//   2. PUT the blob directly to S3 (no auth header — S3 uses the signed URL)
+//   3. Call confirm so Lambda saves imageKey + imageUrl to MongoDB
+// Returns { imageUrl } on success.
+async function uploadIngredientImageToS3(ingredientId, file) {
+  // Step 1 — compress
+  const { blob, mimeType } = await compressImageToBlob(file);
+
+  // Step 2 — get presigned URL from Lambda
+  const { signedUrl, imageKey, imageUrl } = await adminApi.presignIngredientImage(ingredientId, mimeType);
+
+  // Step 3 — PUT directly to S3 (no Authorization header)
+  const s3Res = await fetch(signedUrl, {
+    method:  'PUT',
+    headers: { 'Content-Type': mimeType },
+    body:    blob,
+  });
+  if (!s3Res.ok) {
+    throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
+  }
+
+  // Step 4 — confirm to Lambda so MongoDB is updated
+  await adminApi.confirmIngredientImage(ingredientId, imageKey, imageUrl);
+
+  return { imageUrl };
 }

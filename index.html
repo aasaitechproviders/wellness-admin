@@ -48,12 +48,19 @@
 
   <script src="js/api.js"></script>
   <script>
-    // If already logged in, skip straight to the dashboard
-    if (Auth.isLoggedIn()) window.location.href = 'dashboard.html';
+    if (Auth.isLoggedIn()) {
+      // Redirect to first allowed page
+      const allowed = Auth.getAllowedMenus();
+      if (allowed.length && allowed[0] !== 'dashboard') {
+        window.location.href = allowed[0] + '.html';
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    }
 
-    const form = document.getElementById('login-form');
+    const form  = document.getElementById('login-form');
     const errEl = document.getElementById('login-error');
-    const btn = document.getElementById('login-btn');
+    const btn   = document.getElementById('login-btn');
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -64,8 +71,16 @@
       btn.textContent = 'Signing in…';
       try {
         const d = await adminApi.login(username, password);
-        Auth.setSession(d.token, d.username);
-        window.location.href = 'dashboard.html';
+        Auth.setSession(d.token, d.username, d.role, d.allowedMenus, d.displayName, d.isMaster);
+        // Redirect to first allowed page
+        const allowed = Auth.getAllowedMenus();
+        if (allowed.includes('dashboard')) {
+          window.location.href = 'dashboard.html';
+        } else if (allowed.length) {
+          window.location.href = allowed[0] + '.html';
+        } else {
+          window.location.href = 'dashboard.html';
+        }
       } catch (e) {
         errEl.textContent = e.message || 'Login failed';
         errEl.style.display = 'block';

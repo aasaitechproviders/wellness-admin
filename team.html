@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team & Access · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  .role-badge {
+    display: inline-block; font-size: 11px; font-weight: 700;
+    padding: 2px 9px; border-radius: 20px; letter-spacing: .4px;
+  }
+  .role-admin     { background: rgba(45,106,53,.12);  color: #2D6A35; }
+  .role-nutrition { background: rgba(201,168,76,.18); color: #7B5E2A; }
+  .role-team      { background: rgba(58,95,138,.13);  color: #3A5F8A; }
+
+  /* Menu checkboxes grid */
+  .menu-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 8px; padding: 4px 0;
+  }
+  .menu-check {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 10px; border-radius: 8px; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--white);
+    font-size: 13px; transition: all .12s; user-select: none;
+  }
+  .menu-check:hover { border-color: var(--green); background: var(--green-pale); }
+  .menu-check.checked { border-color: var(--green); background: var(--green-pale); color: var(--green); font-weight: 600; }
+  .menu-check input { display: none; }
+  .menu-check .mc-icon { font-size: 15px; }
+
+  .role-hint {
+    font-size: 11.5px; color: var(--ink-faint); padding: 6px 10px;
+    background: var(--cream); border-radius: 7px; margin-bottom: 8px;
+  }
+  .role-hint b { color: var(--ink-soft); }
+
+  .pw-wrap { position: relative; }
+  .pw-wrap input { padding-right: 40px; }
+  .pw-toggle {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    border: none; background: none; cursor: pointer; color: var(--ink-faint);
+    font-size: 14px; padding: 4px;
+  }
+  .pw-toggle:hover { color: var(--ink); }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'team',
+  title: 'Team & Access',
+  sub: 'Manage admin users and control which menus each role can access',
+  actions: Auth.isMaster() ? `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Team Member</button>` : '',
+});
+
+// Only master admin can access this page
+if (!Auth.isMaster()) {
+  content.innerHTML = `<div class="empty"><div class="icon">🔒</div>Only the master admin can manage team users</div>`;
+} else {
+
+let cache = [];
+
+const ALL_MENUS = [
+  { key: 'dashboard',          label: 'Dashboard',             icon: '🏠' },
+  { key: 'orders',             label: 'Orders',                icon: '📋' },
+  { key: 'customers',          label: 'Customers',             icon: '👨‍👩‍👧‍👦' },
+  { key: 'ingredients',        label: 'Products',              icon: '🌿' },
+  { key: 'baskets',            label: 'Curated Baskets',       icon: '🧺' },
+  { key: 'subscription-plans', label: 'Subscription Packages', icon: '📅' },
+  { key: 'goals',              label: 'Wellness Goals',        icon: '🎯' },
+  { key: 'coupons',            label: 'Coupons',               icon: '🎟️' },
+  { key: 'apartments',         label: 'Apartments',            icon: '🏢' },
+  { key: 'wellness-partners',  label: 'Wellness Partners',     icon: '🤝' },
+];
+
+const ROLE_DEFAULTS = {
+  admin:     ALL_MENUS.map(m => m.key),
+  nutrition: ['ingredients','baskets','goals'],
+  team:      ['ingredients','apartments'],
+};
+
+content.innerHTML = `
+  <!-- Role overview cards -->
+  <div class="grid-2" style="margin-bottom:16px">
+    <div class="panel" style="padding:16px 18px">
+      <div class="panel-title" style="margin-bottom:10px">Role Defaults</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${[
+          { role:'admin',     label:'Admin',        desc:'Full access to all menus', color:'#2D6A35', bg:'rgba(45,106,53,.1)' },
+          { role:'nutrition', label:'Nutritionist', desc:'Products · Curated Baskets · Wellness Goals', color:'#7B5E2A', bg:'rgba(201,168,76,.15)' },
+          { role:'team',      label:'Team Member',  desc:'Products · Apartments', color:'#3A5F8A', bg:'rgba(58,95,138,.12)' },
+        ].map(r => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${r.bg}">
+            <span class="role-badge role-${r.role}">${r.label}</span>
+            <span style="font-size:12.5px;color:var(--ink-soft)">${r.desc}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="panel" style="padding:16px 18px">
+      <div class="panel-title" style="margin-bottom:6px">How it works</div>
+      <p style="font-size:12.5px;color:var(--ink-soft);line-height:1.6">
+        Each team member is assigned a <b>role</b> which sets their default menu access.
+        You can then <b>customise</b> exactly which menus they see — overriding the role default.
+        The master admin always has full access regardless of settings.
+      </p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Username</th>
+            <th>Role</th>
+            <th>Menu Access</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="body">
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+function roleBadge(role) {
+  const map = { admin:'Admin', nutrition:'Nutritionist', team:'Team Member' };
+  return `<span class="role-badge role-${role}">${map[role] || role}</span>`;
+}
+
+function menuList(allowedMenus, role) {
+  const effective = (allowedMenus && allowedMenus.length) ? allowedMenus : (ROLE_DEFAULTS[role] || []);
+  if (effective.length === ALL_MENUS.length) return `<span style="font-size:12px;color:var(--green)">All menus</span>`;
+  return effective.slice(0,4).map(k => {
+    const m = ALL_MENUS.find(x => x.key === k);
+    return m ? `<span style="font-size:11px;background:var(--green-pale);color:var(--green);border-radius:4px;padding:1px 6px;margin:1px;display:inline-block">${m.icon} ${m.label}</span>` : '';
+  }).join('') + (effective.length > 4 ? `<span style="font-size:11px;color:var(--ink-faint)"> +${effective.length-4} more</span>` : '');
+}
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { users } = await adminApi.getTeamUsers();
+    cache = users;
+    document.getElementById('body').innerHTML = users.length ? users.map(u => `
+      <tr>
+        <td><b>${escapeHtml(u.displayName || u.username)}</b></td>
+        <td class="mono" style="font-size:12px">${escapeHtml(u.username)}</td>
+        <td>${roleBadge(u.role)}</td>
+        <td style="max-width:220px">${menuList(u.allowedMenus, u.role)}</td>
+        <td>
+          <span class="pill ${u.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+            ${u.isActive === false ? 'Inactive' : 'Active'}
+          </span>
+        </td>
+        <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${u._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUser('${u._id}','${escapeHtml(u.displayName||u.username)}')">Delete</button>
+        </td>
+      </tr>
+    `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">👥</div>No team members yet — add one to get started</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Delete "${name}"? They will no longer be able to log in.`)) return;
+  try { await adminApi.deleteTeamUser(id); showToast('Team member deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function initMenuPicker(containerId, role, currentMenus) {
+  const wrap = document.getElementById(containerId);
+  let selected = new Set(currentMenus && currentMenus.length ? currentMenus : ROLE_DEFAULTS[role] || []);
+
+  function render() {
+    wrap.innerHTML = ALL_MENUS.map(m => `
+      <label class="menu-check ${selected.has(m.key) ? 'checked' : ''}" data-key="${m.key}">
+        <input type="checkbox" ${selected.has(m.key) ? 'checked' : ''} />
+        <span class="mc-icon">${m.icon}</span>
+        <span>${m.label}</span>
+      </label>
+    `).join('');
+    wrap.querySelectorAll('.menu-check').forEach(el => {
+      el.addEventListener('click', () => {
+        const key = el.dataset.key;
+        if (selected.has(key)) selected.delete(key);
+        else selected.add(key);
+        el.classList.toggle('checked', selected.has(key));
+      });
+    });
+  }
+
+  render();
+  // When role changes, reset to role defaults
+  wrap._resetForRole = (newRole) => {
+    selected = new Set(ROLE_DEFAULTS[newRole] || []);
+    render();
+  };
+  wrap._getSelected = () => [...selected];
+}
+
+function openModal(id) {
+  const u      = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!u;
+  const root   = document.getElementById('modal-root');
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Team Member' : 'Add Team Member'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+
+          <div class="field">
+            <label>Display Name *</label>
+            <input name="displayName" value="${escapeHtml(u?.displayName || '')}" placeholder="e.g. Priya Sharma" required />
+          </div>
+
+          <div class="field">
+            <label>Username *</label>
+            <input name="username" value="${escapeHtml(u?.username || '')}" placeholder="e.g. priya.sharma"
+              ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
+          </div>
+
+          <div class="field full">
+            <label>Password ${isEdit ? '<span style="font-weight:400;color:var(--ink-faint)">— leave blank to keep current</span>' : '*'}</label>
+            <div class="pw-wrap">
+              <input name="password" type="password" id="pw-input"
+                placeholder="${isEdit ? 'Leave blank to keep unchanged' : 'Set a password'}"
+                ${isEdit ? '' : 'required'} />
+              <button type="button" class="pw-toggle" onclick="
+                const i=document.getElementById('pw-input');
+                i.type=i.type==='password'?'text':'password';
+                this.textContent=i.type==='password'?'👁':'🙈';
+              ">👁</button>
+            </div>
+          </div>
+
+          <div class="field full">
+            <label>Role *</label>
+            <select name="role" id="role-select" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--ink);background:var(--white);outline:none;width:100%">
+              <option value="admin"     ${(u?.role||'team')==='admin'     ? 'selected':''}>Admin — Full access</option>
+              <option value="nutrition" ${(u?.role||'team')==='nutrition' ? 'selected':''}>Nutritionist — Products, Baskets, Wellness Goals</option>
+              <option value="team"      ${(u?.role||'team')==='team'      ? 'selected':''}>Team Member — Products, Apartments</option>
+            </select>
+          </div>
+
+          <div class="field full">
+            <label>Menu Access <span style="font-weight:400;color:var(--ink-faint)">— customise what this user can see</span></label>
+            <div class="role-hint" id="role-hint">Showing defaults for selected role — uncheck to restrict access</div>
+            <div class="menu-grid" id="menu-picker"></div>
+          </div>
+
+          <div class="field full">
+            <label class="chip-toggle ${u?.isActive === false ? '' : 'on'}" id="active-chip" style="display:inline-flex">
+              <input type="checkbox" style="display:none" ${u?.isActive === false ? '' : 'checked'} /> ✅ Active (can log in)
+            </label>
+          </div>
+
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Member'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  initMenuPicker('menu-picker', u?.role || 'team', u?.allowedMenus || []);
+
+  const roleSelect = document.getElementById('role-select');
+  const roleHint   = document.getElementById('role-hint');
+  const hintMap    = {
+    admin:     'Admin: Full access to all menus by default',
+    nutrition: 'Nutritionist: Products, Curated Baskets, Wellness Goals by default',
+    team:      'Team Member: Products, Apartments by default',
+  };
+  roleHint.textContent = hintMap[roleSelect.value] || '';
+  roleSelect.addEventListener('change', () => {
+    roleHint.textContent = hintMap[roleSelect.value] || '';
+    document.getElementById('menu-picker')._resetForRole(roleSelect.value);
+  });
+
+  const chip = document.getElementById('active-chip');
+  chip.addEventListener('click', e => {
+    e.preventDefault();
+    chip.classList.toggle('on');
+    chip.querySelector('input').checked = chip.classList.contains('on');
+  });
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd          = new FormData(document.getElementById('form'));
+    const menuPicker  = document.getElementById('menu-picker');
+    const allowedMenus = menuPicker._getSelected();
+
+    const body = {
+      displayName:  fd.get('displayName'),
+      role:         fd.get('role'),
+      allowedMenus,
+      isActive:     chip.classList.contains('on'),
+    };
+    if (!isEdit) body.username = fd.get('username');
+    const pw = fd.get('password');
+    if (pw) body.password = pw;
+
+    if (!body.displayName)        { showToast('Display name is required', 'error'); return; }
+    if (!isEdit && !body.username){ showToast('Username is required', 'error'); return; }
+    if (!isEdit && !body.password){ showToast('Password is required', 'error'); return; }
+
+    const btn = document.getElementById('save');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+      if (isEdit) await adminApi.updateTeamUser(u._id, body);
+      else        await adminApi.createTeamUser(body);
+      showToast('Team member saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Member';
+    }
+  });
+}
+
+load();
+
+} // end master-admin guard
+</script>
+</body>
+</html>

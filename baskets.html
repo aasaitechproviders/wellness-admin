@@ -742,6 +742,10 @@ async function openModal(id) {
               <div class="chips-wrap"></div>
               <div class="picker-hint"></div>
             </div>
+          </div>
+
+          <div class="field full">
+            <label>Target Nutrients <span style="font-weight:400;color:var(--ink-faint)">— auto-computed from chosen products</span></label>
             <!-- Live nutrition panel — updates as products are added/removed -->
             <div class="nutrition-panel" id="nutrition-panel">
               <div class="nutrition-panel-head">
@@ -749,11 +753,6 @@ async function openModal(id) {
               </div>
               <div class="nutrition-empty">Add products above to see aggregated nutrition values</div>
             </div>
-          </div>
-
-          <div class="field full">
-            <label>Target Nutrients <span style="font-weight:400;color:var(--ink-faint)">— comma-separated highlights shown to customers</span></label>
-            <input name="targetNutrients" value="${(b?.targetNutrients || []).join(', ')}" placeholder="e.g. Iron, Folate, Vitamin C" />
           </div>
 
           <div class="field full">
@@ -823,7 +822,6 @@ async function openModal(id) {
       price:           fd.get('price') !== '' ? Number(fd.get('price')) : undefined,
       description:     fd.get('description') || undefined,
       ingredientNames: selectedNames,
-      targetNutrients: fd.get('targetNutrients').split(',').map(s => s.trim()).filter(Boolean),
       nutritionSummary: nutritionSummary || undefined,
       recipes,
       isFeatured:      chip.classList.contains('on'),

@@ -63,8 +63,10 @@ async function load() {
           </span>
         </td>
         <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="viewGoal('${g._id}')">View</button>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivateGoal('${g._id}', ${g.isActive === false})">${g.isActive === false ? 'Activate' : 'Deactivate'}</button>
+          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
         </td>
       </tr>
     `).join('') : `<tr><td colspan="5"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
@@ -148,6 +150,44 @@ function openModal(id) {
       btn.textContent = isEdit ? 'Save Changes' : 'Create Goal';
     }
   });
+}
+
+function viewGoal(id) {
+  const g = cache.find(x => x._id === id);
+  if (!g) return;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+          <h3>🎯 ${escapeHtml(g.goalName)}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0 8px">
+          <div style="font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px">Goal ID</div>
+          <div style="font-family:var(--font-mono);font-size:14px">${escapeHtml(g.goalId)}</div>
+          ${g.description ? `<div style="font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-top:6px">Description</div>
+          <div style="font-size:13.5px">${escapeHtml(g.description)}</div>` : ''}
+          <div style="margin-top:8px">
+            <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${g.isActive === false ? 'Inactive' : 'Active'}</span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
+          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${g._id}')">Edit</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function deactivateGoal(id, isCurrentlyInactive) {
+  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
+  if (!confirm(action + ' this wellness goal?')) return;
+  try {
+    await adminApi.updateGoal(id, { isActive: !!isCurrentlyInactive });
+    showToast('Goal ' + action.toLowerCase() + 'd', 'success');
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 load();

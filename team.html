@@ -192,11 +192,10 @@ function initMenuPicker(containerId, role, currentMenus) {
 
   function render() {
     wrap.innerHTML = ALL_MENUS.map(m => `
-      <label class="menu-check ${selected.has(m.key) ? 'checked' : ''}" data-key="${m.key}">
-        <input type="checkbox" ${selected.has(m.key) ? 'checked' : ''} />
+      <div class="menu-check ${selected.has(m.key) ? 'checked' : ''}" data-key="${m.key}" role="checkbox" aria-checked="${selected.has(m.key)}">
         <span class="mc-icon">${m.icon}</span>
         <span>${m.label}</span>
-      </label>
+      </div>
     `).join('');
     wrap.querySelectorAll('.menu-check').forEach(el => {
       el.addEventListener('click', () => {
@@ -204,12 +203,12 @@ function initMenuPicker(containerId, role, currentMenus) {
         if (selected.has(key)) selected.delete(key);
         else selected.add(key);
         el.classList.toggle('checked', selected.has(key));
+        el.setAttribute('aria-checked', selected.has(key));
       });
     });
   }
 
   render();
-  // When role changes, reset to role defaults
   wrap._resetForRole = (newRole) => {
     selected = new Set(ROLE_DEFAULTS[newRole] || []);
     render();
@@ -272,9 +271,9 @@ function openModal(id) {
           </div>
 
           <div class="field full">
-            <label class="chip-toggle ${u?.isActive === false ? '' : 'on'}" id="active-chip" style="display:inline-flex">
-              <input type="checkbox" style="display:none" ${u?.isActive === false ? '' : 'checked'} /> ✅ Active (can log in)
-            </label>
+            <div class="chip-toggle ${u?.isActive === false ? '' : 'on'}" id="active-chip" style="display:inline-flex;cursor:pointer">
+              ✅ Active (can log in)
+            </div>
           </div>
 
         </form>
@@ -302,10 +301,8 @@ function openModal(id) {
   });
 
   const chip = document.getElementById('active-chip');
-  chip.addEventListener('click', e => {
-    e.preventDefault();
+  chip.addEventListener('click', () => {
     chip.classList.toggle('on');
-    chip.querySelector('input').checked = chip.classList.contains('on');
   });
 
   document.getElementById('save').addEventListener('click', async () => {

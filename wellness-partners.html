@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wellness Partners · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  .type-badge {
+    display: inline-block; font-size: 11.5px; font-weight: 600;
+    padding: 3px 9px; border-radius: 20px;
+    background: var(--green-pale); color: var(--green);
+    border: 1px solid rgba(45,106,53,.2);
+  }
+  .partner-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--green-pale); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .contact-line { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .contact-line a { color: var(--green); text-decoration: none; }
+  .contact-line a:hover { text-decoration: underline; }
+  .type-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-top: 4px;
+  }
+  .type-chip {
+    display: flex; align-items: center; gap: 7px;
+    padding: 8px 12px; border-radius: 9px; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--white);
+    font-size: 13px; font-weight: 500; transition: all .12s; user-select: none;
+  }
+  .type-chip:hover { border-color: var(--green); background: var(--green-pale); }
+  .type-chip.selected { border-color: var(--green); background: var(--green); color: #fff; }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guard();</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'wellness-partners',
+  title: 'Wellness Partners',
+  sub: 'Dieticians, yoga studios, health clinics and other partners associated with KRISHA PURE',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Partner</button>`,
+});
+
+let cache = [];
+
+const PARTNER_TYPES = [
+  { key: 'dietician',        label: 'Dietician / Nutritionist', icon: '🥗' },
+  { key: 'yoga_studio',      label: 'Yoga Studio',              icon: '🧘' },
+  { key: 'health_clinic',    label: 'Health Clinic',            icon: '🏥' },
+  { key: 'fitness_center',   label: 'Fitness Center',           icon: '💪' },
+  { key: 'wellness_coach',   label: 'Wellness Coach',           icon: '🌱' },
+  { key: 'pharmacy',         label: 'Pharmacy / Ayurveda',      icon: '💊' },
+  { key: 'hospital',         label: 'Hospital / Specialist',    icon: '🏨' },
+  { key: 'other',            label: 'Other',                    icon: '🤝' },
+];
+
+function typeLabel(key) {
+  return PARTNER_TYPES.find(t => t.key === key)?.label || key || 'Partner';
+}
+function typeIcon(key) {
+  return PARTNER_TYPES.find(t => t.key === key)?.icon || '🤝';
+}
+
+content.innerHTML = `
+  <!-- Filter bar -->
+  <div class="panel" style="padding:12px 16px;margin-bottom:0">
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <input type="text" id="search" placeholder="Search partners…"
+        style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;outline:none" />
+      <select id="filter-type"
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
+        <option value="">All Types</option>
+        ${PARTNER_TYPES.map(t => `<option value="${t.key}">${t.icon} ${t.label}</option>`).join('')}
+      </select>
+      <select id="filter-city"
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
+        <option value="">All Cities</option>
+        <option>Coimbatore</option>
+        <option>Chennai</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:0;border-top:0;border-radius:0 0 var(--radius) var(--radius)">
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Partner</th>
+            <th>Type</th>
+            <th>Contact</th>
+            <th>City</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="body">
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('filter-type').addEventListener('change', renderTable);
+document.getElementById('filter-city').addEventListener('change', renderTable);
+
+function renderTable() {
+  const q    = document.getElementById('search').value.trim().toLowerCase();
+  const type = document.getElementById('filter-type').value;
+  const city = document.getElementById('filter-city').value;
+
+  const filtered = cache.filter(p => {
+    const matchQ    = !q || p.name?.toLowerCase().includes(q) || p.contactName?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
+    const matchType = !type || p.type === type;
+    const matchCity = !city || p.city === city;
+    return matchQ && matchType && matchCity;
+  });
+
+  const tbody = document.getElementById('body');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">🤝</div>${cache.length ? 'No partners match your filter' : 'No wellness partners yet'}</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(p => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="partner-icon">${typeIcon(p.type)}</div>
+          <div>
+            <b>${escapeHtml(p.name)}</b>
+            ${p.description ? `<div class="muted" style="font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.description)}</div>` : ''}
+          </div>
+        </div>
+      </td>
+      <td><span class="type-badge">${escapeHtml(typeLabel(p.type))}</span></td>
+      <td>
+        ${p.contactName ? `<div style="font-size:13px">${escapeHtml(p.contactName)}</div>` : ''}
+        ${p.phone ? `<div class="contact-line"><a href="tel:${escapeHtml(p.phone)}">${escapeHtml(p.phone)}</a></div>` : ''}
+        ${p.email ? `<div class="contact-line"><a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a></div>` : ''}
+        ${!p.contactName && !p.phone && !p.email ? '<span class="muted">—</span>' : ''}
+      </td>
+      <td>${escapeHtml(p.city || '–')}</td>
+      <td>
+        <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+          ${p.isActive === false ? 'Inactive' : 'Active'}
+        </span>
+      </td>
+      <td style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
+        <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${p._id}','${escapeHtml(p.name)}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function load() {
+  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { partners } = await adminApi.getPartners();
+    cache = partners;
+    renderTable();
+  } catch (e) {
+    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function deactivate(id) {
+  if (!confirm('Deactivate this partner?')) return;
+  try { await adminApi.deletePartner(id); showToast('Partner deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+async function hardDelete(id, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try { await adminApi.hardDeletePartner(id); showToast('Partner deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
+function initTypePicker(containerId, current) {
+  const wrap = document.getElementById(containerId);
+  let selected = current || '';
+
+  function render() {
+    wrap.innerHTML = PARTNER_TYPES.map(t => `
+      <div class="type-chip ${selected === t.key ? 'selected' : ''}" data-key="${t.key}">
+        <span>${t.icon}</span><span>${t.label}</span>
+      </div>
+    `).join('');
+    wrap.querySelectorAll('.type-chip').forEach(el => {
+      el.addEventListener('click', () => {
+        selected = el.dataset.key;
+        wrap.querySelectorAll('.type-chip').forEach(c => c.classList.toggle('selected', c.dataset.key === selected));
+      });
+    });
+  }
+
+  render();
+  wrap._getSelected = () => selected;
+}
+
+function openModal(id) {
+  const p      = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!p;
+  const root   = document.getElementById('modal-root');
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Partner' : 'Add Wellness Partner'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="form" class="form-grid">
+
+          <div class="field full">
+            <label>Partner / Organisation Name *</label>
+            <input name="name" value="${escapeHtml(p?.name || '')}" placeholder="e.g. Dr. Priya Nutrition Clinic" required />
+          </div>
+
+          <div class="field full">
+            <label>Partner Type *</label>
+            <div class="type-grid" id="type-picker"></div>
+          </div>
+
+          <div class="field">
+            <label>Contact Person</label>
+            <input name="contactName" value="${escapeHtml(p?.contactName || '')}" placeholder="e.g. Dr. Priya Kumar" />
+          </div>
+
+          <div class="field">
+            <label>City</label>
+            <select name="city" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--ink);background:var(--white);outline:none;width:100%">
+              <option value="">Select city</option>
+              <option ${p?.city==='Coimbatore'?'selected':''}>Coimbatore</option>
+              <option ${p?.city==='Chennai'?'selected':''}>Chennai</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Phone</label>
+            <input name="phone" type="tel" value="${escapeHtml(p?.phone || '')}" placeholder="e.g. 98765 43210" />
+          </div>
+
+          <div class="field">
+            <label>Email</label>
+            <input name="email" type="email" value="${escapeHtml(p?.email || '')}" placeholder="e.g. clinic@example.com" />
+          </div>
+
+          <div class="field full">
+            <label>Description / Notes</label>
+            <textarea name="description" rows="3"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--ink);outline:none;resize:vertical"
+              placeholder="Brief description of services, specialisation, tie-up details…">${escapeHtml(p?.description || '')}</textarea>
+          </div>
+
+          ${isEdit ? `
+          <div class="field full">
+            <label class="chip-toggle ${p?.isActive === false ? '' : 'on'}" id="active-chip" style="display:inline-flex">
+              <input type="checkbox" style="display:none" ${p?.isActive === false ? '' : 'checked'} /> ✅ Active
+            </label>
+          </div>` : ''}
+
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Add Partner'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  initTypePicker('type-picker', p?.type || '');
+
+  const chip = document.getElementById('active-chip');
+  if (chip) {
+    chip.addEventListener('click', e => {
+      e.preventDefault();
+      chip.classList.toggle('on');
+      chip.querySelector('input').checked = chip.classList.contains('on');
+    });
+  }
+
+  document.getElementById('save').addEventListener('click', async () => {
+    const fd          = new FormData(document.getElementById('form'));
+    const typePicker  = document.getElementById('type-picker');
+    const selectedType = typePicker._getSelected();
+
+    if (!fd.get('name'))  { showToast('Partner name is required', 'error'); return; }
+    if (!selectedType)    { showToast('Please select a partner type', 'error'); return; }
+
+    const body = {
+      name:        fd.get('name'),
+      type:        selectedType,
+      contactName: fd.get('contactName') || undefined,
+      city:        fd.get('city') || undefined,
+      phone:       fd.get('phone') || undefined,
+      email:       fd.get('email') || undefined,
+      description: fd.get('description') || undefined,
+    };
+    if (isEdit && chip) body.isActive = chip.classList.contains('on');
+
+    const btn = document.getElementById('save');
+    btn.disabled = true; btn.textContent = 'Saving…';
+
+    try {
+      if (isEdit) await adminApi.updatePartner(p._id, body);
+      else        await adminApi.createPartner(body);
+      showToast('Partner saved', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Add Partner';
+    }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

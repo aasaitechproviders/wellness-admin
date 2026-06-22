@@ -2,23 +2,82 @@
 
 const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws';
 
+// Role definitions — which sidebar menus each default role can access
+// Admin can override per-user via allowedMenus[]
+const ROLE_DEFAULTS = {
+  admin:     ['dashboard','orders','customers','ingredients','baskets','subscription-plans','goals','coupons','apartments','team','wellness-partners'],
+  nutrition: ['ingredients','baskets','goals'],
+  team:      ['ingredients','apartments'],
+};
+
 const Auth = {
-  TOKEN_KEY: 'kp_admin_token',
-  USER_KEY:  'kp_admin_user',
-  getToken() { return localStorage.getItem(this.TOKEN_KEY); },
-  getUsername() { return localStorage.getItem(this.USER_KEY) || 'admin'; },
-  setSession(token, username) {
-    localStorage.setItem(this.TOKEN_KEY, token);
-    localStorage.setItem(this.USER_KEY, username || 'admin');
+  TOKEN_KEY:   'kp_admin_token',
+  USER_KEY:    'kp_admin_user',
+  ROLE_KEY:    'kp_admin_role',
+  MENUS_KEY:   'kp_admin_menus',
+  DISPLAY_KEY: 'kp_admin_display',
+  MASTER_KEY:  'kp_admin_master',
+
+  getToken()       { return localStorage.getItem(this.TOKEN_KEY); },
+  getUsername()    { return localStorage.getItem(this.USER_KEY) || 'admin'; },
+  getDisplayName() { return localStorage.getItem(this.DISPLAY_KEY) || this.getUsername(); },
+  getRole()        { return localStorage.getItem(this.ROLE_KEY) || 'admin'; },
+  isMaster()       { return localStorage.getItem(this.MASTER_KEY) === 'true'; },
+
+  // Returns the set of menu keys this session can see
+  getAllowedMenus() {
+    const stored = localStorage.getItem(this.MENUS_KEY);
+    const role   = this.getRole();
+    // If server sent a custom allowedMenus list and it has items, use that
+    // Otherwise fall back to role defaults
+    if (stored) {
+      try {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr) && arr.length) return arr;
+      } catch {}
+    }
+    return ROLE_DEFAULTS[role] || ROLE_DEFAULTS.team;
   },
+
+  canAccess(menuKey) {
+    // master admin always has full access
+    if (this.isMaster()) return true;
+    return this.getAllowedMenus().includes(menuKey);
+  },
+
+  setSession(token, username, role, allowedMenus, displayName, isMaster) {
+    localStorage.setItem(this.TOKEN_KEY,   token);
+    localStorage.setItem(this.USER_KEY,    username || 'admin');
+    localStorage.setItem(this.ROLE_KEY,    role     || 'admin');
+    localStorage.setItem(this.MENUS_KEY,   JSON.stringify(allowedMenus || []));
+    localStorage.setItem(this.DISPLAY_KEY, displayName || username || 'admin');
+    localStorage.setItem(this.MASTER_KEY,  isMaster ? 'true' : 'false');
+  },
+
   clear() {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
+    [this.TOKEN_KEY, this.USER_KEY, this.ROLE_KEY, this.MENUS_KEY, this.DISPLAY_KEY, this.MASTER_KEY]
+      .forEach(k => localStorage.removeItem(k));
   },
+
   isLoggedIn() { return !!this.getToken(); },
-  // Call at the top of every protected page
+
+  // Redirect to login if not authenticated
   guard() {
-    if (!this.isLoggedIn()) window.location.href = 'index.html';
+    if (!this.isLoggedIn()) { window.location.href = 'index.html'; return; }
+  },
+
+  // Redirect to login if not authenticated OR if menuKey is not allowed
+  guardMenu(menuKey) {
+    this.guard();
+    if (!this.canAccess(menuKey)) {
+      // Redirect to first allowed page instead of showing 403
+      const allowed = this.getAllowedMenus();
+      if (allowed.length) {
+        window.location.href = allowed[0] === 'dashboard' ? 'dashboard.html' : allowed[0] + '.html';
+      } else {
+        window.location.href = 'index.html';
+      }
+    }
   },
 };
 
@@ -88,11 +147,8 @@ const adminApi = {
   updateIngredient:         (id, body) => req('PUT', `/admin/ingredients/${id}`, body),
   deleteIngredient:         (id)     => req('DELETE', `/admin/ingredients/${id}`),
   hardDeleteIngredient:     (id)     => req('DELETE', `/admin/ingredients/${id}/hard`),
-  // Step 1 — get a signed S3 PUT URL
   presignIngredientImage:   (id, mimeType) => req('GET', `/admin/ingredients/${id}/image/presign${qs({ mimeType })}`),
-  // Step 3 — tell backend the upload is done so it saves imageKey+imageUrl to MongoDB
   confirmIngredientImage:   (id, imageKey, imageUrl) => req('POST', `/admin/ingredients/${id}/image/confirm`, { imageKey, imageUrl }),
-  // Delete from S3 + clear MongoDB
   deleteIngredientImage:    (id) => req('DELETE', `/admin/ingredients/${id}/image`),
 
   // Subscription Packages
@@ -129,6 +185,19 @@ const adminApi = {
   updateApartment:     (id, body) => req('PUT', `/admin/apartments/${id}`, body),
   deleteApartment:     (id) => req('DELETE', `/admin/apartments/${id}`),
   hardDeleteApartment: (id) => req('DELETE', `/admin/apartments/${id}/hard`),
+
+  // Team Users (master admin only)
+  getTeamUsers:    () => req('GET', '/admin/team'),
+  createTeamUser:  (body) => req('POST', '/admin/team', body),
+  updateTeamUser:  (id, body) => req('PUT', `/admin/team/${id}`, body),
+  deleteTeamUser:  (id) => req('DELETE', `/admin/team/${id}`),
+
+  // Wellness Partners
+  getPartners:         () => req('GET', '/admin/wellness-partners'),
+  createPartner:       (body) => req('POST', '/admin/wellness-partners', body),
+  updatePartner:       (id, body) => req('PUT', `/admin/wellness-partners/${id}`, body),
+  deletePartner:       (id) => req('DELETE', `/admin/wellness-partners/${id}`),
+  hardDeletePartner:   (id) => req('DELETE', `/admin/wellness-partners/${id}/hard`),
 };
 
 function showToast(msg, type = 'default') {
@@ -154,9 +223,6 @@ function escapeHtml(str) {
   return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
-// Resize + compress an image client-side before upload.
-// Returns a Blob so we can PUT it directly to S3.
-// maxDim=1200 keeps good quality; S3 has no size concern like Lambda did.
 function compressImageToBlob(file, maxDim = 1200, quality = 0.88) {
   return new Promise((resolve, reject) => {
     const img    = new Image();
@@ -184,30 +250,15 @@ function compressImageToBlob(file, maxDim = 1200, quality = 0.88) {
   });
 }
 
-// Full S3 presign upload flow:
-//   1. Get signed PUT URL from Lambda
-//   2. PUT the blob directly to S3 (no auth header — S3 uses the signed URL)
-//   3. Call confirm so Lambda saves imageKey + imageUrl to MongoDB
-// Returns { imageUrl } on success.
 async function uploadIngredientImageToS3(ingredientId, file) {
-  // Step 1 — compress
   const { blob, mimeType } = await compressImageToBlob(file);
-
-  // Step 2 — get presigned URL from Lambda
   const { signedUrl, imageKey, imageUrl } = await adminApi.presignIngredientImage(ingredientId, mimeType);
-
-  // Step 3 — PUT directly to S3 (no Authorization header)
   const s3Res = await fetch(signedUrl, {
     method:  'PUT',
     headers: { 'Content-Type': mimeType },
     body:    blob,
   });
-  if (!s3Res.ok) {
-    throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
-  }
-
-  // Step 4 — confirm to Lambda so MongoDB is updated
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
   await adminApi.confirmIngredientImage(ingredientId, imageKey, imageUrl);
-
   return { imageUrl };
 }

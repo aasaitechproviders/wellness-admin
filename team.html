@@ -170,6 +170,7 @@ async function load() {
           </span>
         </td>
         <td style="display:flex;gap:6px">
+          <button class="btn btn-ghost btn-sm" onclick="viewUser('${u._id}')">View</button>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${u._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteUser('${u._id}','${escapeHtml(u.displayName||u.username)}')">Delete</button>
         </td>
@@ -338,6 +339,56 @@ function openModal(id) {
       btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Member';
     }
   });
+}
+
+function viewUser(id) {
+  const u = cache.find(x => x._id === id);
+  if (!u) return;
+  const root = document.getElementById('modal-root');
+  const roleLabels = { admin:'Admin', nutrition:'Nutritionist', team:'Team Member' };
+  const roleColors = { admin:'role-admin', nutrition:'role-nutrition', team:'role-team' };
+  const effective  = (u.allowedMenus && u.allowedMenus.length) ? u.allowedMenus : (ROLE_DEFAULTS[u.role] || []);
+  const menuLabels = Object.fromEntries(ALL_MENUS.map(m => [m.key, `${m.icon} ${m.label}`]));
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:460px">
+        <div class="modal-head">
+          <h3>👤 ${escapeHtml(u.displayName || u.username)}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;padding:4px 0 8px">
+
+          <div style="display:flex;align-items:center;gap:12px">
+            <div>
+              <div style="font-size:13px;font-weight:600">${escapeHtml(u.displayName || u.username)}</div>
+              <div style="font-size:12px;color:var(--ink-faint);font-family:var(--font-mono)">${escapeHtml(u.username)}</div>
+            </div>
+            <span class="role-badge ${roleColors[u.role]||'role-team'}" style="margin-left:auto">${roleLabels[u.role]||u.role}</span>
+            <span class="pill ${u.isActive===false?'pill-cancelled':'pill-delivered'}">${u.isActive===false?'Inactive':'Active'}</span>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:8px">
+              Menu Access (${effective.length} menu${effective.length!==1?'s':''})
+            </div>
+            <div class="menu-grid">
+              ${ALL_MENUS.map(m => `
+                <div class="menu-check ${effective.includes(m.key) ? 'checked' : ''}" style="cursor:default;opacity:${effective.includes(m.key)?1:0.38}">
+                  <span class="mc-icon">${m.icon}</span>
+                  <span>${m.label}</span>
+                  ${effective.includes(m.key) ? '<span style="margin-left:auto;color:var(--green);font-size:13px">✓</span>' : ''}
+                </div>`).join('')}
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
+          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${u._id}')">Edit</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 load();

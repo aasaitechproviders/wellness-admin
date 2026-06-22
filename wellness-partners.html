@@ -9,33 +9,121 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  .type-badge {
-    display: inline-block; font-size: 11.5px; font-weight: 600;
-    padding: 3px 9px; border-radius: 20px;
-    background: var(--green-pale); color: var(--green);
-    border: 1px solid rgba(45,106,53,.2);
-  }
-  .partner-icon {
-    width: 36px; height: 36px; border-radius: 10px;
-    background: var(--green-pale); color: var(--green);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
-  }
-  .contact-line { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
-  .contact-line a { color: var(--green); text-decoration: none; }
-  .contact-line a:hover { text-decoration: underline; }
-  .type-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; margin-top: 4px;
-  }
-  .type-chip {
-    display: flex; align-items: center; gap: 7px;
-    padding: 8px 12px; border-radius: 9px; cursor: pointer;
-    border: 1.5px solid var(--border); background: var(--white);
-    font-size: 13px; font-weight: 500; transition: all .12s; user-select: none;
-  }
-  .type-chip:hover { border-color: var(--green); background: var(--green-pale); }
-  .type-chip.selected { border-color: var(--green); background: var(--green); color: #fff; }
+/* ── Section headers inside modal ───────────────────────── */
+.form-section-head {
+  grid-column: 1/-1;
+  display: flex; align-items: center; gap: 10px;
+  margin: 18px 0 6px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--green-pale);
+}
+.form-section-head:first-child { margin-top: 0; }
+.form-section-head .sec-num {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--green); color: #fff;
+  font-size: 11px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.form-section-head .sec-title {
+  font-family: var(--font-head); font-size: 14px; font-weight: 700;
+  color: var(--ink);
+}
+.form-section-head .sec-sub {
+  font-size: 11.5px; color: var(--ink-faint); font-weight: 400; margin-left: 2px;
+}
+
+/* ── Multi-checkbox option groups ───────────────────────── */
+.option-group { grid-column: 1/-1; margin-bottom: 6px; }
+.option-group-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--ink-faint); margin-bottom: 7px;
+  padding: 4px 0;
+}
+.option-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.opt-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 12px; border-radius: 20px; cursor: pointer;
+  border: 1.5px solid var(--border); background: var(--white);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-soft);
+  transition: all .12s; user-select: none;
+}
+.opt-chip:hover { border-color: var(--green); color: var(--green); background: var(--green-pale); }
+.opt-chip.on    { border-color: var(--green); background: var(--green); color: #fff; }
+.opt-chip input { display: none; }
+
+/* ── Sub-section divider inside category ──────────────────*/
+.sub-section-label {
+  grid-column: 1/-1;
+  font-size: 12px; font-weight: 700; color: var(--green);
+  margin: 10px 0 5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.sub-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ── Certification repeater ────────────────────────────── */
+.cert-list { grid-column: 1/-1; display: flex; flex-direction: column; gap: 10px; }
+.cert-card {
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; background: var(--cream); position: relative;
+}
+.cert-card .form-grid { gap: 0 12px; }
+.cert-remove {
+  position: absolute; top: 8px; right: 10px;
+  border: none; background: none; cursor: pointer;
+  color: var(--ink-faint); font-size: 15px;
+}
+.cert-remove:hover { color: var(--red); }
+.add-more-btn {
+  grid-column: 1/-1;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 600; color: var(--green);
+  border: 1.5px dashed rgba(45,106,53,.35); border-radius: 9px;
+  background: var(--green-pale); cursor: pointer;
+  padding: 9px 14px; width: 100%; margin-top: 4px; transition: background .12s;
+}
+.add-more-btn:hover { background: rgba(45,106,53,.12); }
+
+/* ── Product repeater (Section 5) ─────────────────────── */
+.product-list { grid-column: 1/-1; display: flex; flex-direction: column; gap: 10px; }
+.product-card {
+  border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; background: var(--white); position: relative;
+}
+.product-card .form-grid { gap: 0 12px; }
+
+/* ── Modal wider ─────────────────────────────────────────*/
+.partner-modal { max-width: 700px; }
+
+/* ── Status pill ─────────────────────────────────────────*/
+.status-active   { background: var(--green-pale); color: var(--green-dark); }
+.status-inactive { background: #F1F1ED; color: var(--ink-faint); }
+.status-pending  { background: #FFF3CD; color: #856404; }
+
+/* ── Type badge ─────────────────────────────────────────*/
+.type-badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 2px 8px; border-radius: 20px;
+  background: var(--green-pale); color: var(--green);
+}
+
+/* ── Detail drawer (view panel) ─────────────────────────*/
+.detail-section { margin-bottom: 18px; }
+.detail-section-head {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--ink-faint);
+  padding-bottom: 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+}
+.detail-row { display: flex; gap: 8px; margin-bottom: 7px; font-size: 13px; }
+.detail-label { min-width: 140px; color: var(--ink-faint); font-weight: 500; flex-shrink: 0; }
+.detail-val   { color: var(--ink); font-weight: 500; }
+.detail-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.detail-chip  {
+  font-size: 11.5px; padding: 2px 9px; border-radius: 20px;
+  background: var(--green-pale); color: var(--green); border: 1px solid rgba(45,106,53,.2);
+}
 </style>
 </head>
 <body>
@@ -46,65 +134,87 @@
 const content = renderShell({
   active: 'wellness-partners',
   title: 'Wellness Partners',
-  sub: 'Dieticians, yoga studios, health clinics and other partners associated with KRISHA PURE',
+  sub: 'Registered wellness professionals and organisations partnered with KRISHA PURE',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Partner</button>`,
 });
 
 let cache = [];
 
-const PARTNER_TYPES = [
-  { key: 'dietician',        label: 'Dietician / Nutritionist', icon: '🥗' },
-  { key: 'yoga_studio',      label: 'Yoga Studio',              icon: '🧘' },
-  { key: 'health_clinic',    label: 'Health Clinic',            icon: '🏥' },
-  { key: 'fitness_center',   label: 'Fitness Center',           icon: '💪' },
-  { key: 'wellness_coach',   label: 'Wellness Coach',           icon: '🌱' },
-  { key: 'pharmacy',         label: 'Pharmacy / Ayurveda',      icon: '💊' },
-  { key: 'hospital',         label: 'Hospital / Specialist',    icon: '🏨' },
-  { key: 'other',            label: 'Other',                    icon: '🤝' },
+// ── Data definitions ──────────────────────────────────────────────────────────
+
+const WELLNESS_CATEGORIES = {
+  'Health & Nutrition': ['Nutritionist','Dietitian','Health Coach','Wellness Consultant'],
+  'Fitness':            ['Yoga Instructor','Fitness Trainer','Pilates Trainer','Zumba Trainer'],
+  'Medical & Preventive Care': ['General Physician','Physiotherapist','Mental Wellness Counselor','Health Screening Provider'],
+  'Natural Wellness':   ['Organic Food Supplier','Herbal Products','Essential Oils','Ayurveda'],
+  'Lifestyle Wellness': ['Meditation Coach','Stress Management Coach','Sleep Coach','Corporate Wellness Trainer'],
+};
+
+const PARTNERSHIP_MODELS = [
+  'Product Sales','Consultation Services','Apartment Events',
+  'Wellness Camps','Workshops','Monthly Wellness Basket',
+  'Seasonal Wellness Programs','Subscription Programs',
 ];
 
-function typeLabel(key) {
-  return PARTNER_TYPES.find(t => t.key === key)?.label || key || 'Partner';
-}
-function typeIcon(key) {
-  return PARTNER_TYPES.find(t => t.key === key)?.icon || '🤝';
-}
+const APARTMENT_ACTIVITIES = [
+  'Health Talks','Yoga Sessions','Nutrition Workshops',
+  'Kids Wellness Programs','Senior Citizen Programs',
+  "Women's Wellness Programs",'Corporate Wellness Sessions',
+];
+
+const CUSTOMER_SEGMENTS = [
+  'Young Professionals','Families with Children','Senior Citizens',
+  'Pregnant Women','Fitness Enthusiasts','Diabetic Customers',
+  'Weight Loss Customers','Corporate Employees',
+];
+
+const COMPLIANCE_OPTIONS = [
+  'FSSAI','GST','MSME','ISO Certification','Organic Certification','GMP Certification',
+];
+
+const SERVICE_MODES   = ['Individual','Family','Corporate'];
+const DELIVERY_MODES  = ['Online','Offline','Both'];
+
+// ── Page shell ────────────────────────────────────────────────────────────────
 
 content.innerHTML = `
-  <!-- Filter bar -->
-  <div class="panel" style="padding:12px 16px;margin-bottom:0">
+  <div class="panel" style="padding:12px 16px;margin-bottom:0;border-bottom:0;border-radius:var(--radius) var(--radius) 0 0">
     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-      <input type="text" id="search" placeholder="Search partners…"
-        style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;outline:none" />
-      <select id="filter-type"
-        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
-        <option value="">All Types</option>
-        ${PARTNER_TYPES.map(t => `<option value="${t.key}">${t.icon} ${t.label}</option>`).join('')}
+      <input type="text" id="search" placeholder="Search partners, contacts…"
+        style="flex:1;min-width:180px;padding:8px 12px;border:1.5px solid var(--border);
+        border-radius:8px;font-family:var(--font-body);font-size:13.5px;outline:none" />
+      <select id="filter-cat"
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
+        font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
+        <option value="">All Categories</option>
+        ${Object.keys(WELLNESS_CATEGORIES).map(c => `<option value="${c}">${c}</option>`).join('')}
       </select>
       <select id="filter-city"
-        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
+        font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
         <option value="">All Cities</option>
-        <option>Coimbatore</option>
-        <option>Chennai</option>
+        <option>Coimbatore</option><option>Chennai</option>
+      </select>
+      <select id="filter-status"
+        style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;
+        font-family:var(--font-body);font-size:13px;color:var(--ink);background:var(--white);outline:none">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="pending">Pending Review</option>
+        <option value="inactive">Inactive</option>
       </select>
     </div>
   </div>
 
-  <div class="panel" style="margin-top:0;border-top:0;border-radius:0 0 var(--radius) var(--radius)">
+  <div class="panel" style="margin-top:0;border-radius:0 0 var(--radius) var(--radius);border-top:0">
     <div class="table-wrap">
       <table class="data">
-        <thead>
-          <tr>
-            <th>Partner</th>
-            <th>Type</th>
-            <th>Contact</th>
-            <th>City</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Partner</th><th>Categories</th><th>Contact</th>
+          <th>City</th><th>Partnership</th><th>Status</th><th></th>
+        </tr></thead>
         <tbody id="body">
-          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -112,216 +222,592 @@ content.innerHTML = `
   <div id="modal-root"></div>
 `;
 
+['search','filter-cat','filter-city','filter-status'].forEach(id =>
+  document.getElementById(id).addEventListener(id === 'search' ? 'input' : 'change', renderTable)
+);
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
-document.getElementById('search').addEventListener('input', renderTable);
-document.getElementById('filter-type').addEventListener('change', renderTable);
-document.getElementById('filter-city').addEventListener('change', renderTable);
+
+// ── Table rendering ───────────────────────────────────────────────────────────
 
 function renderTable() {
-  const q    = document.getElementById('search').value.trim().toLowerCase();
-  const type = document.getElementById('filter-type').value;
-  const city = document.getElementById('filter-city').value;
+  const q      = document.getElementById('search').value.trim().toLowerCase();
+  const cat    = document.getElementById('filter-cat').value;
+  const city   = document.getElementById('filter-city').value;
+  const status = document.getElementById('filter-status').value;
 
   const filtered = cache.filter(p => {
-    const matchQ    = !q || p.name?.toLowerCase().includes(q) || p.contactName?.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q);
-    const matchType = !type || p.type === type;
-    const matchCity = !city || p.city === city;
-    return matchQ && matchType && matchCity;
+    const matchQ   = !q || [p.businessName,p.brandName,p.contactPerson,p.email]
+                           .some(v => v?.toLowerCase().includes(q));
+    const matchCat  = !cat  || (p.categories || []).includes(cat);
+    const matchCity = !city || p.serviceArea === city || p.businessAddress?.toLowerCase().includes(city.toLowerCase());
+    const matchSt   = !status || (p.status || 'active') === status;
+    return matchQ && matchCat && matchCity && matchSt;
   });
 
   const tbody = document.getElementById('body');
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">🤝</div>${cache.length ? 'No partners match your filter' : 'No wellness partners yet'}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">🤝</div>${cache.length ? 'No partners match your filter' : 'No wellness partners yet — add one to get started'}</div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = filtered.map(p => `
-    <tr>
+  tbody.innerHTML = filtered.map(p => {
+    const cats = (p.categories || []).slice(0,2);
+    const subCats = (p.subCategories || []).slice(0,2);
+    const partnerModels = (p.partnershipModels || []).slice(0,2);
+    const statusCls = { active:'pill-delivered', pending:'pill-placed', inactive:'pill-cancelled' }[p.status||'active'] || 'pill-delivered';
+    const statusLabel = { active:'Active', pending:'Pending Review', inactive:'Inactive' }[p.status||'active'] || 'Active';
+    return `<tr>
       <td>
-        <div style="display:flex;align-items:center;gap:10px">
-          <div class="partner-icon">${typeIcon(p.type)}</div>
-          <div>
-            <b>${escapeHtml(p.name)}</b>
-            ${p.description ? `<div class="muted" style="font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.description)}</div>` : ''}
-          </div>
-        </div>
+        <b>${escapeHtml(p.businessName || '—')}</b>
+        ${p.brandName && p.brandName !== p.businessName ? `<div class="muted" style="font-size:11.5px">${escapeHtml(p.brandName)}</div>` : ''}
+        ${p.yearEstablished ? `<div class="muted" style="font-size:11px">Est. ${p.yearEstablished}</div>` : ''}
       </td>
-      <td><span class="type-badge">${escapeHtml(typeLabel(p.type))}</span></td>
+      <td style="max-width:170px">
+        ${cats.map(c => `<span class="type-badge" style="margin:1px 2px 1px 0;display:inline-block">${escapeHtml(c)}</span>`).join('')}
+        ${subCats.map(s => `<span style="font-size:11px;color:var(--ink-faint);display:inline-block;margin:1px">${escapeHtml(s)}</span>`).join('')}
+        ${(p.categories||[]).length > 2 ? `<span class="muted" style="font-size:11px"> +${(p.categories||[]).length-2}</span>` : ''}
+      </td>
       <td>
-        ${p.contactName ? `<div style="font-size:13px">${escapeHtml(p.contactName)}</div>` : ''}
-        ${p.phone ? `<div class="contact-line"><a href="tel:${escapeHtml(p.phone)}">${escapeHtml(p.phone)}</a></div>` : ''}
-        ${p.email ? `<div class="contact-line"><a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a></div>` : ''}
-        ${!p.contactName && !p.phone && !p.email ? '<span class="muted">—</span>' : ''}
+        ${p.contactPerson ? `<div style="font-size:13px;font-weight:500">${escapeHtml(p.contactPerson)}</div>` : ''}
+        ${p.mobile ? `<div style="font-size:12px;color:var(--green)">${escapeHtml(p.mobile)}</div>` : ''}
+        ${p.email  ? `<div style="font-size:11.5px;color:var(--ink-faint)">${escapeHtml(p.email)}</div>` : ''}
       </td>
-      <td>${escapeHtml(p.city || '–')}</td>
-      <td>
-        <span class="pill ${p.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-          ${p.isActive === false ? 'Inactive' : 'Active'}
-        </span>
+      <td>${escapeHtml(p.serviceArea || p.businessAddress?.split(',').pop()?.trim() || '—')}</td>
+      <td style="max-width:140px">
+        ${partnerModels.map(m => `<span style="font-size:11px;background:var(--gold-pale);color:#7B5E2A;border-radius:4px;padding:1px 6px;display:inline-block;margin:1px">${escapeHtml(m)}</span>`).join('')}
+        ${(p.partnershipModels||[]).length > 2 ? `<span class="muted" style="font-size:11px"> +${(p.partnershipModels||[]).length-2}</span>` : ''}
+        ${!partnerModels.length ? '<span class="muted">—</span>' : ''}
       </td>
-      <td style="display:flex;gap:6px">
+      <td><span class="pill ${statusCls}">${statusLabel}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-ghost btn-sm" onclick="viewPartner('${p._id}')">View</button>
         <button class="btn btn-ghost btn-sm" onclick="openModal('${p._id}')">Edit</button>
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Deactivate</button>
-        <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${p._id}','${escapeHtml(p.name)}')">Delete</button>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${p._id}')">Remove</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { partners } = await adminApi.getPartners();
     cache = partners;
     renderTable();
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
 async function deactivate(id) {
-  if (!confirm('Deactivate this partner?')) return;
-  try { await adminApi.deletePartner(id); showToast('Partner deactivated', 'success'); load(); }
+  if (!confirm('Remove this partner from the active list?')) return;
+  try { await adminApi.deletePartner(id); showToast('Partner removed', 'success'); load(); }
   catch (e) { showToast(e.message, 'error'); }
 }
 
-async function hardDelete(id, name) {
-  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
-  try { await adminApi.hardDeletePartner(id); showToast('Partner deleted', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function sel(id)    { return document.getElementById(id); }
+function val(id)    { return sel(id)?.value?.trim() || ''; }
+function chips(id)  { return [...sel(id)?.querySelectorAll('.opt-chip.on') || []].map(c => c.dataset.v); }
+
+function renderChips(containerId, options, current = []) {
+  const wrap = sel(containerId);
+  if (!wrap) return;
+  const cur = new Set(Array.isArray(current) ? current : []);
+  wrap.innerHTML = options.map(o => `
+    <label class="opt-chip ${cur.has(o) ? 'on' : ''}" data-v="${escapeHtml(o)}">
+      <input type="checkbox" ${cur.has(o) ? 'checked' : ''}/>${escapeHtml(o)}
+    </label>`).join('');
+  wrap.querySelectorAll('.opt-chip').forEach(c =>
+    c.addEventListener('click', e => { e.preventDefault(); c.classList.toggle('on'); })
+  );
 }
 
-function initTypePicker(containerId, current) {
-  const wrap = document.getElementById(containerId);
-  let selected = current || '';
+function mkField(label, inputHtml, hint = '') {
+  return `<div class="field">
+    <label>${label}</label>${inputHtml}${hint ? `<div class="hint">${hint}</div>` : ''}
+  </div>`;
+}
+function mkInput(name, val = '', placeholder = '', type = 'text', extra = '') {
+  return `<input name="${name}" type="${type}" value="${escapeHtml(val)}" placeholder="${placeholder}" ${extra}/>`;
+}
+function mkSelect(name, options, cur = '') {
+  return `<select name="${name}">${options.map(([v,l]) =>
+    `<option value="${v}" ${cur===v?'selected':''}>${l}</option>`).join('')}</select>`;
+}
+function mkTA(name, val = '', placeholder = '', rows = 2) {
+  return `<textarea name="${name}" rows="${rows}" placeholder="${placeholder}">${escapeHtml(val)}</textarea>`;
+}
+function secHead(n, title, sub = '') {
+  return `<div class="form-section-head">
+    <div class="sec-num">${n}</div>
+    <span class="sec-title">${title}</span>
+    ${sub ? `<span class="sec-sub">— ${sub}</span>` : ''}
+  </div>`;
+}
+function subHead(label) {
+  return `<div class="sub-section-label">${label}</div>`;
+}
+function optGroup(label, chipsId) {
+  return `<div class="option-group">
+    <div class="option-group-label">${label}</div>
+    <div class="option-chips" id="${chipsId}"></div>
+  </div>`;
+}
 
-  function render() {
-    wrap.innerHTML = PARTNER_TYPES.map(t => `
-      <div class="type-chip ${selected === t.key ? 'selected' : ''}" data-key="${t.key}">
-        <span>${t.icon}</span><span>${t.label}</span>
-      </div>
-    `).join('');
-    wrap.querySelectorAll('.type-chip').forEach(el => {
-      el.addEventListener('click', () => {
-        selected = el.dataset.key;
-        wrap.querySelectorAll('.type-chip').forEach(c => c.classList.toggle('selected', c.dataset.key === selected));
-      });
-    });
+// ── Certification repeater ────────────────────────────────────────────────────
+
+function initCertRepeater(listId, addBtnId, initial = []) {
+  const listEl = sel(listId);
+  let certs = initial.length ? initial.map(c => ({...c})) : [];
+
+  function renderCerts() {
+    listEl.innerHTML = certs.map((c, i) => `
+      <div class="cert-card">
+        <button type="button" class="cert-remove" data-i="${i}" title="Remove">✕</button>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0 12px">
+          <div class="field"><label>Qualification</label>
+            <input name="cert_qual_${i}" value="${escapeHtml(c.qualification||'')}"/></div>
+          <div class="field"><label>University / Institution</label>
+            <input name="cert_uni_${i}"  value="${escapeHtml(c.university||'')}"/></div>
+          <div class="field"><label>Certification Name</label>
+            <input name="cert_name_${i}" value="${escapeHtml(c.certName||'')}"/></div>
+          <div class="field"><label>Certification Number</label>
+            <input name="cert_num_${i}"  value="${escapeHtml(c.certNumber||'')}"/></div>
+          <div class="field"><label>Validity Date</label>
+            <input name="cert_valid_${i}" type="date" value="${escapeHtml(c.validityDate||'')}"/></div>
+          <div class="field"><label>Registration Number</label>
+            <input name="cert_reg_${i}"  value="${escapeHtml(c.registrationNo||'')}"/></div>
+        </div>
+      </div>`).join('');
+    listEl.querySelectorAll('.cert-remove').forEach(btn =>
+      btn.addEventListener('click', () => { certs.splice(+btn.dataset.i, 1); renderCerts(); })
+    );
   }
 
-  render();
-  wrap._getSelected = () => selected;
+  renderCerts();
+  sel(addBtnId)?.addEventListener('click', () => { certs.push({}); renderCerts(); });
+
+  return {
+    getCerts: () => certs.map((_, i) => ({
+      qualification:  (document.querySelector(`[name=cert_qual_${i}]`)?.value || '').trim(),
+      university:     (document.querySelector(`[name=cert_uni_${i}]`)?.value  || '').trim(),
+      certName:       (document.querySelector(`[name=cert_name_${i}]`)?.value || '').trim(),
+      certNumber:     (document.querySelector(`[name=cert_num_${i}]`)?.value  || '').trim(),
+      validityDate:   (document.querySelector(`[name=cert_valid_${i}]`)?.value|| '').trim(),
+      registrationNo: (document.querySelector(`[name=cert_reg_${i}]`)?.value  || '').trim(),
+    })).filter(c => c.qualification || c.certName),
+  };
 }
+
+// ── Product repeater (Section 5) ─────────────────────────────────────────────
+
+function initProductRepeater(listId, addBtnId, initial = []) {
+  const listEl = sel(listId);
+  let prods = initial.length ? initial.map(p => ({...p})) : [];
+
+  function renderProds() {
+    listEl.innerHTML = prods.map((p, i) => `
+      <div class="product-card">
+        <button type="button" class="cert-remove" data-i="${i}" title="Remove">✕</button>
+        <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0 12px">
+          <div class="field"><label>Product Name</label>
+            <input name="prod_name_${i}"    value="${escapeHtml(p.productName||'')}"/></div>
+          <div class="field"><label>Category</label>
+            <input name="prod_cat_${i}"     value="${escapeHtml(p.category||'')}"/></div>
+          <div class="field full"><label>Ingredients</label>
+            <input name="prod_ing_${i}"     value="${escapeHtml(p.ingredients||'')}" placeholder="comma-separated"/></div>
+          <div class="field"><label>Shelf Life</label>
+            <input name="prod_shelf_${i}"   value="${escapeHtml(p.shelfLife||'')}"/></div>
+          <div class="field"><label>Packaging Type</label>
+            <input name="prod_pack_${i}"    value="${escapeHtml(p.packagingType||'')}"/></div>
+          <div class="field"><label>Storage Requirements</label>
+            <input name="prod_store_${i}"   value="${escapeHtml(p.storageReq||'')}"/></div>
+          <div class="field"><label>MRP (₹)</label>
+            <input name="prod_mrp_${i}"     type="number" value="${p.mrp||''}" placeholder="0"/></div>
+          <div class="field"><label>Wholesale Price (₹)</label>
+            <input name="prod_ws_${i}"      type="number" value="${p.wholesalePrice||''}" placeholder="0"/></div>
+          <div class="field"><label>FSSAI Number</label>
+            <input name="prod_fssai_${i}"   value="${escapeHtml(p.fssaiNumber||'')}"/></div>
+          <div class="field"><label>GST Details</label>
+            <input name="prod_gst_${i}"     value="${escapeHtml(p.gstDetails||'')}"/></div>
+        </div>
+      </div>`).join('');
+    listEl.querySelectorAll('.cert-remove').forEach(btn =>
+      btn.addEventListener('click', () => { prods.splice(+btn.dataset.i, 1); renderProds(); })
+    );
+  }
+
+  renderProds();
+  sel(addBtnId)?.addEventListener('click', () => { prods.push({}); renderProds(); });
+
+  return {
+    getProducts: () => prods.map((_, i) => ({
+      productName:    (document.querySelector(`[name=prod_name_${i}]`)?.value  || '').trim(),
+      category:       (document.querySelector(`[name=prod_cat_${i}]`)?.value   || '').trim(),
+      ingredients:    (document.querySelector(`[name=prod_ing_${i}]`)?.value   || '').trim(),
+      shelfLife:      (document.querySelector(`[name=prod_shelf_${i}]`)?.value || '').trim(),
+      packagingType:  (document.querySelector(`[name=prod_pack_${i}]`)?.value  || '').trim(),
+      storageReq:     (document.querySelector(`[name=prod_store_${i}]`)?.value || '').trim(),
+      mrp:            Number(document.querySelector(`[name=prod_mrp_${i}]`)?.value) || null,
+      wholesalePrice: Number(document.querySelector(`[name=prod_ws_${i}]`)?.value)  || null,
+      fssaiNumber:    (document.querySelector(`[name=prod_fssai_${i}]`)?.value || '').trim(),
+      gstDetails:     (document.querySelector(`[name=prod_gst_${i}]`)?.value   || '').trim(),
+    })).filter(p => p.productName),
+  };
+}
+
+// ── View Partner detail modal ─────────────────────────────────────────────────
+
+function viewPartner(id) {
+  const p = cache.find(x => x._id === id);
+  if (!p) return;
+  const root = sel('modal-root');
+
+  function dRow(label, val) {
+    if (!val || (Array.isArray(val) && !val.length)) return '';
+    if (Array.isArray(val)) {
+      return `<div class="detail-row"><span class="detail-label">${label}</span>
+        <span class="detail-val detail-chips">${val.map(v => `<span class="detail-chip">${escapeHtml(v)}</span>`).join('')}</span></div>`;
+    }
+    return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-val">${escapeHtml(String(val))}</span></div>`;
+  }
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal partner-modal">
+        <div class="modal-head">
+          <h3>🤝 ${escapeHtml(p.businessName||'Partner')}</h3>
+          <button class="modal-close" onclick="sel('modal-root').innerHTML=''">✕</button>
+        </div>
+        <div style="max-height:72vh;overflow-y:auto;padding-right:4px">
+
+          <div class="detail-section">
+            <div class="detail-section-head">Basic Information</div>
+            ${dRow('Business Name', p.businessName)}
+            ${dRow('Brand Name', p.brandName)}
+            ${dRow('Contact Person', p.contactPerson)}
+            ${dRow('Mobile', p.mobile)}
+            ${dRow('Email', p.email)}
+            ${dRow('Website / Social', p.website)}
+            ${dRow('Address', p.businessAddress)}
+            ${dRow('Year Established', p.yearEstablished)}
+            ${dRow('No. of Employees', p.numEmployees)}
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-head">Wellness Categories</div>
+            ${dRow('Categories', p.categories)}
+            ${dRow('Specialisations', p.subCategories)}
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-head">Service Information</div>
+            ${dRow('Services Offered', p.servicesOffered)}
+            ${dRow('Description', p.serviceDescription)}
+            ${dRow('Mode', p.serviceMode)}
+            ${dRow('Delivery', p.deliveryMode)}
+            ${dRow('Service Area', p.serviceArea)}
+            ${dRow('Languages', p.languages)}
+            ${dRow('Consultation Duration', p.consultationDuration)}
+            ${dRow('Pricing Range', p.pricingRange)}
+          </div>
+
+          ${(p.certifications||[]).length ? `
+          <div class="detail-section">
+            <div class="detail-section-head">Qualifications & Certifications</div>
+            ${p.certifications.map((c,i) => `
+              <div style="padding:8px 10px;background:var(--cream);border-radius:7px;margin-bottom:7px">
+                <b style="font-size:13px">${escapeHtml(c.certName||c.qualification||`Certificate ${i+1}`)}</b>
+                ${c.qualification ? `<div style="font-size:12px;color:var(--ink-faint)">${escapeHtml(c.qualification)} — ${escapeHtml(c.university||'')}</div>` : ''}
+                ${c.certNumber ? `<div style="font-size:11.5px;color:var(--ink-soft)">No: ${escapeHtml(c.certNumber)} · Valid: ${escapeHtml(c.validityDate||'—')}</div>` : ''}
+              </div>`).join('')}
+          </div>` : ''}
+
+          ${(p.products||[]).length ? `
+          <div class="detail-section">
+            <div class="detail-section-head">Products (${p.products.length})</div>
+            ${p.products.map(pr => `
+              <div style="padding:8px 10px;background:var(--cream);border-radius:7px;margin-bottom:7px">
+                <b style="font-size:13px">${escapeHtml(pr.productName)}</b> — ${escapeHtml(pr.category||'')}
+                ${pr.mrp ? `<span style="font-family:var(--font-mono);font-size:12px;margin-left:8px">MRP ₹${pr.mrp}</span>` : ''}
+              </div>`).join('')}
+          </div>` : ''}
+
+          <div class="detail-section">
+            <div class="detail-section-head">Quality & Compliance</div>
+            ${dRow('Registered Under', p.compliance)}
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-head">Customer Experience</div>
+            ${dRow('Customers Served', p.numCustomers)}
+            ${dRow('Google Reviews', p.googleReviews)}
+            ${dRow('Communities Served', p.communitiesServed)}
+            ${dRow('Corporate Clients', p.corporateClients)}
+          </div>
+
+          <div class="detail-section">
+            <div class="detail-section-head">Partnership & Engagement</div>
+            ${dRow('Partnership Models', p.partnershipModels)}
+            ${dRow('Basket Products/Services', p.basketContrib)}
+            ${dRow('Customer Segment Focus', p.basketSegment)}
+            ${dRow('Sample Available', p.sampleAvailable)}
+            ${dRow('MOQ', p.moq)}
+            ${dRow('Bulk Pricing', p.bulkPricing)}
+            ${dRow('Custom Branding', p.customBranding)}
+            ${dRow('Apartment Activities', p.apartmentActivities)}
+            ${dRow('Customer Segments', p.customerSegments)}
+          </div>
+
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="sel('modal-root').innerHTML=''">Close</button>
+          <button class="btn btn-primary" onclick="sel('modal-root').innerHTML='';openModal('${p._id}')">Edit</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Add / Edit Modal ──────────────────────────────────────────────────────────
 
 function openModal(id) {
   const p      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!p;
-  const root   = document.getElementById('modal-root');
+  const root   = sel('modal-root');
 
   root.innerHTML = `
-    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:560px">
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal partner-modal">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Partner' : 'Add Wellness Partner'}</h3>
-          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+          <button class="modal-close" onclick="sel('modal-root').innerHTML=''">✕</button>
         </div>
-        <form id="form" class="form-grid">
 
+        <div style="max-height:72vh;overflow-y:auto;padding-right:4px" id="modal-scroll">
+        <form id="pform" class="form-grid" style="gap:0 14px">
+
+          <!-- §1 Basic Business Information -->
+          ${secHead(1,'Basic Business Information')}
+          ${mkField('Business Name *',   mkInput('businessName',  p?.businessName||'',  'Legal / registered name', 'text', 'required'))}
+          ${mkField('Brand Name',        mkInput('brandName',     p?.brandName||'',     'Customer-facing name'))}
+          ${mkField('Contact Person *',  mkInput('contactPerson', p?.contactPerson||'', 'Primary coordinator', 'text', 'required'))}
+          ${mkField('Mobile Number *',   mkInput('mobile',        p?.mobile||'',        '10-digit mobile', 'tel', 'required'))}
+          ${mkField('Email Address',     mkInput('email',         p?.email||'',         'official@example.com', 'email'))}
+          ${mkField('Website / Social',  mkInput('website',       p?.website||'',       'https:// or instagram link'))}
           <div class="field full">
-            <label>Partner / Organisation Name *</label>
-            <input name="name" value="${escapeHtml(p?.name || '')}" placeholder="e.g. Dr. Priya Nutrition Clinic" required />
+            <label>Business Address</label>
+            ${mkTA('businessAddress', p?.businessAddress||'', 'Street, area, city…', 2)}
           </div>
+          ${mkField('Year Established',  mkInput('yearEstablished',p?.yearEstablished||'','e.g. 2015','number'))}
+          ${mkField('Number of Employees',mkInput('numEmployees', p?.numEmployees||'',  'e.g. 5', 'number'))}
 
+          <!-- §2 Wellness Category -->
+          ${secHead(2,'Wellness Category','select all that apply')}
+          ${Object.entries(WELLNESS_CATEGORIES).map(([cat, subs]) => `
+            ${subHead(cat)}
+            ${optGroup('', `cat-${cat.replace(/[^a-z]/gi,'_')}`)}`).join('')}
+
+          <!-- §3 Service Information -->
+          ${secHead(3,'Service Information')}
           <div class="field full">
-            <label>Partner Type *</label>
-            <div class="type-grid" id="type-picker"></div>
+            <label>Services Offered</label>
+            ${mkInput('servicesOffered', p?.servicesOffered||'', 'e.g. Diet Consultation, Meal Planning')}
           </div>
-
-          <div class="field">
-            <label>Contact Person</label>
-            <input name="contactName" value="${escapeHtml(p?.contactName || '')}" placeholder="e.g. Dr. Priya Kumar" />
-          </div>
-
-          <div class="field">
-            <label>City</label>
-            <select name="city" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--ink);background:var(--white);outline:none;width:100%">
-              <option value="">Select city</option>
-              <option ${p?.city==='Coimbatore'?'selected':''}>Coimbatore</option>
-              <option ${p?.city==='Chennai'?'selected':''}>Chennai</option>
-            </select>
-          </div>
-
-          <div class="field">
-            <label>Phone</label>
-            <input name="phone" type="tel" value="${escapeHtml(p?.phone || '')}" placeholder="e.g. 98765 43210" />
-          </div>
-
-          <div class="field">
-            <label>Email</label>
-            <input name="email" type="email" value="${escapeHtml(p?.email || '')}" placeholder="e.g. clinic@example.com" />
-          </div>
-
           <div class="field full">
-            <label>Description / Notes</label>
-            <textarea name="description" rows="3"
-              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-family:var(--font-body);font-size:13.5px;color:var(--ink);outline:none;resize:vertical"
-              placeholder="Brief description of services, specialisation, tie-up details…">${escapeHtml(p?.description || '')}</textarea>
+            <label>Service Description</label>
+            ${mkTA('serviceDescription', p?.serviceDescription||'', 'Brief description of services…', 2)}
+          </div>
+          <div class="field full">
+            <label>Service Mode</label>
+            <div class="option-chips" id="chips-serviceMode"></div>
+          </div>
+          <div class="field full">
+            <label>Delivery Mode</label>
+            <div class="option-chips" id="chips-deliveryMode"></div>
+          </div>
+          ${mkField('Service Area / City',     mkInput('serviceArea',           p?.serviceArea||'',           'e.g. Coimbatore'))}
+          ${mkField('Languages Supported',     mkInput('languages',             p?.languages||'',             'e.g. Tamil, English'))}
+          ${mkField('Consultation Duration',   mkInput('consultationDuration',  p?.consultationDuration||'',  'e.g. 30 minutes'))}
+          ${mkField('Pricing Range',           mkInput('pricingRange',          p?.pricingRange||'',          'e.g. ₹500 – ₹1500'))}
+
+          <!-- §4 Qualifications & Certifications -->
+          ${secHead(4,'Qualifications & Certifications','for trust-building')}
+          <div class="cert-list" id="cert-list"></div>
+          <button type="button" class="add-more-btn" id="add-cert-btn">+ Add Certification</button>
+
+          <!-- §5 Product Information -->
+          ${secHead(5,'Product Information','if selling products')}
+          <div class="product-list" id="product-list"></div>
+          <button type="button" class="add-more-btn" id="add-prod-btn">+ Add Product</button>
+
+          <!-- §6 Quality & Compliance -->
+          ${secHead(6,'Quality & Compliance')}
+          <div class="field full">
+            <label>Registered Under</label>
+            <div class="option-chips" id="chips-compliance"></div>
+          </div>
+          <div class="field full">
+            <label>Certificates / Licenses (URLs or notes)</label>
+            ${mkTA('complianceDocs', p?.complianceDocs||'', 'Paste links or describe documents…', 2)}
           </div>
 
-          ${isEdit ? `
+          <!-- §7 Customer Experience -->
+          ${secHead(7,'Customer Experience')}
+          ${mkField('Number of Customers Served',    mkInput('numCustomers',    p?.numCustomers||'',    'e.g. 200+', 'text'))}
           <div class="field full">
-            <label class="chip-toggle ${p?.isActive === false ? '' : 'on'}" id="active-chip" style="display:inline-flex">
-              <input type="checkbox" style="display:none" ${p?.isActive === false ? '' : 'checked'} /> ✅ Active
-            </label>
-          </div>` : ''}
+            <label>Testimonials / Social Proof</label>
+            ${mkTA('testimonials', p?.testimonials||'', 'Key testimonials or social proof…', 2)}
+          </div>
+          ${mkField('Google Reviews Link', mkInput('googleReviews', p?.googleReviews||'', 'https://g.page/...'))}
+          ${mkField('Apartment Communities Served', mkInput('communitiesServed', p?.communitiesServed||'', 'e.g. Green Meadows, Prestige Park'))}
+          <div class="field full">
+            <label>Corporate Clients</label>
+            ${mkInput('corporateClients', p?.corporateClients||'', 'e.g. TCS, Infosys, local SMEs')}
+          </div>
+
+          <!-- §8 Partnership Model -->
+          ${secHead(8,'Partnership Model','how they work with KRISHA PURE')}
+          <div class="field full">
+            <label>Interested In</label>
+            <div class="option-chips" id="chips-partnership"></div>
+          </div>
+
+          <!-- §9 Wellness Basket Contribution -->
+          ${secHead(9,'Wellness Basket Contribution')}
+          ${mkField('Products / Services for Basket', mkInput('basketContrib',  p?.basketContrib||'',  'e.g. Herbal Tea, Moringa Powder'))}
+          ${mkField('Recommended Customer Segment',   mkInput('basketSegment',  p?.basketSegment||'',  'e.g. Seniors, Diabetic Customers'))}
+          ${mkField('Shelf Life',                     mkInput('shelfLifeBasket',p?.shelfLifeBasket||'','e.g. 12 Months'))}
+          ${mkField('Sample Availability',
+            mkSelect('sampleAvailable',[['','Select'],['Yes','Yes'],['No','No']], p?.sampleAvailable||''))}
+          ${mkField('MOQ',                            mkInput('moq',            p?.moq||'',            'e.g. 100 Units'))}
+          ${mkField('Bulk Pricing',                   mkInput('bulkPricing',    p?.bulkPricing||'',    'e.g. ₹45/unit'))}
+          ${mkField('Custom Branding Available',
+            mkSelect('customBranding',[['','Select'],['Yes','Yes'],['No','No']], p?.customBranding||''))}
+
+          <!-- §10 Apartment Engagement Readiness -->
+          ${secHead(10,'Apartment Engagement Readiness')}
+          <div class="field full">
+            <label>Can Conduct</label>
+            <div class="option-chips" id="chips-apartment"></div>
+          </div>
+
+          <!-- §11 Alignment with KRISHA PURE -->
+          ${secHead(11,'Alignment with KRISHA PURE')}
+          <div class="field full">
+            <label>Customer Segments Served</label>
+            <div class="option-chips" id="chips-segments"></div>
+          </div>
+
+          <!-- Status -->
+          ${secHead('·','Status & Notes')}
+          <div class="field">
+            <label>Status</label>
+            ${mkSelect('status',
+              [['active','Active'],['pending','Pending Review'],['inactive','Inactive']],
+              p?.status||'active')}
+          </div>
+          <div class="field full">
+            <label>Internal Notes</label>
+            ${mkTA('internalNotes', p?.internalNotes||'', 'Admin notes not visible to partner…', 2)}
+          </div>
 
         </form>
+        </div><!-- end scroll -->
+
         <div class="modal-foot">
-          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
-          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Add Partner'}</button>
+          <button class="btn btn-outline" onclick="sel('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="psave">${isEdit ? 'Save Changes' : 'Add Partner'}</button>
         </div>
       </div>
     </div>
   `;
 
-  initTypePicker('type-picker', p?.type || '');
+  // Init category chip groups
+  Object.entries(WELLNESS_CATEGORIES).forEach(([cat, subs]) => {
+    const key = `cat-${cat.replace(/[^a-z]/gi,'_')}`;
+    renderChips(key, subs, p?.subCategories || []);
+  });
 
-  const chip = document.getElementById('active-chip');
-  if (chip) {
-    chip.addEventListener('click', e => {
-      e.preventDefault();
-      chip.classList.toggle('on');
-      chip.querySelector('input').checked = chip.classList.contains('on');
+  // Other chip groups
+  renderChips('chips-serviceMode',  SERVICE_MODES,       p?.serviceMode || []);
+  renderChips('chips-deliveryMode', DELIVERY_MODES,      p?.deliveryMode || []);
+  renderChips('chips-compliance',   COMPLIANCE_OPTIONS,  p?.compliance || []);
+  renderChips('chips-partnership',  PARTNERSHIP_MODELS,  p?.partnershipModels || []);
+  renderChips('chips-apartment',    APARTMENT_ACTIVITIES,p?.apartmentActivities || []);
+  renderChips('chips-segments',     CUSTOMER_SEGMENTS,   p?.customerSegments || []);
+
+  const certCtrl = initCertRepeater('cert-list',    'add-cert-btn',  p?.certifications || []);
+  const prodCtrl = initProductRepeater('product-list','add-prod-btn', p?.products || []);
+
+  sel('psave').addEventListener('click', async () => {
+    const fd = new FormData(sel('pform'));
+
+    // Collect subCategories from all category chip groups
+    const subCategories = [];
+    const categories    = [];
+    Object.entries(WELLNESS_CATEGORIES).forEach(([cat, subs]) => {
+      const key     = `cat-${cat.replace(/[^a-z]/gi,'_')}`;
+      const picked  = chips(key);
+      if (picked.length) { categories.push(cat); subCategories.push(...picked); }
     });
-  }
-
-  document.getElementById('save').addEventListener('click', async () => {
-    const fd          = new FormData(document.getElementById('form'));
-    const typePicker  = document.getElementById('type-picker');
-    const selectedType = typePicker._getSelected();
-
-    if (!fd.get('name'))  { showToast('Partner name is required', 'error'); return; }
-    if (!selectedType)    { showToast('Please select a partner type', 'error'); return; }
 
     const body = {
-      name:        fd.get('name'),
-      type:        selectedType,
-      contactName: fd.get('contactName') || undefined,
-      city:        fd.get('city') || undefined,
-      phone:       fd.get('phone') || undefined,
-      email:       fd.get('email') || undefined,
-      description: fd.get('description') || undefined,
+      businessName:        fd.get('businessName'),
+      brandName:           fd.get('brandName')           || undefined,
+      contactPerson:       fd.get('contactPerson'),
+      mobile:              fd.get('mobile'),
+      email:               fd.get('email')               || undefined,
+      website:             fd.get('website')             || undefined,
+      businessAddress:     fd.get('businessAddress')     || undefined,
+      yearEstablished:     fd.get('yearEstablished')     || undefined,
+      numEmployees:        fd.get('numEmployees')        || undefined,
+      categories,
+      subCategories,
+      servicesOffered:     fd.get('servicesOffered')     || undefined,
+      serviceDescription:  fd.get('serviceDescription')  || undefined,
+      serviceMode:         chips('chips-serviceMode'),
+      deliveryMode:        chips('chips-deliveryMode'),
+      serviceArea:         fd.get('serviceArea')         || undefined,
+      languages:           fd.get('languages')           || undefined,
+      consultationDuration:fd.get('consultationDuration')|| undefined,
+      pricingRange:        fd.get('pricingRange')        || undefined,
+      certifications:      certCtrl.getCerts(),
+      products:            prodCtrl.getProducts(),
+      compliance:          chips('chips-compliance'),
+      complianceDocs:      fd.get('complianceDocs')      || undefined,
+      numCustomers:        fd.get('numCustomers')        || undefined,
+      testimonials:        fd.get('testimonials')        || undefined,
+      googleReviews:       fd.get('googleReviews')       || undefined,
+      communitiesServed:   fd.get('communitiesServed')   || undefined,
+      corporateClients:    fd.get('corporateClients')    || undefined,
+      partnershipModels:   chips('chips-partnership'),
+      basketContrib:       fd.get('basketContrib')       || undefined,
+      basketSegment:       fd.get('basketSegment')       || undefined,
+      shelfLifeBasket:     fd.get('shelfLifeBasket')     || undefined,
+      sampleAvailable:     fd.get('sampleAvailable')     || undefined,
+      moq:                 fd.get('moq')                 || undefined,
+      bulkPricing:         fd.get('bulkPricing')         || undefined,
+      customBranding:      fd.get('customBranding')      || undefined,
+      apartmentActivities: chips('chips-apartment'),
+      customerSegments:    chips('chips-segments'),
+      status:              fd.get('status') || 'active',
+      internalNotes:       fd.get('internalNotes')       || undefined,
     };
-    if (isEdit && chip) body.isActive = chip.classList.contains('on');
 
-    const btn = document.getElementById('save');
+    if (!body.businessName)  { showToast('Business name is required', 'error'); return; }
+    if (!body.contactPerson) { showToast('Contact person is required', 'error'); return; }
+    if (!body.mobile)        { showToast('Mobile number is required', 'error'); return; }
+
+    const btn = sel('psave');
     btn.disabled = true; btn.textContent = 'Saving…';
-
     try {
       if (isEdit) await adminApi.updatePartner(p._id, body);
       else        await adminApi.createPartner(body);
       showToast('Partner saved', 'success');
-      document.getElementById('modal-root').innerHTML = '';
+      root.innerHTML = '';
       load();
     } catch (e) {
       showToast(e.message, 'error');

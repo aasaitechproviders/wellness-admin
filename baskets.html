@@ -53,9 +53,57 @@
   .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 0; }
   .picker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
 
+  /* ── Nutrition panel ─────────────────────────────────── */
+  .nutrition-panel {
+    margin-top: 14px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    background: var(--white); overflow: hidden;
+  }
+  .nutrition-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; background: var(--green-pale);
+    border-bottom: 1px solid var(--border);
+  }
+  .nutrition-panel-head .np-title {
+    font-size: 12.5px; font-weight: 700; color: var(--green);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .nutrition-panel-head .np-sub {
+    font-size: 11px; color: var(--ink-faint); font-weight: 400;
+  }
+  .nutrition-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+  .nutrition-cell {
+    padding: 10px 14px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .nutrition-cell:nth-child(4n) { border-right: none; }
+  .nutrition-cell:nth-last-child(-n+4) { border-bottom: none; }
+  .nc-label {
+    font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase;
+    letter-spacing: .5px; font-weight: 600; margin-bottom: 3px;
+  }
+  .nc-value {
+    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
+    color: var(--ink);
+  }
+  .nc-unit { font-size: 10px; color: var(--ink-faint); font-weight: 400; }
+  .nutrition-empty {
+    padding: 16px 14px; text-align: center;
+    color: var(--ink-faint); font-size: 12.5px;
+  }
+  .nutrition-source-note {
+    padding: 8px 14px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--ink-faint);
+    background: var(--cream);
+  }
+  .nutrition-source-note b { color: var(--ink-soft); }
+
   /* ── Recipe builder ─────────────────────────────────── */
   .recipe-list { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-
   .recipe-card {
     border: 1.5px solid var(--border); border-radius: 12px;
     background: var(--white); overflow: hidden;
@@ -72,17 +120,12 @@
   }
   .recipe-card-head input::placeholder { font-weight: 400; color: var(--ink-faint); }
   .recipe-card-body { padding: 10px 12px; }
-
-  .step-row {
-    display: flex; align-items: flex-start; gap: 8px;
-    margin-bottom: 7px;
-  }
+  .step-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
   .step-bullet {
     width: 20px; height: 20px; min-width: 20px;
     background: var(--green-pale); color: var(--green);
     border-radius: 50%; font-size: 11px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    margin-top: 8px;
+    display: flex; align-items: center; justify-content: center; margin-top: 8px;
   }
   .step-input {
     flex: 1; padding: 7px 10px;
@@ -93,32 +136,26 @@
   .step-input:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(45,106,53,.08); }
   .step-remove {
     padding: 6px 4px; border: none; background: none;
-    color: var(--ink-faint); cursor: pointer; font-size: 16px; line-height: 1;
-    margin-top: 5px;
+    color: var(--ink-faint); cursor: pointer; font-size: 16px; line-height: 1; margin-top: 5px;
   }
   .step-remove:hover { color: var(--red); }
-
   .add-step-btn {
     display: flex; align-items: center; gap: 6px;
     font-size: 12.5px; color: var(--green); font-weight: 600;
     border: none; background: none; cursor: pointer; padding: 4px 0; margin-top: 4px;
   }
   .add-step-btn:hover { opacity: .75; }
-
   .add-recipe-btn {
     display: flex; align-items: center; gap: 6px;
     font-size: 13px; color: var(--green); font-weight: 600;
     border: 1.5px dashed rgba(45,106,53,.35); border-radius: 10px;
     background: var(--green-pale); cursor: pointer;
-    padding: 10px 14px; width: 100%; margin-top: 4px;
-    transition: background .12s;
+    padding: 10px 14px; width: 100%; margin-top: 4px; transition: background .12s;
   }
   .add-recipe-btn:hover { background: rgba(45,106,53,.12); }
-
   .remove-recipe-btn {
     padding: 3px 8px; border: none; background: none;
-    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1;
-    border-radius: 5px;
+    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1; border-radius: 5px;
   }
   .remove-recipe-btn:hover { background: var(--red-pale); color: var(--red); }
 
@@ -128,7 +165,7 @@
     border-radius: 5px; padding: 2px 7px; display: inline-block; margin-top: 3px;
   }
 
-  /* ── Wellness goal multi-picker ────────────────── */
+  /* ── Wellness goal multi-picker ────────────────────── */
   .goal-multi-wrap { display:flex; flex-wrap:wrap; gap:7px; padding:6px 0 4px; }
   .goal-toggle {
     display:inline-flex; align-items:center; gap:5px;
@@ -173,6 +210,7 @@ content.innerHTML = `
             <th>Basket</th>
             <th>Wellness Goals</th>
             <th>Products</th>
+            <th>Nutrition (per basket)</th>
             <th>Recipes</th>
             <th>Price</th>
             <th>Featured</th>
@@ -181,7 +219,7 @@ content.innerHTML = `
           </tr>
         </thead>
         <tbody id="body">
-          <tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="9" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -191,8 +229,108 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
+// ── Nutrition helpers ────────────────────────────────────────────────────────
+// Safely read nested nutrition value or fall back to flat Excel-style field
+function nv(ing, nestedKey, flatKey) {
+  const nested = ing.nutrition?.[nestedKey];
+  if (nested != null && nested !== '') return Number(nested);
+  const flat = ing[flatKey];
+  if (flat != null && flat !== '') return Number(flat);
+  return null;
+}
+
+const NUTRITION_FIELDS = [
+  { key: 'calories',  flat: 'Calories_100g (Kcal)', label: 'Calories',  unit: 'kcal' },
+  { key: 'carbs',     flat: 'Carbs_100g',            label: 'Carbs',     unit: 'g' },
+  { key: 'protein',   flat: 'Protein_100g',          label: 'Protein',   unit: 'g' },
+  { key: 'fat',       flat: 'Fat_100g',              label: 'Fat',       unit: 'g' },
+  { key: 'fiber',     flat: 'Fiber_100g',            label: 'Fiber',     unit: 'g' },
+  { key: 'sugar',     flat: 'Sugar_100g',            label: 'Sugar',     unit: 'g' },
+  { key: 'iron',      flat: 'Iron_mg',               label: 'Iron',      unit: 'mg' },
+  { key: 'calcium',   flat: 'Calcium_mg',            label: 'Calcium',   unit: 'mg' },
+  { key: 'vitaminC',  flat: 'VitaminC_mg',           label: 'Vitamin C', unit: 'mg' },
+  { key: 'potassium', flat: 'Potassium_mg',          label: 'Potassium', unit: 'mg' },
+  { key: 'magnesium', flat: 'Magnesium_mg',          label: 'Magnesium', unit: 'mg' },
+];
+
+// Aggregate nutrition across all selected ingredient objects
+function aggregateNutrition(ingredients) {
+  if (!ingredients.length) return null;
+  const totals = {};
+  let hasAnyData = false;
+  for (const f of NUTRITION_FIELDS) {
+    let sum = 0; let count = 0;
+    for (const ing of ingredients) {
+      const v = nv(ing, f.key, f.flat);
+      if (v != null) { sum += v; count++; }
+    }
+    if (count > 0) { totals[f.key] = Math.round(sum * 10) / 10; hasAnyData = true; }
+    else totals[f.key] = null;
+  }
+  return hasAnyData ? totals : null;
+}
+
+// Render the live nutrition panel inside the modal
+function renderNutritionPanel(ingredients) {
+  const el = document.getElementById('nutrition-panel');
+  if (!el) return;
+
+  const totals = aggregateNutrition(ingredients);
+  const names  = ingredients.map(i => i.name);
+
+  if (!ingredients.length) {
+    el.innerHTML = `
+      <div class="nutrition-panel-head">
+        <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
+      </div>
+      <div class="nutrition-empty">Add products above to see aggregated nutrition values</div>
+    `;
+    return;
+  }
+
+  if (!totals) {
+    el.innerHTML = `
+      <div class="nutrition-panel-head">
+        <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
+      </div>
+      <div class="nutrition-empty">No nutrition data found for the selected products</div>
+      <div class="nutrition-source-note">Sources: <b>${escapeHtml(names.join(', '))}</b></div>
+    `;
+    return;
+  }
+
+  const cells = NUTRITION_FIELDS
+    .filter(f => totals[f.key] != null)
+    .map(f => `
+      <div class="nutrition-cell">
+        <div class="nc-label">${f.label}</div>
+        <div class="nc-value">${totals[f.key]}<span class="nc-unit"> ${f.unit}</span></div>
+      </div>
+    `).join('');
+
+  el.innerHTML = `
+    <div class="nutrition-panel-head">
+      <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from ${ingredients.length} product${ingredients.length > 1 ? 's' : ''}</span></span>
+    </div>
+    <div class="nutrition-grid">${cells}</div>
+    <div class="nutrition-source-note">Sources: <b>${escapeHtml(names.join(', '))}</b></div>
+  `;
+}
+
+// Format nutrition for table cell tooltip/summary
+function fmtNutritionSummary(ns) {
+  if (!ns) return '<span class="muted">—</span>';
+  const parts = [];
+  if (ns.calories != null) parts.push(`${ns.calories} kcal`);
+  if (ns.protein  != null) parts.push(`P: ${ns.protein}g`);
+  if (ns.carbs    != null) parts.push(`C: ${ns.carbs}g`);
+  if (ns.fat      != null) parts.push(`F: ${ns.fat}g`);
+  if (!parts.length) return '<span class="muted">—</span>';
+  return `<span style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft)">${parts.join(' · ')}</span>`;
+}
+
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="9" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { baskets } = await adminApi.getBaskets();
     cache = baskets;
@@ -214,6 +352,7 @@ async function load() {
               ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
               : '<span style="color:var(--ink-faint)">No products</span>'}
           </td>
+          <td>${fmtNutritionSummary(b.nutritionSummary)}</td>
           <td>
             ${recipeCount
               ? `<span class="recipe-badge">🍲 ${recipeCount} recipe${recipeCount > 1 ? 's' : ''}</span>`
@@ -232,9 +371,9 @@ async function load() {
           </td>
         </tr>
       `;
-    }).join('') : `<tr><td colspan="8"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
+    }).join('') : `<tr><td colspan="9"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="9"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -250,7 +389,9 @@ async function deactivate(id) {
   catch (e) { showToast(e.message, 'error'); }
 }
 
-// ── Product Picker ───────────────────────────────────────────────────────────
+// ── Product Picker (now tracks full ingredient objects) ─────────────────────
+// ingredientObjects = array of full ingredient docs (with nutrition)
+// ingredientNames   = array of name strings (for backward compat)
 function initProductPicker(containerId, initialNames = []) {
   const root     = document.getElementById(containerId);
   const searchEl = root.querySelector('.picker-search');
@@ -258,8 +399,28 @@ function initProductPicker(containerId, initialNames = []) {
   const chipsEl  = root.querySelector('.chips-wrap');
   const hintEl   = root.querySelector('.picker-hint');
 
-  let selected   = [...initialNames];
+  // selected: array of full ingredient objects
+  // We start from names only (edit mode); objects get backfilled on first search
+  let selected    = [];          // [{_id, name, category, nutrition, ...}]
+  let nameOnlySet = new Set(initialNames); // names not yet resolved to objects
   let searchTimer = null;
+
+  // If we're in edit mode, pre-load the ingredient objects for initial names
+  // so nutrition can be computed immediately when modal opens
+  if (initialNames.length) {
+    adminApi.getIngredients({ limit: 200 }).then(({ ingredients }) => {
+      const byName = {};
+      ingredients.forEach(i => { byName[i.name] = i; });
+      selected = initialNames.map(n => byName[n] || { name: n }).filter(Boolean);
+      nameOnlySet = new Set();
+      renderChips();
+      renderNutritionPanel(selected.filter(i => i._id)); // only real objects
+    }).catch(() => {
+      // fallback: keep as name-only stubs
+      selected = initialNames.map(n => ({ name: n }));
+      renderChips();
+    });
+  }
 
   function updateHint() {
     if (hintEl) hintEl.textContent = `${selected.length} product(s) in basket`;
@@ -269,16 +430,18 @@ function initProductPicker(containerId, initialNames = []) {
     if (!selected.length) {
       chipsEl.innerHTML = `<span class="chips-empty">No products selected — search above to add</span>`;
     } else {
-      chipsEl.innerHTML = selected.map((name, i) => `
+      chipsEl.innerHTML = selected.map((ing, i) => `
         <span class="chip">
-          ${escapeHtml(name)}
+          ${escapeHtml(ing.name)}
           <button class="chip-remove" data-idx="${i}" title="Remove">✕</button>
         </span>
       `).join('');
       chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
         btn.addEventListener('click', () => {
           selected.splice(Number(btn.dataset.idx), 1);
-          renderChips(); updateHint();
+          renderChips();
+          updateHint();
+          renderNutritionPanel(selected.filter(i => i._id));
         });
       });
     }
@@ -290,17 +453,24 @@ function initProductPicker(containerId, initialNames = []) {
       dropdown.innerHTML = `<div class="picker-empty">No products found</div>`;
     } else {
       dropdown.innerHTML = items.map(ing => {
-        const already = selected.includes(ing.name);
+        const already = selected.some(s => s.name === ing.name);
         return `<div class="picker-option ${already ? 'already' : ''}" data-name="${escapeHtml(ing.name)}">
           <span>${escapeHtml(ing.name)}</span>
           <span class="p-cat">${already ? 'Added' : escapeHtml(ing.category || '')}</span>
         </div>`;
       }).join('');
+      // store full ingredient objects in a map for pick lookup
+      const ingMap = {};
+      items.forEach(i => { ingMap[i.name] = i; });
       dropdown.querySelectorAll('.picker-option:not(.already)').forEach(opt => {
         opt.addEventListener('mousedown', e => {
           e.preventDefault();
-          selected.push(opt.dataset.name);
-          renderChips(); searchEl.value = ''; dropdown.classList.remove('open');
+          const ing = ingMap[opt.dataset.name];
+          if (ing) selected.push(ing);
+          renderChips();
+          searchEl.value = '';
+          dropdown.classList.remove('open');
+          renderNutritionPanel(selected.filter(i => i._id));
         });
       });
     }
@@ -327,26 +497,24 @@ function initProductPicker(containerId, initialNames = []) {
   searchEl.addEventListener('blur',  () => setTimeout(() => dropdown.classList.remove('open'), 180));
 
   renderChips();
-  root._getSelected = () => selected;
+
+  // Expose getter — returns names (for backward compat) and full objects (for nutrition)
+  root._getSelected      = () => selected.map(i => i.name);
+  root._getSelectedObjs  = () => selected;
 }
 
 // ── Recipe Builder ───────────────────────────────────────────────────────────
-// recipes = [{ title: string, steps: string[] }]
 function initRecipeBuilder(containerId, initialRecipes = []) {
   const root = document.getElementById(containerId);
 
-  // Deep-clone so we don't mutate the cache
   let recipes = initialRecipes.map(r => ({
     title: r.title || '',
     steps: Array.isArray(r.steps) && r.steps.length ? [...r.steps] : [''],
   }));
-
-  // If no recipes at all, start with one empty slot
   if (!recipes.length) recipes = [{ title: '', steps: [''] }];
 
   function render() {
     root.innerHTML = '';
-
     const list = document.createElement('div');
     list.className = 'recipe-list';
 
@@ -354,7 +522,6 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
       const card = document.createElement('div');
       card.className = 'recipe-card';
 
-      // ── Card header: recipe title ──
       const head = document.createElement('div');
       head.className = 'recipe-card-head';
 
@@ -371,7 +538,6 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
       removeRecipeBtn.textContent = '✕ Remove';
       removeRecipeBtn.addEventListener('click', () => {
         recipes.splice(ri, 1);
-        // Always keep at least one empty recipe card
         if (!recipes.length) recipes = [{ title: '', steps: [''] }];
         render();
       });
@@ -379,13 +545,11 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
       head.appendChild(titleInput);
       head.appendChild(removeRecipeBtn);
 
-      // ── Card body: steps ──
       const body = document.createElement('div');
       body.className = 'recipe-card-body';
 
       function renderSteps() {
         body.innerHTML = '';
-
         recipe.steps.forEach((step, si) => {
           const row = document.createElement('div');
           row.className = 'step-row';
@@ -399,25 +563,20 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
           textarea.rows        = 1;
           textarea.placeholder = `Step ${si + 1} — e.g. Wash and chop spinach`;
           textarea.value       = step;
-          // Auto-expand height
           textarea.addEventListener('input', () => {
             recipes[ri].steps[si] = textarea.value;
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
           });
-          // Set initial height after render
           setTimeout(() => {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
           }, 0);
-
-          // Enter key adds next step
           textarea.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
               recipes[ri].steps.splice(si + 1, 0, '');
               renderSteps();
-              // Focus the new textarea
               setTimeout(() => {
                 const inputs = body.querySelectorAll('.step-input');
                 if (inputs[si + 1]) inputs[si + 1].focus();
@@ -442,7 +601,6 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
           body.appendChild(row);
         });
 
-        // Add step button
         const addStepBtn = document.createElement('button');
         addStepBtn.type      = 'button';
         addStepBtn.className = 'add-step-btn';
@@ -466,7 +624,6 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
 
     root.appendChild(list);
 
-    // Add Recipe button
     const addRecipeBtn = document.createElement('button');
     addRecipeBtn.type      = 'button';
     addRecipeBtn.className = 'add-recipe-btn';
@@ -474,7 +631,6 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
     addRecipeBtn.addEventListener('click', () => {
       recipes.push({ title: '', steps: [''] });
       render();
-      // Scroll to new card
       setTimeout(() => {
         const cards = root.querySelectorAll('.recipe-card');
         if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -484,17 +640,14 @@ function initRecipeBuilder(containerId, initialRecipes = []) {
   }
 
   render();
-
-  // Expose getter — returns only non-empty recipes (must have at least one non-empty step)
   root._getRecipes = () => recipes
     .map(r => ({
       title: r.title.trim(),
       steps: r.steps.map(s => s.trim()).filter(Boolean),
     }))
-    .filter(r => r.steps.length > 0); // exclude completely empty recipes
+    .filter(r => r.steps.length > 0);
 }
 
-// ── Modal ────────────────────────────────────────────────────────────────────
 // ── Wellness Goal Multi-Picker ───────────────────────────────────────────────
 function initGoalMultiPicker(containerId, currentGoals) {
   const wrap = document.getElementById(containerId);
@@ -532,8 +685,8 @@ function initGoalMultiPicker(containerId, currentGoals) {
   wrap._getSelected = () => selected;
 }
 
+// ── Modal ────────────────────────────────────────────────────────────────────
 async function openModal(id) {
-  // Ensure goals are loaded before rendering picker
   if (!goalsCache.length) {
     try {
       const { goals } = await adminApi.getGoals();
@@ -547,7 +700,7 @@ async function openModal(id) {
 
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:580px">
+      <div class="modal" style="max-width:620px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Basket' : 'Add Basket'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
@@ -589,10 +742,17 @@ async function openModal(id) {
               <div class="chips-wrap"></div>
               <div class="picker-hint"></div>
             </div>
+            <!-- Live nutrition panel — updates as products are added/removed -->
+            <div class="nutrition-panel" id="nutrition-panel">
+              <div class="nutrition-panel-head">
+                <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
+              </div>
+              <div class="nutrition-empty">Add products above to see aggregated nutrition values</div>
+            </div>
           </div>
 
           <div class="field full">
-            <label>Target Nutrients (comma-separated)</label>
+            <label>Target Nutrients <span style="font-weight:400;color:var(--ink-faint)">— comma-separated highlights shown to customers</span></label>
             <input name="targetNutrients" value="${(b?.targetNutrients || []).join(', ')}" placeholder="e.g. Iron, Folate, Vitamin C" />
           </div>
 
@@ -621,11 +781,18 @@ async function openModal(id) {
 
   initProductPicker('product-picker', b?.ingredientNames || []);
 
-  // Init goal multi-picker
   const existingGoals = Array.isArray(b?.wellnessGoals) ? b.wellnessGoals
     : (b?.wellnessGoal ? [b.wellnessGoal] : []);
   initGoalMultiPicker('goal-multi-picker', existingGoals);
   initRecipeBuilder('recipe-builder', b?.recipes || []);
+
+  // If editing and nutritionSummary exists, render it immediately (before lazy object load)
+  if (b?.nutritionSummary) {
+    const tempIngs = Object.keys(b.nutritionSummary).length
+      ? [{ _id: 'stub', name: (b.ingredientNames || []).join(', '), nutrition: b.nutritionSummary }]
+      : [];
+    renderNutritionPanel(tempIngs.length ? [{ _id: 'stub', name: '', nutrition: b.nutritionSummary, ...b.nutritionSummary }] : []);
+  }
 
   const chip = document.getElementById('featured-chip');
   chip.addEventListener('click', e => {
@@ -638,8 +805,13 @@ async function openModal(id) {
     const fd              = new FormData(document.getElementById('form'));
     const pickerEl        = document.getElementById('product-picker');
     const recipeBuilderEl = document.getElementById('recipe-builder');
-    const selectedProducts = pickerEl._getSelected();
-    const recipes          = recipeBuilderEl._getRecipes();
+    const selectedNames   = pickerEl._getSelected();
+    const selectedObjs    = pickerEl._getSelectedObjs();
+    const recipes         = recipeBuilderEl._getRecipes();
+
+    // Compute nutritionSummary from the actual ingredient objects
+    const realObjs       = selectedObjs.filter(i => i._id);
+    const nutritionSummary = aggregateNutrition(realObjs);
 
     const body = {
       basketName:      fd.get('basketName'),
@@ -650,8 +822,9 @@ async function openModal(id) {
       })(),
       price:           fd.get('price') !== '' ? Number(fd.get('price')) : undefined,
       description:     fd.get('description') || undefined,
-      ingredientNames: selectedProducts,
+      ingredientNames: selectedNames,
       targetNutrients: fd.get('targetNutrients').split(',').map(s => s.trim()).filter(Boolean),
+      nutritionSummary: nutritionSummary || undefined,
       recipes,
       isFeatured:      chip.classList.contains('on'),
     };

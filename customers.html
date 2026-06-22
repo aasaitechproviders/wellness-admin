@@ -75,7 +75,11 @@ async function loadCustomers() {
         <td>${escapeHtml(c.city || '–')}</td>
         <td>${(c.members || []).length}</td>
         <td><span class="pill ${c.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${c.isActive === false ? 'Inactive' : 'Active'}</span></td>
-        <td><button class="btn btn-ghost btn-sm" onclick="openCustomer('${c._id}')">Manage</button></td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="openCustomer('${c._id}')">View</button>
+          <button class="btn btn-ghost btn-sm" onclick="editCustomer('${c._id}')">Edit</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="toggleCustomerStatus('${c._id}', ${c.isActive === false})">${c.isActive === false ? 'Activate' : 'Deactivate'}</button>
+        </td>
       </tr>
     `).join('') : `<tr><td colspan="7"><div class="empty"><div class="icon">👪</div>No customers match these filters</div></td></tr>`;
 
@@ -268,6 +272,63 @@ async function deleteMember(customerId, memberId) {
     await adminApi.deleteMember(customerId, memberId);
     showToast('Member removed', 'success');
     openCustomer(customerId);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function editCustomer(id) {
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this) this.remove()"><div class="modal wide"><div class="loading-row"><div class="spinner"></div></div></div></div>`;
+  adminApi.getCustomer(id).then(({ customer: c, stats }) => {
+    root.querySelector('.modal').innerHTML = `
+      <div class="modal-head">
+        <h3>Edit — ${escapeHtml(c.familyName || 'Family')}</h3>
+        <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+      </div>
+      <form id="profile-form" class="form-grid">
+        <div class="field"><label>Family Name</label><input name="familyName" value="${escapeHtml(c.familyName || '')}" /></div>
+        <div class="field"><label>Phone (read-only)</label><input value="${escapeHtml(c.phone || '')}" disabled /></div>
+        <div class="field"><label>Apartment</label><input name="apartmentName" value="${escapeHtml(c.apartmentName || '')}" /></div>
+        <div class="field"><label>Flat No.</label><input name="flatNo" value="${escapeHtml(c.flatNo || '')}" /></div>
+        <div class="field"><label>Tower / Block</label><input name="towerNo" value="${escapeHtml(c.towerNo || '')}" /></div>
+        <div class="field"><label>City</label>
+          <select name="city"><option ${c.city==='Coimbatore'?'selected':''}>Coimbatore</option><option ${c.city==='Chennai'?'selected':''}>Chennai</option></select>
+        </div>
+        <div class="field"><label>Diet Preference</label><input name="dietPreference" value="${escapeHtml(c.dietPreference || '')}" /></div>
+        <div class="field full"><label>Address</label><input name="address" value="${escapeHtml(c.address || '')}" /></div>
+        <div class="field">
+          <label>Account Status</label>
+          <select name="isActive">
+            <option value="true" ${c.isActive !== false ? 'selected' : ''}>Active</option>
+            <option value="false" ${c.isActive === false ? 'selected' : ''}>Inactive (disabled)</option>
+          </select>
+        </div>
+      </form>
+      <div class="modal-foot">
+        <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+        <button class="btn btn-primary" id="save-edit">Save Changes</button>
+      </div>
+    `;
+    document.getElementById('save-edit').addEventListener('click', async () => {
+      const fd = new FormData(document.getElementById('profile-form'));
+      const body = Object.fromEntries(fd.entries());
+      body.isActive = body.isActive === 'true';
+      try {
+        await adminApi.updateCustomer(c._id, body);
+        showToast('Customer updated', 'success');
+        document.getElementById('modal-root').innerHTML = '';
+        loadCustomers();
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+  }).catch(e => { root.querySelector('.modal').innerHTML = `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`; });
+}
+
+async function toggleCustomerStatus(id, isCurrentlyInactive) {
+  const action = isCurrentlyInactive ? 'activate' : 'deactivate';
+  if (!confirm(`${isCurrentlyInactive ? 'Activate' : 'Deactivate'} this customer account?`)) return;
+  try {
+    await adminApi.updateCustomer(id, { isActive: !!isCurrentlyInactive });
+    showToast(`Customer ${action}d`, 'success');
+    loadCustomers();
   } catch (e) { showToast(e.message, 'error'); }
 }
 

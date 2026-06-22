@@ -55,6 +55,7 @@ async function load() {
         <td class="muted" style="font-size:12px">${(a.deliverySlots || []).join(', ') || '–'}</td>
         <td><span class="pill ${a.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${a.isActive === false ? 'Inactive' : 'Active'}</span></td>
         <td>
+          <button class="btn btn-ghost btn-sm" onclick="viewApartment('${a._id}')">View</button>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${a._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${a._id}')">Deactivate</button>
           <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${a._id}', '${escapeHtml(a.apartmentName)}')">Delete</button>
@@ -131,6 +132,42 @@ function openModal(id) {
       load();
     } catch (e) { showToast(e.message, 'error'); }
   });
+}
+
+function viewApartment(id) {
+  const a = cache.find(x => x._id === id);
+  if (!a) return;
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:460px">
+        <div class="modal-head">
+          <h3>🏢 ${escapeHtml(a.apartmentName)}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <div class="form-grid" style="gap:0 14px;padding:4px 0 8px">
+          <div class="field"><label>Apartment ID</label><div style="font-family:var(--font-mono);font-size:12px">${escapeHtml(a.apartmentId||'—')}</div></div>
+          <div class="field"><label>City</label><div>${escapeHtml(a.city||'—')}</div></div>
+          <div class="field full"><label>Delivery Days</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+              ${(a.deliveryDays||[]).map(d => `<span style="background:var(--green-pale);color:var(--green);border-radius:6px;padding:3px 9px;font-size:12.5px;font-weight:600">${d}</span>`).join('') || '—'}
+            </div>
+          </div>
+          <div class="field full"><label>Delivery Slots</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+              ${(a.deliverySlots||[]).map(s => `<span style="background:var(--gold-pale);color:#7B5E2A;border-radius:6px;padding:3px 9px;font-size:12.5px">${s}</span>`).join('') || '—'}
+            </div>
+          </div>
+          <div class="field full"><label>Status</label>
+            <span class="pill ${a.isActive===false?'pill-cancelled':'pill-delivered'}">${a.isActive===false?'Inactive':'Active'}</span>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
+          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${a._id}')">Edit</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 load();

@@ -366,8 +366,10 @@ async function load() {
             </span>
           </td>
           <td>
+            <button class="btn btn-ghost btn-sm" onclick="viewBasket('${b._id}')">View</button>
             <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
             <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
+            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${b._id}','${escapeHtml(b.basketName)}')">Delete</button>
           </td>
         </tr>
       `;
@@ -844,6 +846,59 @@ async function openModal(id) {
       btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Basket';
     }
   });
+}
+
+function viewBasket(id) {
+  const b = cache.find(x => x._id === id);
+  if (!b) return;
+  const root = document.getElementById('modal-root');
+  const ns = b.nutritionSummary || {};
+  const nutFields = [['Calories','calories','kcal'],['Carbs','carbs','g'],['Protein','protein','g'],['Fat','fat','g'],
+    ['Fiber','fiber','g'],['Iron','iron','mg'],['Calcium','calcium','mg'],['Vitamin C','vitaminC','mg']];
+  const nutHtml = nutFields.filter(([,k]) => ns[k] != null).map(([l,k,u]) =>
+    `<div style="background:var(--white);padding:10px 12px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">${l}</div>
+      <div style="font-family:var(--font-mono);font-size:14px;font-weight:700">${ns[k]}<span style="font-size:10px;color:var(--ink-faint)"> ${u}</span></div>
+    </div>`).join('');
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:540px">
+        <div class="modal-head">
+          <h3>🧺 ${escapeHtml(b.basketName)}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <div style="max-height:65vh;overflow-y:auto;padding-right:4px">
+          <div class="form-grid" style="gap:0 14px;margin-bottom:14px">
+            <div class="field"><label>Basket ID</label><div style="font-family:var(--font-mono);font-size:12px">${escapeHtml(b.basketId||'—')}</div></div>
+            <div class="field"><label>Price</label><div style="font-weight:700;font-size:18px;color:var(--green)">${fmtMoney(b.price)}</div></div>
+            <div class="field full"><label>Wellness Goals</label>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
+                ${(Array.isArray(b.wellnessGoals)?b.wellnessGoals:b.wellnessGoal?[b.wellnessGoal]:[]).map(g =>
+                  `<span style="background:var(--green-pale);color:var(--green);border-radius:5px;padding:2px 8px;font-size:12px">${escapeHtml(g)}</span>`).join('') || '—'}
+              </div>
+            </div>
+            ${b.description ? `<div class="field full"><label>Description</label><div style="font-size:13px">${escapeHtml(b.description)}</div></div>` : ''}
+            <div class="field full"><label>Products (${(b.ingredientNames||[]).length})</label>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
+                ${(b.ingredientNames||[]).map(n => `<span style="background:var(--cream);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:12px">${escapeHtml(n)}</span>`).join('') || '—'}
+              </div>
+            </div>
+          </div>
+          ${nutHtml ? `
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px">Nutrition Summary</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${nutHtml}</div>` : ''}
+          <div class="field"><label>Status</label>
+            <span class="pill ${b.isActive===false?'pill-cancelled':'pill-delivered'}">${b.isActive===false?'Inactive':'Active'}</span>
+            ${b.isFeatured ? '<span style="margin-left:8px">⭐ Featured</span>' : ''}
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
+          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${b._id}')">Edit</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 load();

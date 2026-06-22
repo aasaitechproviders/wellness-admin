@@ -96,7 +96,11 @@ async function loadOrders() {
           <td class="num">${fmtMoney(o.totalAmount)}</td>
           <td>${fmtDate(o.deliveryDate, { day:'numeric', month:'short' })}${o.deliverySlot ? `<div class="muted" style="font-size:11px">${o.deliverySlot}</div>` : ''}</td>
           <td>${statusSelect(o)}</td>
-          <td><button class="btn btn-ghost btn-sm" onclick="openOrder('${o._id}')">View</button></td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openOrder('${o._id}')">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="quickStatus('${o._id}','${o.status}')">Status</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="cancelOrder('${o._id}','${o.status}')">Cancel</button>
+          </td>
         </tr>
       `).join('');
     }

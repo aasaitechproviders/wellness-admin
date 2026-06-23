@@ -8,6 +8,84 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<!-- Leaflet map (no API key needed) -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  /* ── Map picker ─────────────────────────────────────── */
+  .map-search-wrap { position: relative; margin-bottom: 8px; }
+  .map-search {
+    width: 100%; padding: 9px 12px; box-sizing: border-box;
+    border: 1.5px solid var(--border); border-radius: 8px;
+    font-family: var(--font-body); font-size: 13.5px;
+    color: var(--ink); background: var(--white); outline: none;
+  }
+  .map-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
+  .map-suggestions {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    max-height: 200px; overflow-y: auto; z-index: 1000; display: none;
+  }
+  .map-suggestions.open { display: block; }
+  .map-sug-item {
+    padding: 9px 14px; cursor: pointer; font-size: 13px;
+    border-bottom: 1px solid var(--border); transition: background .1s;
+  }
+  .map-sug-item:last-child { border-bottom: none; }
+  .map-sug-item:hover { background: var(--green-pale); color: var(--green); }
+  .map-sug-item .sug-sub { font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+
+  #apt-map {
+    width: 100%; height: 280px; border-radius: 10px;
+    border: 1.5px solid var(--border); margin-bottom: 8px;
+    z-index: 0;
+  }
+  .map-hint {
+    font-size: 11.5px; color: var(--ink-faint); margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .map-coords {
+    display: none; padding: 8px 12px; border-radius: 8px;
+    background: var(--green-pale); border: 1px solid rgba(45,106,53,.2);
+    font-size: 12px; color: var(--green); font-family: var(--font-mono);
+    margin-bottom: 4px; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  .map-coords.visible { display: flex; }
+  .map-coords a { color: var(--green); font-weight: 600; text-decoration: none; font-size: 11.5px; }
+  .map-coords a:hover { text-decoration: underline; }
+  .map-clear {
+    border: none; background: none; color: var(--ink-faint);
+    cursor: pointer; font-size: 14px; padding: 0 2px;
+  }
+  .map-clear:hover { color: var(--red); }
+
+  /* ── View modal ─────────────────────────────────────── */
+  .view-row { display: flex; gap: 8px; margin-bottom: 10px; font-size: 13px; }
+  .view-label { min-width: 130px; color: var(--ink-faint); font-weight: 500; font-size: 12px; flex-shrink: 0; }
+  .view-val { color: var(--ink); font-weight: 500; }
+  .view-section {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--ink-faint);
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    margin: 14px 0 10px;
+  }
+  .maps-link {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--green); font-weight: 600;
+    text-decoration: none; padding: 4px 10px;
+    background: var(--green-pale); border-radius: 6px;
+  }
+  .maps-link:hover { background: rgba(45,106,53,.18); }
+
+  /* ── Form section divider ───────────────────────────── */
+  .form-sec {
+    grid-column: 1/-1;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--ink-faint);
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+    margin-top: 14px; margin-bottom: 2px;
+  }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -15,7 +93,9 @@
 <script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
-  active: 'apartments', title: 'Apartments', sub: 'Delivery zones, days and time slots',
+  active: 'apartments',
+  title: 'Apartments',
+  sub: 'Delivery zones — addresses, contacts, days and time slots',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Apartment</button>`,
 });
 
@@ -26,8 +106,19 @@ content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Apartment</th><th>City</th><th>Delivery Days</th><th>Slots</th><th>Status</th><th></th></tr></thead>
-        <tbody id="body"><tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+        <thead><tr>
+          <th>Apartment</th>
+          <th>Address / Landmark</th>
+          <th>City</th>
+          <th>Manager</th>
+          <th>Delivery Days</th>
+          <th>Slots</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="body">
+          <tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -42,62 +133,303 @@ async function hardDelete(id, name) {
   catch (e) { showToast(e.message, 'error'); }
 }
 
+async function deactivate(id) {
+  if (!confirm('Deactivate this apartment?')) return;
+  try { await adminApi.deleteApartment(id); showToast('Apartment deactivated', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { apartments } = await adminApi.getApartments();
     cache = apartments;
     document.getElementById('body').innerHTML = apartments.length ? apartments.map(a => `
       <tr>
-        <td><b>${escapeHtml(a.apartmentName)}</b><div class="muted mono" style="font-size:11px">${escapeHtml(a.apartmentId || '')}</div></td>
+        <td>
+          <b>${escapeHtml(a.apartmentName)}</b>
+          <div class="muted mono" style="font-size:11px">${escapeHtml(a.apartmentId || '')}</div>
+        </td>
+        <td style="max-width:180px">
+          ${a.address  ? `<div style="font-size:12.5px">${escapeHtml(a.address)}</div>` : ''}
+          ${a.landmark ? `<div class="muted" style="font-size:11.5px">📍 ${escapeHtml(a.landmark)}</div>` : ''}
+          ${!a.address && !a.landmark ? '<span class="muted">—</span>' : ''}
+        </td>
         <td>${escapeHtml(a.city || '–')}</td>
+        <td>
+          ${a.managerName  ? `<div style="font-size:13px;font-weight:500">${escapeHtml(a.managerName)}</div>` : ''}
+          ${a.managerPhone ? `<div style="font-size:12px;color:var(--green)">${escapeHtml(a.managerPhone)}</div>` : ''}
+          ${!a.managerName && !a.managerPhone ? '<span class="muted">—</span>' : ''}
+        </td>
         <td>${(a.deliveryDays || []).join(', ') || '–'}</td>
         <td class="muted" style="font-size:12px">${(a.deliverySlots || []).join(', ') || '–'}</td>
         <td><span class="pill ${a.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${a.isActive === false ? 'Inactive' : 'Active'}</span></td>
-        <td>
+        <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="viewApartment('${a._id}')">View</button>
           <button class="btn btn-ghost btn-sm" onclick="openModal('${a._id}')">Edit</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${a._id}')">Deactivate</button>
-          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${a._id}', '${escapeHtml(a.apartmentName)}')">Delete</button>
+          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${a._id}','${escapeHtml(a.apartmentName)}')">Delete</button>
         </td>
       </tr>
-    `).join('') : `<tr><td colspan="6"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;
+    `).join('') : `<tr><td colspan="8"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
-async function deactivate(id) {
-  if (!confirm('Deactivate this apartment? It will stop appearing as a delivery option.')) return;
-  try { await adminApi.deleteApartment(id); showToast('Apartment deactivated', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+// ── Leaflet map picker ─────────────────────────────────────────────────────────
+// Loads Leaflet from cdnjs (no API key), uses OpenStreetMap tiles + Nominatim search.
+// Admin types the apartment name → picks from suggestions → map centres + drops a pin.
+// They can also click anywhere on the map to reposition the pin.
+// Lat/lng stored in hidden inputs, shown in the green coords bar.
+
+function loadLeaflet() {
+  return new Promise((resolve) => {
+    if (window.L) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+    s.onload = resolve;
+    document.head.appendChild(s);
+  });
 }
 
+async function initMapPicker(existingLat, existingLng) {
+  await loadLeaflet();
+
+  const defaultLat = existingLat || 11.0168;   // Coimbatore centre
+  const defaultLng = existingLng || 76.9558;
+  const hasPin     = !!(existingLat && existingLng);
+
+  const map = L.map('apt-map', { zoomControl: true }).setView([defaultLat, defaultLng], hasPin ? 16 : 13);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a>',
+    maxZoom: 19,
+  }).addTo(map);
+
+  // Custom green marker
+  const greenIcon = L.divIcon({
+    html: '<div style="width:28px;height:28px;background:#2D6A35;border:3px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,.3)"></div>',
+    iconSize: [28, 28], iconAnchor: [14, 28], className: '',
+  });
+
+  let marker = hasPin
+    ? L.marker([existingLat, existingLng], { icon: greenIcon, draggable: true }).addTo(map)
+    : null;
+
+  const latInput   = document.getElementById('loc-lat');
+  const lngInput   = document.getElementById('loc-lng');
+  const coordsBar  = document.getElementById('map-coords-bar');
+  const coordsText = document.getElementById('map-coords-text');
+  const coordsLink = document.getElementById('map-coords-link');
+
+  function setPin(lat, lng) {
+    lat = parseFloat(lat.toFixed(6));
+    lng = parseFloat(lng.toFixed(6));
+    latInput.value = lat;
+    lngInput.value = lng;
+    coordsBar.classList.add('visible');
+    coordsText.textContent = `${lat}, ${lng}`;
+    coordsLink.href = `https://www.google.com/maps?q=${lat},${lng}`;
+
+    if (marker) {
+      marker.setLatLng([lat, lng]);
+    } else {
+      marker = L.marker([lat, lng], { icon: greenIcon, draggable: true }).addTo(map);
+      marker.on('dragend', e => {
+        const p = e.target.getLatLng();
+        setPin(p.lat, p.lng);
+      });
+    }
+    map.setView([lat, lng], Math.max(map.getZoom(), 16));
+  }
+
+  if (hasPin) {
+    setPin(existingLat, existingLng);
+    marker.on('dragend', e => { const p = e.target.getLatLng(); setPin(p.lat, p.lng); });
+  }
+
+  // Click on map to drop/move pin
+  map.on('click', e => setPin(e.latlng.lat, e.latlng.lng));
+
+  // Clear pin
+  document.getElementById('map-clear-btn')?.addEventListener('click', () => {
+    if (marker) { map.removeLayer(marker); marker = null; }
+    latInput.value = '';
+    lngInput.value = '';
+    coordsBar.classList.remove('visible');
+  });
+
+  // ── Nominatim search ───────────────────────────────────
+  const searchInput = document.getElementById('map-search-input');
+  const suggestions = document.getElementById('map-suggestions');
+  let searchTimer   = null;
+
+  async function doSearch(q) {
+    suggestions.innerHTML = '<div class="map-sug-item" style="color:var(--ink-faint)">Searching…</div>';
+    suggestions.classList.add('open');
+    try {
+      const res  = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6&countrycodes=in&addressdetails=1`, {
+        headers: { 'Accept-Language': 'en' }
+      });
+      const data = await res.json();
+      if (!data.length) {
+        suggestions.innerHTML = '<div class="map-sug-item" style="color:var(--ink-faint)">No results found</div>';
+        return;
+      }
+      suggestions.innerHTML = data.map((r, i) =>
+        `<div class="map-sug-item" data-i="${i}">
+          <div>${escapeHtml(r.display_name.split(',')[0])}</div>
+          <div class="sug-sub">${escapeHtml(r.display_name.split(',').slice(1,4).join(','))}</div>
+        </div>`
+      ).join('');
+      suggestions.querySelectorAll('.map-sug-item').forEach((el, i) => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          const r = data[i];
+          setPin(parseFloat(r.lat), parseFloat(r.lon));
+          searchInput.value = r.display_name.split(',')[0];
+          suggestions.classList.remove('open');
+        });
+      });
+    } catch (e) {
+      suggestions.innerHTML = '<div class="map-sug-item" style="color:var(--red)">Search failed — check internet connection</div>';
+    }
+  }
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    const q = searchInput.value.trim();
+    if (!q || q.length < 3) { suggestions.classList.remove('open'); return; }
+    searchTimer = setTimeout(() => doSearch(q), 400);
+  });
+  searchInput.addEventListener('blur', () => setTimeout(() => suggestions.classList.remove('open'), 200));
+
+  // Fix Leaflet tile rendering after modal opens (it's inside a hidden-then-shown div)
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+// ── Add / Edit Modal ───────────────────────────────────────────────────────────
 function openModal(id) {
-  const a = id ? cache.find(x => x._id === id) : null;
+  const a      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!a;
   const mySlots = a?.deliverySlots || [];
-  const myDays = new Set(a?.deliveryDays || []);
-  const root = document.getElementById('modal-root');
+  const myDays  = new Set(a?.deliveryDays || []);
+  const existLat = a?.location?.lat || a?.latitude  || null;
+  const existLng = a?.location?.lng || a?.longitude || null;
+  const root    = document.getElementById('modal-root');
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal">
+      <div class="modal" style="max-width:620px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Apartment' : 'Add Apartment'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
-        <form id="form" class="form-grid">
-          <div class="field full"><label>Apartment Name *</label><input name="apartmentName" value="${escapeHtml(a?.apartmentName || '')}" required /></div>
-          <div class="field"><label>Apartment ID</label><input name="apartmentId" value="${escapeHtml(a?.apartmentId || '')}" placeholder="auto if blank" /></div>
-          <div class="field"><label>City</label>
-            <select name="city"><option ${a?.city==='Coimbatore'?'selected':''}>Coimbatore</option><option ${a?.city==='Chennai'?'selected':''}>Chennai</option></select>
+        <div style="max-height:76vh;overflow-y:auto;padding-right:4px" id="modal-scroll">
+        <form id="form" class="form-grid" style="gap:0 14px">
+
+          <!-- §1 Basic -->
+          <div class="field full">
+            <label>Apartment Name *</label>
+            <input name="apartmentName" value="${escapeHtml(a?.apartmentName || '')}" required placeholder="e.g. Green Meadows Residency" />
           </div>
+          <div class="field">
+            <label>Apartment ID</label>
+            <input name="apartmentId" value="${escapeHtml(a?.apartmentId || '')}" placeholder="auto if blank" />
+          </div>
+          <div class="field">
+            <label>City</label>
+            <select name="city">
+              <option ${(a?.city||'Coimbatore')==='Coimbatore'?'selected':''}>Coimbatore</option>
+              <option ${a?.city==='Chennai'?'selected':''}>Chennai</option>
+            </select>
+          </div>
+
+          <!-- §2 Address -->
+          <div class="form-sec">📍 Address Details</div>
+          <div class="field full">
+            <label>Full Address</label>
+            <textarea name="address" rows="2" placeholder="Door no., Street, Area, City – Pincode">${escapeHtml(a?.address || '')}</textarea>
+          </div>
+          <div class="field">
+            <label>Landmark</label>
+            <input name="landmark" value="${escapeHtml(a?.landmark || '')}" placeholder="e.g. Near Big Bazaar, Opp. SBI ATM" />
+          </div>
+          <div class="field">
+            <label>Pincode</label>
+            <input name="pincode" value="${escapeHtml(a?.pincode || '')}" placeholder="e.g. 641004" maxlength="6" />
+          </div>
+
+          <!-- §3 Map Location -->
+          <div class="form-sec">🗺️ Location on Map</div>
+          <div class="field full">
+            <label>Search and pin the apartment location</label>
+            <div class="map-search-wrap">
+              <input class="map-search" id="map-search-input"
+                placeholder="Search apartment name, area or address…" autocomplete="off" />
+              <div class="map-suggestions" id="map-suggestions"></div>
+            </div>
+            <div class="map-hint">
+              <span>💡</span>
+              <span>Search above to jump to a location, then <b>click on the map</b> to drop the pin exactly. You can also <b>drag the pin</b> to adjust.</span>
+            </div>
+            <div id="apt-map"></div>
+            <div class="map-coords" id="map-coords-bar">
+              <span id="map-coords-text" style="font-size:12px"></span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <a id="map-coords-link" href="#" target="_blank">Verify on Google Maps ↗</a>
+                <button type="button" class="map-clear" id="map-clear-btn" title="Clear pin">✕</button>
+              </div>
+            </div>
+            <!-- hidden inputs that hold the values submitted -->
+            <input type="hidden" id="loc-lat" name="latitude"  value="${existLat || ''}" />
+            <input type="hidden" id="loc-lng" name="longitude" value="${existLng || ''}" />
+          </div>
+
+          <!-- §4 Manager -->
+          <div class="form-sec">👔 Manager Details</div>
+          <div class="field">
+            <label>Manager Name</label>
+            <input name="managerName" value="${escapeHtml(a?.managerName || '')}" placeholder="e.g. Ravi Kumar" />
+          </div>
+          <div class="field">
+            <label>Manager Phone</label>
+            <input name="managerPhone" type="tel" value="${escapeHtml(a?.managerPhone || '')}" placeholder="98765 43210" />
+          </div>
+
+          <!-- §5 Security -->
+          <div class="form-sec">🛡️ Security Details</div>
+          <div class="field">
+            <label>Security Name</label>
+            <input name="securityName" value="${escapeHtml(a?.securityName || '')}" placeholder="e.g. Murugan" />
+          </div>
+          <div class="field">
+            <label>Security Phone</label>
+            <input name="securityPhone" type="tel" value="${escapeHtml(a?.securityPhone || '')}" placeholder="98765 43210" />
+          </div>
+
+          <!-- §6 Delivery -->
+          <div class="form-sec">🚚 Delivery Schedule</div>
           <div class="field full">
             <label>Delivery Days</label>
-            <div class="chip-row">${DAYS.map(d => `<label class="chip-toggle ${myDays.has(d) ? 'on' : ''}" data-day="${d}"><input type="checkbox" style="display:none" ${myDays.has(d)?'checked':''} />${d}</label>`).join('')}</div>
+            <div class="chip-row">
+              ${DAYS.map(d => `<div class="chip-toggle ${myDays.has(d)?'on':''}" data-day="${d}">${d}</div>`).join('')}
+            </div>
           </div>
-          <div class="field full"><label>Delivery Slots (comma-separated, e.g. "6:00 AM - 8:00 AM, 5:00 PM - 7:00 PM")</label><textarea name="deliverySlots" rows="2">${mySlots.join(', ')}</textarea></div>
+          <div class="field full">
+            <label>Delivery Slots <span style="font-weight:400;color:var(--ink-faint)">— comma-separated</span></label>
+            <textarea name="deliverySlots" rows="2" placeholder="e.g. 7:00 AM – 10:00 AM, 4:00 PM – 7:00 PM">${mySlots.join(', ')}</textarea>
+          </div>
+
+          <!-- §7 Notes -->
+          <div class="field full">
+            <label>Internal Notes</label>
+            <textarea name="notes" rows="2" placeholder="Gate code, special access instructions, entry rules…">${escapeHtml(a?.notes || '')}</textarea>
+          </div>
+
         </form>
+        </div>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
           <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Apartment'}</button>
@@ -106,68 +438,136 @@ function openModal(id) {
     </div>
   `;
 
-  root.querySelectorAll('[data-day]').forEach(chip => {
-    chip.addEventListener('click', (e) => {
-      e.preventDefault();
-      chip.classList.toggle('on');
-      chip.querySelector('input').checked = chip.classList.contains('on');
-    });
-  });
+  // Day chip toggles — plain divs, no double-fire
+  root.querySelectorAll('[data-day]').forEach(chip =>
+    chip.addEventListener('click', () => chip.classList.toggle('on'))
+  );
+
+  // Init the map
+  initMapPicker(existLat ? parseFloat(existLat) : null, existLng ? parseFloat(existLng) : null);
 
   document.getElementById('save').addEventListener('click', async () => {
-    const fd = new FormData(document.getElementById('form'));
+    const fd  = new FormData(document.getElementById('form'));
+    const lat = document.getElementById('loc-lat').value;
+    const lng = document.getElementById('loc-lng').value;
+
     const body = {
       apartmentName: fd.get('apartmentName'),
-      apartmentId: fd.get('apartmentId') || undefined,
-      city: fd.get('city'),
-      deliveryDays: Array.from(root.querySelectorAll('[data-day].on')).map(el => el.dataset.day),
+      apartmentId:   fd.get('apartmentId')   || undefined,
+      city:          fd.get('city'),
+      address:       fd.get('address')        || undefined,
+      landmark:      fd.get('landmark')       || undefined,
+      pincode:       fd.get('pincode')        || undefined,
+      managerName:   fd.get('managerName')    || undefined,
+      managerPhone:  fd.get('managerPhone')   || undefined,
+      securityName:  fd.get('securityName')   || undefined,
+      securityPhone: fd.get('securityPhone')  || undefined,
+      notes:         fd.get('notes')          || undefined,
+      deliveryDays:  Array.from(root.querySelectorAll('[data-day].on')).map(el => el.dataset.day),
       deliverySlots: fd.get('deliverySlots').split(',').map(s => s.trim()).filter(Boolean),
+      location:      lat && lng ? { lat: parseFloat(lat), lng: parseFloat(lng) } : undefined,
     };
+
     if (!body.apartmentName) { showToast('Apartment name is required', 'error'); return; }
+
+    const btn = document.getElementById('save');
+    btn.disabled = true; btn.textContent = 'Saving…';
     try {
       if (isEdit) await adminApi.updateApartment(a._id, body);
-      else await adminApi.createApartment(body);
+      else        await adminApi.createApartment(body);
       showToast('Apartment saved', 'success');
       document.getElementById('modal-root').innerHTML = '';
       load();
-    } catch (e) { showToast(e.message, 'error'); }
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Apartment';
+    }
   });
 }
 
+// ── View Modal ─────────────────────────────────────────────────────────────────
 function viewApartment(id) {
-  const a = cache.find(x => x._id === id);
+  const a   = cache.find(x => x._id === id);
   if (!a) return;
   const root = document.getElementById('modal-root');
+  const lat  = a.location?.lat || a.latitude;
+  const lng  = a.location?.lng || a.longitude;
+
+  function row(label, val) {
+    if (!val) return '';
+    return `<div class="view-row">
+      <span class="view-label">${label}</span>
+      <span class="view-val">${escapeHtml(String(val))}</span>
+    </div>`;
+  }
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
-      <div class="modal" style="max-width:460px">
+      <div class="modal" style="max-width:500px">
         <div class="modal-head">
           <h3>🏢 ${escapeHtml(a.apartmentName)}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
-        <div class="form-grid" style="gap:0 14px;padding:4px 0 8px">
-          <div class="field"><label>Apartment ID</label><div style="font-family:var(--font-mono);font-size:12px">${escapeHtml(a.apartmentId||'—')}</div></div>
-          <div class="field"><label>City</label><div>${escapeHtml(a.city||'—')}</div></div>
-          <div class="field full"><label>Delivery Days</label>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-              ${(a.deliveryDays||[]).map(d => `<span style="background:var(--green-pale);color:var(--green);border-radius:6px;padding:3px 9px;font-size:12.5px;font-weight:600">${d}</span>`).join('') || '—'}
-            </div>
-          </div>
-          <div class="field full"><label>Delivery Slots</label>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-              ${(a.deliverySlots||[]).map(s => `<span style="background:var(--gold-pale);color:#7B5E2A;border-radius:6px;padding:3px 9px;font-size:12.5px">${s}</span>`).join('') || '—'}
-            </div>
-          </div>
-          <div class="field full"><label>Status</label>
+        <div style="max-height:70vh;overflow-y:auto;padding-right:4px">
+
+          <div class="view-section">Basic</div>
+          ${row('Apartment ID', a.apartmentId)}
+          ${row('City', a.city)}
+          <div class="view-row">
+            <span class="view-label">Status</span>
             <span class="pill ${a.isActive===false?'pill-cancelled':'pill-delivered'}">${a.isActive===false?'Inactive':'Active'}</span>
           </div>
+
+          <div class="view-section">📍 Address</div>
+          ${row('Full Address', a.address)}
+          ${row('Landmark', a.landmark)}
+          ${row('Pincode', a.pincode)}
+          ${lat && lng ? `
+          <div class="view-row">
+            <span class="view-label">Map Location</span>
+            <span class="view-val" style="display:flex;flex-direction:column;gap:5px">
+              <span style="font-family:var(--font-mono);font-size:12px">${lat}, ${lng}</span>
+              <a class="maps-link" href="https://www.google.com/maps?q=${lat},${lng}" target="_blank">🗺️ Open in Google Maps ↗</a>
+            </span>
+          </div>` : ''}
+          ${row('Notes', a.notes)}
+
+          <div class="view-section">👔 Manager</div>
+          ${a.managerName || a.managerPhone
+            ? `${row('Name', a.managerName)}${row('Phone', a.managerPhone)}`
+            : '<div class="view-row"><span class="muted" style="font-size:13px">Not set</span></div>'}
+
+          <div class="view-section">🛡️ Security</div>
+          ${a.securityName || a.securityPhone
+            ? `${row('Name', a.securityName)}${row('Phone', a.securityPhone)}`
+            : '<div class="view-row"><span class="muted" style="font-size:13px">Not set</span></div>'}
+
+          <div class="view-section">🚚 Delivery Schedule</div>
+          <div class="view-row">
+            <span class="view-label">Days</span>
+            <span class="view-val" style="display:flex;flex-wrap:wrap;gap:5px">
+              ${(a.deliveryDays||[]).map(d =>
+                `<span style="background:var(--green-pale);color:var(--green);border-radius:6px;padding:3px 9px;font-size:12.5px;font-weight:600">${d}</span>`
+              ).join('') || '—'}
+            </span>
+          </div>
+          <div class="view-row">
+            <span class="view-label">Time Slots</span>
+            <span class="view-val" style="display:flex;flex-direction:column;gap:4px">
+              ${(a.deliverySlots||[]).map(s =>
+                `<span style="background:#FFF8E1;color:#7B5E2A;border-radius:6px;padding:3px 10px;font-size:12.5px;display:inline-block">${escapeHtml(s)}</span>`
+              ).join('') || '—'}
+            </span>
+          </div>
+
         </div>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
           <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${a._id}')">Edit</button>
         </div>
       </div>
-    </div>`;
+    </div>
+  `;
 }
 
 load();

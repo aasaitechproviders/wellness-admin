@@ -8,6 +8,56 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<style>
+  /* ── Goal image thumbnail in table ── */
+  .goal-thumb {
+    width: 44px; height: 44px; border-radius: 8px;
+    object-fit: cover; border: 1.5px solid var(--border);
+    display: block;
+  }
+  .goal-thumb-empty {
+    width: 44px; height: 44px; border-radius: 8px;
+    border: 1.5px dashed var(--border);
+    background: var(--surface);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: var(--ink-faint);
+  }
+
+  /* ── Image upload box in modal ── */
+  .img-upload-wrap {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 18px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+    background: var(--surface); position: relative;
+  }
+  .img-upload-wrap:hover { border-color: var(--green); background: var(--green-pale); }
+  .img-upload-wrap.has-image { border-style: solid; border-color: var(--green); padding: 0; overflow: hidden; }
+  .img-upload-wrap input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .img-upload-wrap img {
+    width: 100%; max-height: 200px; object-fit: contain;
+    border-radius: 8px; display: block;
+  }
+  .img-upload-hint {
+    font-size: 12.5px; color: var(--ink-faint); margin-top: 6px;
+    pointer-events: none;
+  }
+  .img-upload-icon { font-size: 28px; margin-bottom: 4px; }
+
+  /* ── Image action row ── */
+  .img-actions {
+    display: flex; gap: 8px; margin-top: 8px; align-items: center;
+    flex-wrap: wrap;
+  }
+  .img-status {
+    font-size: 12px; color: var(--ink-faint); flex: 1;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .img-status.uploading { color: var(--green); }
+  .img-status.done      { color: var(--green); font-weight: 600; }
+  .img-status.error     { color: var(--red); }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -29,6 +79,7 @@ content.innerHTML = `
       <table class="data">
         <thead>
           <tr>
+            <th style="width:60px">Image</th>
             <th>Goal Name</th>
             <th>Goal ID</th>
             <th>Description</th>
@@ -37,7 +88,7 @@ content.innerHTML = `
           </tr>
         </thead>
         <tbody id="body">
-          <tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -47,34 +98,47 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
+// ── Load & render ─────────────────────────────────────────────────────────────
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="5" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML =
+    `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { goals } = await adminApi.getGoals();
     cache = goals;
-    document.getElementById('body').innerHTML = goals.length ? goals.map(g => `
-      <tr>
-        <td><b>${escapeHtml(g.goalName)}</b></td>
-        <td class="mono">${escapeHtml(g.goalId)}</td>
-        <td class="muted">${escapeHtml(g.description || '–')}</td>
-        <td>
-          <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-            ${g.isActive === false ? 'Inactive' : 'Active'}
-          </span>
-        </td>
-        <td style="display:flex;gap:6px">
-          <button class="btn btn-ghost btn-sm" onclick="viewGoal('${g._id}')">View</button>
-          <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivateGoal('${g._id}', ${g.isActive === false})">${g.isActive === false ? 'Activate' : 'Deactivate'}</button>
-          <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
-        </td>
-      </tr>
-    `).join('') : `<tr><td colspan="5"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
+    document.getElementById('body').innerHTML = goals.length
+      ? goals.map(g => `
+        <tr>
+          <td>
+            ${g.imageUrl
+              ? `<img class="goal-thumb" src="${escapeHtml(g.imageUrl)}" alt="${escapeHtml(g.goalName)}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                 <div class="goal-thumb-empty" style="display:none">🎯</div>`
+              : `<div class="goal-thumb-empty">🎯</div>`
+            }
+          </td>
+          <td><b>${escapeHtml(g.goalName)}</b></td>
+          <td class="mono">${escapeHtml(g.goalId)}</td>
+          <td class="muted">${escapeHtml(g.description || '–')}</td>
+          <td>
+            <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+              ${g.isActive === false ? 'Inactive' : 'Active'}
+            </span>
+          </td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="viewGoal('${g._id}')">View</button>
+            <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivateGoal('${g._id}', ${g.isActive === false})">${g.isActive === false ? 'Activate' : 'Deactivate'}</button>
+            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
+          </td>
+        </tr>
+      `).join('')
+      : `<tr><td colspan="6"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
   } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="5"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('body').innerHTML =
+      `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
+// ── Delete ─────────────────────────────────────────────────────────────────────
 async function confirmDelete(id, name) {
   if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
   try {
@@ -84,18 +148,36 @@ async function confirmDelete(id, name) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+async function deactivateGoal(id, isCurrentlyInactive) {
+  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
+  if (!confirm(action + ' this wellness goal?')) return;
+  try {
+    await adminApi.updateGoal(id, { isActive: !!isCurrentlyInactive });
+    showToast('Goal ' + action.toLowerCase() + 'd', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Add / Edit Modal ──────────────────────────────────────────────────────────
 function openModal(id) {
   const g      = id ? cache.find(x => x._id === id) : null;
   const isEdit = !!g;
   const root   = document.getElementById('modal-root');
 
+  // Track state inside modal
+  let pendingFile    = null;   // File selected but not yet uploaded
+  let currentImgUrl  = g?.imageUrl  || null;
+  let currentImgKey  = g?.imageKey  || null;
+  let uploadedThisSave = false; // did we just upload in this modal session
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal">
+      <div class="modal" style="max-width:500px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Goal' : 'Add Goal'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
+        <div style="max-height:80vh;overflow-y:auto;padding-right:4px">
         <form id="form" class="form-grid">
 
           <div class="field full">
@@ -115,7 +197,41 @@ function openModal(id) {
             <input name="description" value="${escapeHtml(g?.description || '')}" placeholder="Brief description shown to customers" />
           </div>
 
+          <!-- Image section — only shown after goal exists (needs an _id for S3 key) -->
+          <div class="field full" id="img-section" style="${isEdit ? '' : 'display:none'}">
+            <label>Goal Image</label>
+            <div class="img-upload-wrap ${currentImgUrl ? 'has-image' : ''}" id="img-drop">
+              <input type="file" id="img-file" accept="image/jpeg,image/png,image/webp" />
+              ${currentImgUrl
+                ? `<img id="img-preview" src="${escapeHtml(currentImgUrl)}" alt="Goal image" />`
+                : `<div id="img-placeholder">
+                    <div class="img-upload-icon">🖼️</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--ink)">Click to upload image</div>
+                    <div class="img-upload-hint">JPEG · PNG · WebP · max 1.5 MB<br>Recommended: square, at least 400×400 px</div>
+                  </div>`
+              }
+            </div>
+            <div class="img-actions">
+              <div class="img-status" id="img-status">
+                ${currentImgUrl ? '✅ Image saved' : 'No image uploaded yet'}
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" id="img-upload-btn" style="display:none">Upload</button>
+              ${currentImgUrl
+                ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove Image</button>`
+                : ''
+              }
+            </div>
+            <div style="font-size:11.5px;color:var(--ink-faint);margin-top:4px">
+              💡 Select an image, then click <b>Upload</b> to save it to S3. Image is saved independently of the goal fields.
+            </div>
+          </div>
+
+          ${!isEdit ? `<div class="field full" style="background:var(--surface);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--ink-faint)">
+            💡 Save the goal first, then re-open it to upload an image.
+          </div>` : ''}
+
         </form>
+        </div>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
           <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Goal'}</button>
@@ -124,6 +240,136 @@ function openModal(id) {
     </div>
   `;
 
+  // ── Image file selection handler ──────────────────────────────────────────
+  if (isEdit) {
+    const fileInput   = document.getElementById('img-file');
+    const dropWrap    = document.getElementById('img-drop');
+    const uploadBtn   = document.getElementById('img-upload-btn');
+    const statusEl    = document.getElementById('img-status');
+    const deleteBtn   = document.getElementById('img-delete-btn');
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      // Validate type
+      if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+        showToast('Only JPEG, PNG, or WebP images allowed', 'error');
+        fileInput.value = '';
+        return;
+      }
+
+      pendingFile = file;
+
+      // Show preview immediately
+      const reader = new FileReader();
+      reader.onload = e => {
+        dropWrap.classList.add('has-image');
+        dropWrap.innerHTML = `
+          <input type="file" id="img-file" accept="image/jpeg,image/png,image/webp" />
+          <img id="img-preview" src="${e.target.result}" alt="Preview" />
+        `;
+        // Re-attach listener on new input
+        document.getElementById('img-file').addEventListener('change', arguments.callee);
+      };
+      reader.readAsDataURL(file);
+
+      statusEl.textContent  = `📎 ${file.name} selected — click Upload to save`;
+      statusEl.className    = 'img-status';
+      uploadBtn.style.display = 'inline-flex';
+    });
+
+    // ── Upload button ──────────────────────────────────────────────────────
+    uploadBtn.addEventListener('click', async () => {
+      if (!pendingFile) return;
+      uploadBtn.disabled   = true;
+      uploadBtn.textContent = 'Uploading…';
+      statusEl.className   = 'img-status uploading';
+      statusEl.textContent = '⏳ Compressing and uploading…';
+
+      try {
+        const { imageUrl } = await uploadGoalImageToS3(g._id, pendingFile);
+        currentImgUrl    = imageUrl;
+        uploadedThisSave = true;
+        pendingFile      = null;
+
+        statusEl.className   = 'img-status done';
+        statusEl.textContent = '✅ Image uploaded successfully';
+        uploadBtn.style.display = 'none';
+        uploadBtn.disabled   = false;
+        uploadBtn.textContent = 'Upload';
+
+        // Show delete button if not already there
+        if (!document.getElementById('img-delete-btn')) {
+          statusEl.insertAdjacentHTML('afterend',
+            `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove Image</button>`
+          );
+          document.getElementById('img-delete-btn').addEventListener('click', handleDeleteImage);
+        }
+
+        showToast('Goal image uploaded', 'success');
+        load(); // refresh table thumbnail
+      } catch (e) {
+        statusEl.className   = 'img-status error';
+        statusEl.textContent = '❌ ' + e.message;
+        uploadBtn.disabled   = false;
+        uploadBtn.textContent = 'Retry Upload';
+      }
+    });
+
+    // ── Delete image handler ───────────────────────────────────────────────
+    async function handleDeleteImage() {
+      if (!confirm('Remove the image for this goal?')) return;
+      const btn = document.getElementById('img-delete-btn');
+      btn.disabled = true; btn.textContent = 'Removing…';
+      try {
+        await adminApi.deleteGoalImage(g._id);
+        currentImgUrl = null;
+        currentImgKey = null;
+
+        // Reset upload box
+        const dropWrap = document.getElementById('img-drop');
+        dropWrap.classList.remove('has-image');
+        dropWrap.innerHTML = `
+          <input type="file" id="img-file" accept="image/jpeg,image/png,image/webp" />
+          <div id="img-placeholder">
+            <div class="img-upload-icon">🖼️</div>
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">Click to upload image</div>
+            <div class="img-upload-hint">JPEG · PNG · WebP · max 1.5 MB</div>
+          </div>
+        `;
+        document.getElementById('img-file').addEventListener('change', () => {
+          // simplified re-attach — same logic as above, just triggers pendingFile set
+          const file = document.getElementById('img-file').files[0];
+          if (!file) return;
+          pendingFile = file;
+          const r = new FileReader();
+          r.onload = ev => {
+            const d = document.getElementById('img-drop');
+            d.classList.add('has-image');
+            d.innerHTML = `<input type="file" id="img-file" accept="image/jpeg,image/png,image/webp" /><img src="${ev.target.result}" alt="Preview" />`;
+          };
+          r.readAsDataURL(file);
+          document.getElementById('img-status').textContent = `📎 ${file.name} selected — click Upload to save`;
+          document.getElementById('img-upload-btn').style.display = 'inline-flex';
+        });
+
+        document.getElementById('img-status').className   = 'img-status';
+        document.getElementById('img-status').textContent = 'No image uploaded yet';
+        btn.remove();
+
+        showToast('Image removed', 'success');
+        load();
+      } catch (e) {
+        showToast(e.message, 'error');
+        btn.disabled = false; btn.textContent = 'Remove Image';
+      }
+    }
+
+    if (deleteBtn) deleteBtn.addEventListener('click', handleDeleteImage);
+  }
+
+  // ── Save goal fields ───────────────────────────────────────────────────────
   document.getElementById('save').addEventListener('click', async () => {
     const fd   = new FormData(document.getElementById('form'));
     const body = {
@@ -152,10 +398,12 @@ function openModal(id) {
   });
 }
 
+// ── View Modal ─────────────────────────────────────────────────────────────────
 function viewGoal(id) {
-  const g = cache.find(x => x._id === id);
+  const g    = cache.find(x => x._id === id);
   if (!g) return;
   const root = document.getElementById('modal-root');
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
       <div class="modal" style="max-width:420px">
@@ -163,31 +411,39 @@ function viewGoal(id) {
           <h3>🎯 ${escapeHtml(g.goalName)}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0 8px">
-          <div style="font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px">Goal ID</div>
-          <div style="font-family:var(--font-mono);font-size:14px">${escapeHtml(g.goalId)}</div>
-          ${g.description ? `<div style="font-size:12px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-top:6px">Description</div>
-          <div style="font-size:13.5px">${escapeHtml(g.description)}</div>` : ''}
-          <div style="margin-top:8px">
+        <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0 8px">
+
+          ${g.imageUrl ? `
+          <div style="text-align:center">
+            <img src="${escapeHtml(g.imageUrl)}" alt="${escapeHtml(g.goalName)}"
+              style="max-width:100%;max-height:180px;object-fit:contain;border-radius:10px;border:1.5px solid var(--border)" />
+          </div>` : `
+          <div style="text-align:center;padding:20px;background:var(--surface);border-radius:10px;border:1.5px dashed var(--border);color:var(--ink-faint)">
+            No image uploaded
+          </div>`}
+
+          <div>
+            <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Goal ID</div>
+            <div style="font-family:var(--font-mono);font-size:14px">${escapeHtml(g.goalId)}</div>
+          </div>
+
+          ${g.description ? `
+          <div>
+            <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Description</div>
+            <div style="font-size:13.5px">${escapeHtml(g.description)}</div>
+          </div>` : ''}
+
+          <div>
             <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${g.isActive === false ? 'Inactive' : 'Active'}</span>
+            ${g.hasImage ? `<span style="margin-left:8px;font-size:12px;color:var(--green)">✅ Has image</span>` : ''}
           </div>
         </div>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
-          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${g._id}')">Edit</button>
+          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${g._id}')">Edit / Upload Image</button>
         </div>
       </div>
     </div>`;
-}
-
-async function deactivateGoal(id, isCurrentlyInactive) {
-  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
-  if (!confirm(action + ' this wellness goal?')) return;
-  try {
-    await adminApi.updateGoal(id, { isActive: !!isCurrentlyInactive });
-    showToast('Goal ' + action.toLowerCase() + 'd', 'success');
-    load();
-  } catch(e) { showToast(e.message, 'error'); }
 }
 
 load();

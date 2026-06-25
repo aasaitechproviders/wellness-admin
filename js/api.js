@@ -186,6 +186,13 @@ const adminApi = {
   deleteApartment:     (id) => req('DELETE', `/admin/apartments/${id}`),
   hardDeleteApartment: (id) => req('DELETE', `/admin/apartments/${id}/hard`),
 
+  // Cities
+  getCities:       () => req('GET', '/admin/cities'),
+  createCity:      (body) => req('POST', '/admin/cities', body),
+  updateCity:      (id, body) => req('PUT', `/admin/cities/${id}`, body),
+  deleteCity:      (id) => req('DELETE', `/admin/cities/${id}`),
+  hardDeleteCity:  (id) => req('DELETE', `/admin/cities/${id}/hard`),
+
   // Team Users (master admin only)
   getTeamUsers:    () => req('GET', '/admin/team'),
   createTeamUser:  (body) => req('POST', '/admin/team', body),

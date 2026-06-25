@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { key: 'baskets',            href: 'baskets.html',            label: 'Curated Baskets',      icon: 'M3 9h18l-2 11H5L3 9z M3 9l2-5h14l2 5' },
   { key: 'subscription-plans', href: 'subscription-plans.html', label: 'Subscription Packages',icon: 'M4 4h16v16H4z M4 9h16 M9 4v16' },
   { key: 'goals',              href: 'goals.html',              label: 'Wellness Goals',       icon: 'M12 2a10 10 0 1010 10A10 10 0 0012 2z M12 6a6 6 0 106 6 6 6 0 00-6-6z M12 10a2 2 0 102 2 2 2 0 00-2-2z' },
+  { key: 'health-challenges',   href: 'health-challenges.html',  label: 'Health Challenges',    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4' },
   { key: 'coupons',            href: 'coupons.html',            label: 'Coupons',              icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 000 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 000-4z M9 7v10' },
   { key: 'apartments',         href: 'apartments.html',         label: 'Apartments',           icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6' },
   { key: 'wellness-partners',  href: 'wellness-partners.html',  label: 'Wellness Partners',    icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M9 11a4 4 0 100-8 4 4 0 000 8z' },

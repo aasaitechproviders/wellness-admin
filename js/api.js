@@ -5,8 +5,8 @@ const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southea
 // Role definitions — which sidebar menus each default role can access
 // Admin can override per-user via allowedMenus[]
 const ROLE_DEFAULTS = {
-  admin:     ['dashboard','orders','customers','ingredients','baskets','subscription-plans','goals','coupons','apartments','team','wellness-partners'],
-  nutrition: ['ingredients','baskets','goals'],
+  admin:     ['dashboard','orders','customers','ingredients','baskets','subscription-plans','goals','health-challenges','coupons','apartments','team','wellness-partners'],
+  nutrition: ['ingredients','baskets','goals','health-challenges'],
   team:      ['ingredients','apartments'],
 };
 
@@ -195,6 +195,13 @@ const adminApi = {
   updateCity:      (id, body) => req('PUT', `/admin/cities/${id}`, body),
   deleteCity:      (id) => req('DELETE', `/admin/cities/${id}`),
   hardDeleteCity:  (id) => req('DELETE', `/admin/cities/${id}/hard`),
+
+  // Health Challenges
+  getHealthChallenges:        () => req('GET', '/admin/health-challenges'),
+  createHealthChallenge:      (body) => req('POST', '/admin/health-challenges', body),
+  updateHealthChallenge:      (id, body) => req('PUT', `/admin/health-challenges/${id}`, body),
+  deleteHealthChallenge:      (id) => req('DELETE', `/admin/health-challenges/${id}`),
+  hardDeleteHealthChallenge:  (id) => req('DELETE', `/admin/health-challenges/${id}/hard`),
 
   // Team Users (master admin only)
   getTeamUsers:    () => req('GET', '/admin/team'),

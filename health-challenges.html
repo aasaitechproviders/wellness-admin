@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Health Challenges · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('health-challenges');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'health-challenges',
+  title: 'Health Challenges',
+  sub: 'Challenges shown to customers during onboarding — helps personalise wellness baskets',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Challenge</button>`,
+});
+
+let cache = [];
+
+content.innerHTML = `
+  <div class="panel">
+    <div style="background:var(--green-pale);border:1px solid var(--green-muted);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;font-size:13px;color:var(--green)">
+      💡 Active challenges appear in the customer onboarding flow. Customers can select the health challenges that apply to them — this helps personalise their wellness basket.
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th>Challenge Name</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="body">
+          <tr><td colspan="3" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function load() {
+  document.getElementById('body').innerHTML =
+    `<tr><td colspan="3" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { challenges } = await adminApi.getHealthChallenges();
+    cache = challenges;
+    document.getElementById('body').innerHTML = challenges.length
+      ? challenges.map(c => `
+        <tr>
+          <td><b>${escapeHtml(c.name)}</b></td>
+          <td>
+            <span class="pill ${c.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
+              ${c.isActive === false ? 'Inactive' : 'Active'}
+            </span>
+          </td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openModal('${c._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)"
+              onclick="toggleActive('${c._id}', ${c.isActive === false})">
+              ${c.isActive === false ? 'Activate' : 'Deactivate'}
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700"
+              onclick="confirmDelete('${c._id}', '${escapeHtml(c.name)}')">Delete</button>
+          </td>
+        </tr>
+      `).join('')
+      : `<tr><td colspan="3"><div class="empty"><div class="icon">🩺</div>No health challenges yet. Add one above.</div></td></tr>`;
+  } catch (e) {
+    document.getElementById('body').innerHTML =
+      `<tr><td colspan="3"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+// ── Toggle active / Deactivate ────────────────────────────────────────────────
+async function toggleActive(id, isCurrentlyInactive) {
+  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
+  if (!confirm(action + ' this health challenge?')) return;
+  try {
+    await adminApi.updateHealthChallenge(id, { isActive: !!isCurrentlyInactive });
+    showToast('Challenge ' + action.toLowerCase() + 'd', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Hard delete ───────────────────────────────────────────────────────────────
+async function confirmDelete(id, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await adminApi.hardDeleteHealthChallenge(id);
+    showToast('Challenge deleted', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Add / Edit Modal ──────────────────────────────────────────────────────────
+function openModal(id) {
+  const c      = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!c;
+  const root   = document.getElementById('modal-root');
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Challenge' : 'Add Health Challenge'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="hc-form" class="form-grid">
+          <div class="field full">
+            <label>Challenge Name *</label>
+            <input name="name" value="${escapeHtml(c?.name || '')}"
+              placeholder="e.g. High Blood Sugar" required
+              style="font-size:15px" />
+            <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">
+              This exact text is shown to customers during onboarding.
+            </div>
+          </div>
+          ${isEdit ? `
+          <div class="field full">
+            <label>Status</label>
+            <select name="isActive">
+              <option value="true"  ${c.isActive !== false ? 'selected' : ''}>Active — shown to customers</option>
+              <option value="false" ${c.isActive === false  ? 'selected' : ''}>Inactive — hidden from customers</option>
+            </select>
+          </div>` : ''}
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="hc-save-btn">${isEdit ? 'Save Changes' : 'Add Challenge'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('hc-save-btn').addEventListener('click', async () => {
+    const fd   = new FormData(document.getElementById('hc-form'));
+    const name = (fd.get('name') || '').trim();
+    if (!name) { showToast('Challenge name is required', 'error'); return; }
+
+    const body = { name };
+    if (isEdit) body.isActive = fd.get('isActive') === 'true';
+
+    const btn = document.getElementById('hc-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      if (isEdit) await adminApi.updateHealthChallenge(c._id, body);
+      else        await adminApi.createHealthChallenge(body);
+      showToast(isEdit ? 'Challenge updated' : 'Challenge added', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Add Challenge';
+    }
+  });
+
+  // Focus the input
+  setTimeout(() => document.querySelector('#hc-form input[name="name"]')?.focus(), 50);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -181,10 +181,20 @@ function openModal(id) {
           </div>
 
           <div class="field full">
-            <label>Goal ID *</label>
+            <label>Goal ID * <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(must match exactly what the customer app uses)</span></label>
             <input name="goalId" value="${escapeHtml(g?.goalId || '')}"
-              placeholder="e.g. GOAL001"
+              placeholder="e.g. Immunity Support"
               ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
+            ${isEdit ? '' : `
+            <div style="margin-top:6px;background:var(--green-pale);border:1px solid var(--green-muted);border-radius:8px;padding:10px 12px;">
+              <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⚠️ Use one of these exact Goal IDs:</div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                ${["Immunity Support","Weight Management","Protein Support","Iron Support","Heart Wellness","Diabetes Control","Senior Wellness","Kids Nutrition","Digestive Wellness","Detox","Bone Health","General Wellness"].map(id =>
+                  \`<span onclick="document.querySelector('[name=goalId]').value='\${id}'" style="font-size:11px;padding:3px 9px;border-radius:50px;background:#fff;border:1px solid var(--green-muted);cursor:pointer;color:var(--ink);font-family:var(--font-mono)">\${id}</span>\`
+                ).join('')}
+              </div>
+              <div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Click a value to auto-fill. This must match exactly — it links goals to baskets in the recommendation engine.</div>
+            </div>`}
           </div>
 
           <div class="field full">

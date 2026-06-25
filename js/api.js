@@ -164,6 +164,9 @@ const adminApi = {
   updateGoal:       (id, body) => req('PUT', `/admin/goals/${id}`, body),
   deleteGoal:       (id) => req('DELETE', `/admin/goals/${id}`),
   hardDeleteGoal:   (id) => req('DELETE', `/admin/goals/${id}/hard`),
+  presignGoalImage:  (id, mimeType) => req('GET', `/admin/goals/${id}/image/presign${qs({ mimeType })}`),
+  confirmGoalImage:  (id, imageKey, imageUrl) => req('POST', `/admin/goals/${id}/image/confirm`, { imageKey, imageUrl }),
+  deleteGoalImage:   (id) => req('DELETE', `/admin/goals/${id}/image`),
 
   // Coupons
   getCoupons:       () => req('GET', '/admin/coupons'),
@@ -267,5 +270,18 @@ async function uploadIngredientImageToS3(ingredientId, file) {
   });
   if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
   await adminApi.confirmIngredientImage(ingredientId, imageKey, imageUrl);
+  return { imageUrl };
+}
+
+async function uploadGoalImageToS3(goalId, file) {
+  const { blob, mimeType } = await compressImageToBlob(file);
+  const { signedUrl, imageKey, imageUrl } = await adminApi.presignGoalImage(goalId, mimeType);
+  const s3Res = await fetch(signedUrl, {
+    method:  'PUT',
+    headers: { 'Content-Type': mimeType },
+    body:    blob,
+  });
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
+  await adminApi.confirmGoalImage(goalId, imageKey, imageUrl);
   return { imageUrl };
 }

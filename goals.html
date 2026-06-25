@@ -82,7 +82,7 @@ content.innerHTML = `
           <th style="width:60px">Image</th>
           <th>Goal Name</th>
           <th>Goal ID</th>
-          <th>Description</th>
+          <th>Linked Basket</th>
           <th>Status</th>
           <th></th>
         </tr></thead>
@@ -116,7 +116,12 @@ async function load() {
           </td>
           <td><b>${escapeHtml(g.goalName)}</b></td>
           <td class="mono">${escapeHtml(g.goalId)}</td>
-          <td class="muted">${escapeHtml(g.description || '–')}</td>
+          <td>
+              ${g.basketId
+                ? \`<span style="font-size:12px;font-weight:600;color:var(--green)">✓ \${escapeHtml(g.basketId)}</span>\`
+                : \`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ Not linked</span>\`
+              }
+            </td>
           <td>
             <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
               ${g.isActive === false ? 'Inactive' : 'Active'}
@@ -203,6 +208,16 @@ function openModal(id) {
               placeholder="Brief description shown to customers" />
           </div>
 
+          <div class="field full">
+            <label>Linked Curated Basket <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(basket shown when customer selects this goal)</span></label>
+            <select name="basketId" id="basket-select" style="width:100%">
+              <option value="">Loading baskets…</option>
+            </select>
+            <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">
+              ⚡ This is the key link — selecting a goal recommends this basket to that customer.
+            </div>
+          </div>
+
           ${isEdit ? `
           <!-- ── Image upload (edit mode only) ─────────────────────── -->
           <div class="field full">
@@ -261,6 +276,23 @@ function openModal(id) {
       </div>
     </div>
   `;
+
+  // ── Load baskets into the basket select dropdown ───────────────────────────
+  (async function loadBasketOptions() {
+    const sel = document.getElementById('basket-select');
+    if (!sel) return;
+    try {
+      const data = await adminApi.getBaskets();
+      const baskets = data.baskets || [];
+      sel.innerHTML = '<option value="">— None / Not linked —</option>' +
+        baskets.map(b => {
+          const selected = (g?.basketId && g.basketId === b.basketId) ? 'selected' : '';
+          return \`<option value="\${escapeHtml(b.basketId)}" \${selected}>\${escapeHtml(b.basketName)} (\${escapeHtml(b.basketId)})</option>\`;
+        }).join('');
+    } catch(e) {
+      sel.innerHTML = '<option value="">Could not load baskets</option>';
+    }
+  })();
 
   // ── Image handling (edit mode only) ────────────────────────────────────────
   if (isEdit) {
@@ -395,6 +427,7 @@ function openModal(id) {
       goalName:    fd.get('goalName'),
       goalId:      fd.get('goalId'),
       description: fd.get('description') || undefined,
+      basketId:    fd.get('basketId')    || undefined,
     };
 
     if (!body.goalName)          { showToast('Goal name is required', 'error'); return; }

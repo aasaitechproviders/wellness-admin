@@ -48,8 +48,8 @@ function renderShell({ active, title, sub, actions = '' }) {
   shell.innerHTML = `
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
-        <div class="mark">🌿</div>
-        <div class="word"><b>KRISHA PURE</b><small>Admin Console</small></div>
+        <img class="sidebar-logo" src="Krisha_Pure_transparent.png" alt="Krisha Pure" />
+        <div class="word"><small>Admin Console</small></div>
       </div>
       <div class="sidebar-rule"></div>
       <nav class="sidebar-nav">${navHtml}</nav>

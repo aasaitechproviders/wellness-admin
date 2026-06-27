@@ -145,7 +145,10 @@ async function load() {
               ? `<img src="${escapeHtml(b.imageUrl)}" class="eb-thumb" alt="" loading="lazy" />`
               : `<div class="eb-thumb-empty">🛒</div>`}
           </td>
-          <td>${sizeBadge(b.size)}</td>
+          <td>
+            <b>${escapeHtml(b.basketName||'')}</b>
+            <div style="margin-top:2px">${sizeBadge(b.size)}</div>
+          </td>
           <td style="font-size:12.5px;max-width:220px">
             ${(b.products||[]).length
               ? b.products.map(p => `<div>${escapeHtml(p.name)} — <b>${p.quantity} ${escapeHtml(p.unit)}</b></div>`).join('')
@@ -450,6 +453,11 @@ function openModal(id) {
 
           <div class="form-section">📋 Basic Info</div>
 
+          <div class="field full">
+            <label>Basket Name *</label>
+            <input name="basketName" value="${escapeHtml(b?.basketName||'')}" placeholder="e.g. Daily Greens Small Pack" required />
+          </div>
+
           <div class="field">
             <label>Size *</label>
             <select name="size" ${isEdit?'disabled':''}>
@@ -505,7 +513,11 @@ function openModal(id) {
     if (!size)  { showToast('Size is required','error'); return; }
     if (!price) { showToast('Price is required','error'); return; }
 
+    const basketName = (fd.get('basketName')||'').trim();
+    if (!basketName) { showToast('Basket name is required','error'); return; }
+
     const body = {
+      basketName,
       size,
       price:    Number(price),
       products: prodWrap?._getRows ? prodWrap._getRows() : [],

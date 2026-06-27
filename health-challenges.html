@@ -31,12 +31,13 @@ content.innerHTML = `
     <div class="table-wrap">
       <table class="data">
         <thead><tr>
+          <th style="width:56px">Image</th>
           <th>Challenge Name</th>
           <th>Status</th>
           <th></th>
         </tr></thead>
         <tbody id="body">
-          <tr><td colspan="3" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="4" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -49,13 +50,19 @@ document.getElementById('add-btn').addEventListener('click', () => openModal(nul
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
   document.getElementById('body').innerHTML =
-    `<tr><td colspan="3" class="loading-row"><div class="spinner"></div></td></tr>`;
+    `<tr><td colspan="4" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { challenges } = await adminApi.getHealthChallenges();
     cache = challenges;
     document.getElementById('body').innerHTML = challenges.length
       ? challenges.map(c => `
         <tr>
+          <td>
+            ${c.hasImage && c.imageUrl
+              ? `<img src="${escapeHtml(c.imageUrl)}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" loading="lazy" />`
+              : `<div style="width:40px;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px">🩺</div>`
+            }
+          </td>
           <td><b>${escapeHtml(c.name)}</b></td>
           <td>
             <span class="pill ${c.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
@@ -73,14 +80,14 @@ async function load() {
           </td>
         </tr>
       `).join('')
-      : `<tr><td colspan="3"><div class="empty"><div class="icon">🩺</div>No health challenges yet. Add one above.</div></td></tr>`;
+      : `<tr><td colspan="4"><div class="empty"><div class="icon">🩺</div>No health challenges yet. Add one above.</div></td></tr>`;
   } catch (e) {
     document.getElementById('body').innerHTML =
-      `<tr><td colspan="3"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+      `<tr><td colspan="4"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
-// ── Toggle active / Deactivate ────────────────────────────────────────────────
+// ── Toggle active ─────────────────────────────────────────────────────────────
 async function toggleActive(id, isCurrentlyInactive) {
   const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
   if (!confirm(action + ' this health challenge?')) return;
@@ -107,14 +114,39 @@ function openModal(id) {
   const isEdit = !!c;
   const root   = document.getElementById('modal-root');
 
+  const imageSection = isEdit ? `
+    <div class="field full">
+      <label>Challenge Image</label>
+      <div id="img-thumb-wrap" style="margin-bottom:10px">
+        ${c.hasImage && c.imageUrl
+          ? `<img id="img-preview" class="img-thumb-large" src="${escapeHtml(c.imageUrl)}" alt="Current image"
+               onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />`
+          : ''
+        }
+        <div id="img-no-thumb" style="width:80px;height:80px;border-radius:8px;background:var(--surface);border:2px dashed var(--border);display:${c.hasImage && c.imageUrl ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:28px">🩺</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <div class="img-info-name" id="img-filename">${c.imageUrl ? 'Image saved' : 'No image yet'}</div>
+        <div class="img-info-status ok" id="img-status">${c.imageUrl ? '✅ Saved to S3' : ''}</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
+        <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
+        ${c.imageUrl ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>` : ''}
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">💡 Choose a file → click <b>Upload</b>. Image uploads independently from the fields below.</div>
+    </div>
+  ` : `<div class="field full"><div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">💡 <b>Save the challenge first</b>, then re-open it to upload an image.</div></div>`;
+
   root.innerHTML = `
     <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:420px">
+      <div class="modal" style="max-width:460px">
         <div class="modal-head">
           <h3>${isEdit ? 'Edit Challenge' : 'Add Health Challenge'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
         <form id="hc-form" class="form-grid">
+          ${imageSection}
           <div class="field full">
             <label>Challenge Name *</label>
             <input name="name" value="${escapeHtml(c?.name || '')}"
@@ -141,6 +173,98 @@ function openModal(id) {
     </div>
   `;
 
+  // ── Image handling (edit mode only) ──────────────────────────────────────
+  if (isEdit) {
+    var fileInput   = document.getElementById('img-file-input');
+    var uploadBtn   = document.getElementById('img-upload-btn');
+    var statusEl    = document.getElementById('img-status');
+    var filenameEl  = document.getElementById('img-filename');
+    var deleteBtn   = document.getElementById('img-delete-btn');
+    var pendingFile = null;
+
+    fileInput.addEventListener('change', function() {
+      var file = fileInput.files[0];
+      if (!file) return;
+      if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+        showToast('Only JPEG, PNG, or WebP allowed', 'error');
+        fileInput.value = '';
+        return;
+      }
+      pendingFile = file;
+      filenameEl.textContent = file.name;
+      statusEl.className     = 'img-info-status';
+      statusEl.textContent   = '📎 Ready to upload — click Upload';
+      uploadBtn.disabled     = false;
+
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var preview = document.getElementById('img-preview');
+        var noThumb = document.getElementById('img-no-thumb');
+        if (preview) {
+          preview.src = ev.target.result;
+          preview.style.display = 'block';
+        } else {
+          if (noThumb) noThumb.style.display = 'none';
+          var img = document.createElement('img');
+          img.id = 'img-preview'; img.className = 'img-thumb-large';
+          img.src = ev.target.result; img.alt = 'Preview';
+          document.getElementById('img-thumb-wrap').prepend(img);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    uploadBtn.addEventListener('click', async function() {
+      if (!pendingFile) return;
+      uploadBtn.disabled = true; uploadBtn.textContent = '⏳ Uploading…';
+      statusEl.className = 'img-info-status busy'; statusEl.textContent = 'Uploading to S3…';
+      try {
+        var res = await uploadHealthChallengeImageToS3(c._id, pendingFile);
+        pendingFile = null;
+        statusEl.className = 'img-info-status ok'; statusEl.textContent = '✅ Uploaded successfully';
+        uploadBtn.textContent = '⬆ Upload'; uploadBtn.disabled = true;
+        if (!document.getElementById('img-delete-btn')) {
+          var btn = document.createElement('button');
+          btn.type = 'button'; btn.id = 'img-delete-btn';
+          btn.className = 'btn btn-ghost btn-sm'; btn.style.color = 'var(--red)';
+          btn.textContent = 'Remove';
+          btn.addEventListener('click', handleRemove);
+          uploadBtn.insertAdjacentElement('afterend', btn);
+        }
+        showToast('Image uploaded ✅', 'success');
+        load();
+      } catch (e) {
+        statusEl.className = 'img-info-status error'; statusEl.textContent = '❌ ' + e.message;
+        uploadBtn.disabled = false; uploadBtn.textContent = '⬆ Retry';
+        showToast(e.message, 'error');
+      }
+    });
+
+    async function handleRemove() {
+      if (!confirm('Remove image for this challenge?')) return;
+      var btn = document.getElementById('img-delete-btn');
+      btn.disabled = true; btn.textContent = 'Removing…';
+      try {
+        await adminApi.deleteHealthChallengeImage(c._id);
+        var preview = document.getElementById('img-preview');
+        var noThumb = document.getElementById('img-no-thumb');
+        if (preview) preview.style.display = 'none';
+        if (noThumb) noThumb.style.display = 'flex';
+        filenameEl.textContent = 'No image yet';
+        statusEl.className = 'img-info-status'; statusEl.textContent = '';
+        uploadBtn.disabled = true; uploadBtn.textContent = '⬆ Upload';
+        btn.remove(); fileInput.value = ''; pendingFile = null;
+        showToast('Image removed', 'success'); load();
+      } catch (e) {
+        showToast(e.message, 'error');
+        btn.disabled = false; btn.textContent = 'Remove';
+      }
+    }
+
+    if (deleteBtn) deleteBtn.addEventListener('click', handleRemove);
+  }
+
+  // ── Save form ──────────────────────────────────────────────────────────────
   document.getElementById('hc-save-btn').addEventListener('click', async () => {
     const fd   = new FormData(document.getElementById('hc-form'));
     const name = (fd.get('name') || '').trim();
@@ -164,7 +288,6 @@ function openModal(id) {
     }
   });
 
-  // Focus the input
   setTimeout(() => document.querySelector('#hc-form input[name="name"]')?.focus(), 50);
 }
 

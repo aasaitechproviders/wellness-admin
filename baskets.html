@@ -9,173 +9,112 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  /* ── Product picker ─────────────────────────────────── */
-  .picker-outer { position: relative; }
-  .picker-search {
-    width: 100%; padding: 9px 12px;
-    border: 1.5px solid var(--border); border-radius: 8px;
-    font-family: var(--font-body); font-size: 13.5px;
-    color: var(--ink); background: var(--white); outline: none; box-sizing: border-box;
-  }
-  .picker-search:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(45,106,53,.1); }
-  .picker-dropdown {
-    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--white); border: 1.5px solid var(--border);
-    border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.1);
-    max-height: 220px; overflow-y: auto; z-index: 200; display: none;
-  }
-  .picker-dropdown.open { display: block; }
-  .picker-option {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 14px; cursor: pointer; font-size: 13.5px; transition: background .12s;
-  }
-  .picker-option:hover { background: var(--green-pale); }
-  .picker-option.already { opacity: .45; cursor: default; pointer-events: none; }
-  .picker-option .p-cat {
-    font-size: 11px; background: var(--surface); color: var(--ink-faint);
-    border-radius: 4px; padding: 1px 6px; margin-left: auto; white-space: nowrap;
-  }
-  .picker-empty { padding: 14px; text-align: center; color: var(--ink-faint); font-size: 13px; }
+  /* ── Image ─────────────────────────────────────────── */
+  .bk-thumb { width:44px;height:44px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);display:block; }
+  .bk-thumb-empty { width:44px;height:44px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-faint); }
+  .img-thumb-large { width:80px;height:80px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);flex-shrink:0;display:block; }
+  .img-thumb-placeholder { width:80px;height:80px;border-radius:8px;border:1.5px dashed var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+  .img-info-name { font-size:13px;font-weight:600;color:var(--ink); }
+  .img-info-status { font-size:12px;margin-top:4px;font-weight:500; }
+  .img-info-status.ok    { color:var(--green); }
+  .img-info-status.error { color:var(--red); }
+  .img-info-status.busy  { color:#7B5E2A; }
 
-  /* ── Product chips ──────────────────────────────────── */
-  .chips-wrap { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; padding: 8px 0 2px; }
-  .chip {
-    display: inline-flex; align-items: center; gap: 5px;
-    background: var(--green-pale); color: var(--green);
-    border: 1px solid rgba(45,106,53,.2); border-radius: 20px;
-    padding: 4px 10px 4px 12px; font-size: 12.5px; font-weight: 500;
-  }
-  .chip-remove {
-    cursor: pointer; font-size: 14px; line-height: 1; color: var(--green);
-    opacity: .7; padding: 0 2px; border: none; background: none; font-family: inherit;
-  }
-  .chip-remove:hover { opacity: 1; }
-  .chips-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 0; }
-  .picker-hint { font-size: 11.5px; color: var(--ink-faint); margin-top: 5px; }
-
-  /* ── Nutrition panel ─────────────────────────────────── */
-  .nutrition-panel {
-    margin-top: 14px;
-    border: 1.5px solid var(--border); border-radius: 12px;
-    background: var(--white); overflow: hidden;
-  }
-  .nutrition-panel-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 10px 14px; background: var(--green-pale);
-    border-bottom: 1px solid var(--border);
-  }
-  .nutrition-panel-head .np-title {
-    font-size: 12.5px; font-weight: 700; color: var(--green);
-    display: flex; align-items: center; gap: 6px;
-  }
-  .nutrition-panel-head .np-sub {
-    font-size: 11px; color: var(--ink-faint); font-weight: 400;
-  }
-  .nutrition-grid {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 0;
-  }
-  .nutrition-cell {
-    padding: 10px 14px;
-    border-right: 1px solid var(--border);
-    border-bottom: 1px solid var(--border);
-  }
-  .nutrition-cell:nth-child(4n) { border-right: none; }
-  .nutrition-cell:nth-last-child(-n+4) { border-bottom: none; }
-  .nc-label {
-    font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase;
-    letter-spacing: .5px; font-weight: 600; margin-bottom: 3px;
-  }
-  .nc-value {
-    font-family: var(--font-mono); font-size: 14px; font-weight: 600;
-    color: var(--ink);
-  }
-  .nc-unit { font-size: 10px; color: var(--ink-faint); font-weight: 400; }
-  .nutrition-empty {
-    padding: 16px 14px; text-align: center;
-    color: var(--ink-faint); font-size: 12.5px;
-  }
-  .nutrition-source-note {
-    padding: 8px 14px; border-top: 1px solid var(--border);
-    font-size: 11px; color: var(--ink-faint);
-    background: var(--cream);
-  }
-  .nutrition-source-note b { color: var(--ink-soft); }
-
-  /* ── Recipe builder ─────────────────────────────────── */
-  .recipe-list { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
-  .recipe-card {
-    border: 1.5px solid var(--border); border-radius: 12px;
-    background: var(--white); overflow: hidden;
-  }
-  .recipe-card-head {
-    display: flex; align-items: center; gap: 8px;
-    padding: 10px 12px; background: var(--surface);
-    border-bottom: 1px solid var(--border);
-  }
-  .recipe-card-head input {
-    flex: 1; border: none; background: transparent;
-    font-family: var(--font-body); font-size: 13.5px; font-weight: 600;
-    color: var(--ink); outline: none;
-  }
-  .recipe-card-head input::placeholder { font-weight: 400; color: var(--ink-faint); }
-  .recipe-card-body { padding: 10px 12px; }
-  .step-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 7px; }
-  .step-bullet {
-    width: 20px; height: 20px; min-width: 20px;
-    background: var(--green-pale); color: var(--green);
-    border-radius: 50%; font-size: 11px; font-weight: 700;
-    display: flex; align-items: center; justify-content: center; margin-top: 8px;
-  }
-  .step-input {
-    flex: 1; padding: 7px 10px;
-    border: 1.5px solid var(--border); border-radius: 7px;
-    font-family: var(--font-body); font-size: 13px; color: var(--ink);
-    outline: none; resize: none; min-height: 36px;
-  }
-  .step-input:focus { border-color: var(--green); box-shadow: 0 0 0 2px rgba(45,106,53,.08); }
-  .step-remove {
-    padding: 6px 4px; border: none; background: none;
-    color: var(--ink-faint); cursor: pointer; font-size: 16px; line-height: 1; margin-top: 5px;
-  }
-  .step-remove:hover { color: var(--red); }
-  .add-step-btn {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 12.5px; color: var(--green); font-weight: 600;
-    border: none; background: none; cursor: pointer; padding: 4px 0; margin-top: 4px;
-  }
-  .add-step-btn:hover { opacity: .75; }
-  .add-recipe-btn {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 13px; color: var(--green); font-weight: 600;
-    border: 1.5px dashed rgba(45,106,53,.35); border-radius: 10px;
-    background: var(--green-pale); cursor: pointer;
-    padding: 10px 14px; width: 100%; margin-top: 4px; transition: background .12s;
-  }
-  .add-recipe-btn:hover { background: rgba(45,106,53,.12); }
-  .remove-recipe-btn {
-    padding: 3px 8px; border: none; background: none;
-    color: var(--ink-faint); cursor: pointer; font-size: 13px; line-height: 1; border-radius: 5px;
-  }
-  .remove-recipe-btn:hover { background: var(--red-pale); color: var(--red); }
-
-  /* ── Table recipe badge ─────────────────────────────── */
-  .recipe-badge {
-    font-size: 11px; background: #fff8e1; color: #b7860b;
-    border-radius: 5px; padding: 2px 7px; display: inline-block; margin-top: 3px;
-  }
-
-  /* ── Wellness goal multi-picker ────────────────────── */
-  .goal-multi-wrap { display:flex; flex-wrap:wrap; gap:7px; padding:6px 0 4px; }
-  .goal-toggle {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:5px 12px; border-radius:20px; cursor:pointer;
-    font-size:12.5px; font-weight:500; user-select:none;
-    border:1.5px solid var(--border); background:var(--white); color:var(--ink-faint);
+  /* ── Toggle chips (goals / health challenges) ───────── */
+  .toggle-chips { display:flex;flex-wrap:wrap;gap:7px;padding:6px 0 4px; }
+  .tog {
+    display:inline-flex;align-items:center;gap:5px;
+    padding:5px 13px;border-radius:20px;cursor:pointer;
+    font-size:12.5px;font-weight:500;user-select:none;
+    border:1.5px solid var(--border);background:var(--white);color:var(--ink-faint);
     transition:all .12s;
   }
-  .goal-toggle:hover { border-color:var(--green); color:var(--green); background:var(--green-pale); }
-  .goal-toggle.selected { border-color:var(--green); background:var(--green); color:#fff; }
+  .tog:hover { border-color:var(--green);color:var(--green);background:var(--green-pale); }
+  .tog.on { border-color:var(--green);background:var(--green);color:#fff; }
+  .tog.red.on { border-color:var(--red);background:var(--red);color:#fff; }
+  .tog.red:hover { border-color:var(--red);color:var(--red);background:#fff5f5; }
+
+  /* ── Excluded products picker ───────────────────────── */
+  .picker-outer { position:relative; }
+  .picker-search {
+    width:100%;padding:9px 12px;
+    border:1.5px solid var(--border);border-radius:8px;
+    font-family:var(--font-body);font-size:13.5px;
+    color:var(--ink);background:var(--white);outline:none;box-sizing:border-box;
+  }
+  .picker-search:focus { border-color:var(--green);box-shadow:0 0 0 3px rgba(45,106,53,.1); }
+  .picker-dropdown {
+    position:absolute;top:calc(100% + 4px);left:0;right:0;
+    background:var(--white);border:1.5px solid var(--border);
+    border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);
+    max-height:200px;overflow-y:auto;z-index:200;display:none;
+  }
+  .picker-dropdown.open { display:block; }
+  .picker-option {
+    display:flex;align-items:center;gap:10px;
+    padding:9px 14px;cursor:pointer;font-size:13.5px;transition:background .12s;
+  }
+  .picker-option:hover { background:var(--green-pale); }
+  .picker-option.already { opacity:.45;cursor:default;pointer-events:none; }
+  .picker-empty { padding:14px;text-align:center;color:var(--ink-faint);font-size:13px; }
+
+  /* ── Excluded chips (red) ───────────────────────────── */
+  .chips-wrap { display:flex;flex-wrap:wrap;gap:6px;min-height:32px;padding:8px 0 2px; }
+  .chip-ex {
+    display:inline-flex;align-items:center;gap:5px;
+    background:#fff5f5;color:var(--red);
+    border:1px solid rgba(220,53,69,.2);border-radius:20px;
+    padding:4px 10px 4px 12px;font-size:12.5px;font-weight:500;
+  }
+  .chip-ex-remove {
+    cursor:pointer;font-size:14px;line-height:1;color:var(--red);
+    opacity:.7;padding:0 2px;border:none;background:none;
+  }
+  .chip-ex-remove:hover { opacity:1; }
+  .chips-empty { color:var(--ink-faint);font-size:12.5px;padding:6px 0; }
+
+  /* ── Nutrition rows ──────────────────────────────────── */
+  .nut-row {
+    display:grid;grid-template-columns:1fr 100px 90px 32px;
+    gap:8px;align-items:center;margin-bottom:8px;
+  }
+  .nut-row select, .nut-row input {
+    padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;
+    font-family:var(--font-body);font-size:13px;color:var(--ink);
+    background:var(--white);outline:none;width:100%;box-sizing:border-box;
+  }
+  .nut-row select:focus, .nut-row input:focus { border-color:var(--green); }
+  .nut-remove {
+    width:28px;height:28px;border:none;background:none;cursor:pointer;
+    color:var(--ink-faint);font-size:16px;display:flex;align-items:center;justify-content:center;
+    border-radius:5px;
+  }
+  .nut-remove:hover { background:var(--red-pale);color:var(--red); }
+  .add-nut-btn {
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12.5px;color:var(--green);font-weight:600;
+    border:1.5px dashed rgba(45,106,53,.35);border-radius:8px;
+    background:var(--green-pale);cursor:pointer;
+    padding:8px 14px;margin-top:4px;transition:background .12s;
+  }
+  .add-nut-btn:hover { background:rgba(45,106,53,.12); }
+
+  /* ── Table badges ────────────────────────────────────── */
+  .tag-sm {
+    font-size:11px;background:var(--green-pale);color:var(--green);
+    border-radius:5px;padding:2px 7px;display:inline-block;margin:1px;
+  }
+  .tag-sm.red { background:#fff5f5;color:var(--red); }
+  .tag-sm.grey { background:var(--surface);color:var(--ink-faint); }
+
+  /* ── Section divider inside modal ───────────────────── */
+  .form-section {
+    grid-column:1/-1;
+    font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;
+    color:var(--ink-faint);padding:12px 0 4px;border-top:1px solid var(--border);
+    margin-top:4px;
+  }
+  .form-section:first-child { border-top:none;margin-top:0; }
 </style>
 </head>
 <body>
@@ -185,19 +124,38 @@
 <script>
 const content = renderShell({
   active: 'baskets',
-  title: 'Curated Baskets',
-  sub: 'Pre-built wellness bundles — add products, set a flat price, and attach recipes',
+  title:   'Curated Baskets',
+  sub:     'Wellness basket templates — define target profile, excluded products & nutrition targets',
   actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Basket</button>`,
 });
 
-let cache = [];
-let goalsCache = [];
+let cache       = [];
+let goalsCache  = [];
+let hcCache     = [];
 
-// Load goals immediately on page load so they're ready when modal opens
+const AGE_GROUPS = ['15 – 25', '25 – 40', '40 – 60', 'Above 60'];
+const BMI_CATS   = [
+  { label: 'Underweight  (< 18.5)',   value: 'underweight' },
+  { label: 'Normal  (18.5 – 24.9)',   value: 'normal' },
+  { label: 'Overweight  (25 – 29.9)', value: 'overweight' },
+  { label: 'Obese  (≥ 30)',           value: 'obese' },
+];
+const ACTIVITY   = ['High', 'Moderate', 'Low', 'Idle'];
+
+const NUTRIENTS  = [
+  'Calories','Protein','Carbohydrates','Fat','Fiber','Sugar',
+  'Iron','Calcium','Magnesium','Potassium','Sodium',
+  'Vitamin A','Vitamin B12','Vitamin C','Vitamin D','Vitamin E','Vitamin K',
+  'Zinc','Phosphorus','Folate','Omega-3','Omega-6',
+];
+const UNITS = ['g','mg','mcg','kg','Kcal','cal','IU','%DV'];
+
+// ── Pre-load goals + health challenges ───────────────────────────────────────
 (async () => {
   try {
-    const { goals } = await adminApi.getGoals();
-    goalsCache = goals.filter(g => g.isActive !== false);
+    const [g, h] = await Promise.all([adminApi.getGoals(), adminApi.getHealthChallenges()]);
+    goalsCache = g.goals.filter(x => x.isActive !== false);
+    hcCache    = h.challenges.filter(x => x.isActive !== false);
   } catch(e) {}
 })();
 
@@ -205,21 +163,18 @@ content.innerHTML = `
   <div class="panel">
     <div class="table-wrap">
       <table class="data">
-        <thead>
-          <tr>
-            <th>Basket</th>
-            <th>Wellness Goals</th>
-            <th>Products</th>
-            <th>Nutrition (per basket)</th>
-            <th>Recipes</th>
-            <th>Price</th>
-            <th>Featured</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th style="width:52px">Image</th>
+          <th>Basket Name</th>
+          <th>Target Profile</th>
+          <th>Goals</th>
+          <th>Health Challenges</th>
+          <th>Excluded</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
         <tbody id="body">
-          <tr><td colspan="9" class="loading-row"><div class="spinner"></div></td></tr>
+          <tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -229,470 +184,340 @@ content.innerHTML = `
 
 document.getElementById('add-btn').addEventListener('click', () => openModal(null));
 
-// ── Nutrition helpers ────────────────────────────────────────────────────────
-// Safely read nested nutrition value or fall back to flat Excel-style field
-function nv(ing, nestedKey, flatKey) {
-  const nested = ing.nutrition?.[nestedKey];
-  if (nested != null && nested !== '') return Number(nested);
-  const flat = ing[flatKey];
-  if (flat != null && flat !== '') return Number(flat);
-  return null;
-}
-
-const NUTRITION_FIELDS = [
-  { key: 'calories',  flat: 'Calories_100g (Kcal)', label: 'Calories',  unit: 'kcal' },
-  { key: 'carbs',     flat: 'Carbs_100g',            label: 'Carbs',     unit: 'g' },
-  { key: 'protein',   flat: 'Protein_100g',          label: 'Protein',   unit: 'g' },
-  { key: 'fat',       flat: 'Fat_100g',              label: 'Fat',       unit: 'g' },
-  { key: 'fiber',     flat: 'Fiber_100g',            label: 'Fiber',     unit: 'g' },
-  { key: 'sugar',     flat: 'Sugar_100g',            label: 'Sugar',     unit: 'g' },
-  { key: 'iron',      flat: 'Iron_mg',               label: 'Iron',      unit: 'mg' },
-  { key: 'calcium',   flat: 'Calcium_mg',            label: 'Calcium',   unit: 'mg' },
-  { key: 'vitaminC',  flat: 'VitaminC_mg',           label: 'Vitamin C', unit: 'mg' },
-  { key: 'potassium', flat: 'Potassium_mg',          label: 'Potassium', unit: 'mg' },
-  { key: 'magnesium', flat: 'Magnesium_mg',          label: 'Magnesium', unit: 'mg' },
-];
-
-// Aggregate nutrition across all selected ingredient objects
-function aggregateNutrition(ingredients) {
-  if (!ingredients.length) return null;
-  const totals = {};
-  let hasAnyData = false;
-  for (const f of NUTRITION_FIELDS) {
-    let sum = 0; let count = 0;
-    for (const ing of ingredients) {
-      const v = nv(ing, f.key, f.flat);
-      if (v != null) { sum += v; count++; }
-    }
-    if (count > 0) { totals[f.key] = Math.round(sum * 10) / 10; hasAnyData = true; }
-    else totals[f.key] = null;
-  }
-  return hasAnyData ? totals : null;
-}
-
-// Render the live nutrition panel inside the modal
-function renderNutritionPanel(ingredients) {
-  const el = document.getElementById('nutrition-panel');
-  if (!el) return;
-
-  const totals = aggregateNutrition(ingredients);
-  const names  = ingredients.map(i => i.name);
-
-  if (!ingredients.length) {
-    el.innerHTML = `
-      <div class="nutrition-panel-head">
-        <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
-      </div>
-      <div class="nutrition-empty">Add products above to see aggregated nutrition values</div>
-    `;
-    return;
-  }
-
-  if (!totals) {
-    el.innerHTML = `
-      <div class="nutrition-panel-head">
-        <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
-      </div>
-      <div class="nutrition-empty">No nutrition data found for the selected products</div>
-      <div class="nutrition-source-note">Sources: <b>${escapeHtml(names.join(', '))}</b></div>
-    `;
-    return;
-  }
-
-  const cells = NUTRITION_FIELDS
-    .filter(f => totals[f.key] != null)
-    .map(f => `
-      <div class="nutrition-cell">
-        <div class="nc-label">${f.label}</div>
-        <div class="nc-value">${totals[f.key]}<span class="nc-unit"> ${f.unit}</span></div>
-      </div>
-    `).join('');
-
-  el.innerHTML = `
-    <div class="nutrition-panel-head">
-      <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from ${ingredients.length} product${ingredients.length > 1 ? 's' : ''}</span></span>
-    </div>
-    <div class="nutrition-grid">${cells}</div>
-    <div class="nutrition-source-note">Sources: <b>${escapeHtml(names.join(', '))}</b></div>
-  `;
-}
-
-// Format nutrition for table cell tooltip/summary
-function fmtNutritionSummary(ns) {
-  if (!ns) return '<span class="muted">—</span>';
-  const parts = [];
-  if (ns.calories != null) parts.push(`${ns.calories} kcal`);
-  if (ns.protein  != null) parts.push(`P: ${ns.protein}g`);
-  if (ns.carbs    != null) parts.push(`C: ${ns.carbs}g`);
-  if (ns.fat      != null) parts.push(`F: ${ns.fat}g`);
-  if (!parts.length) return '<span class="muted">—</span>';
-  return `<span style="font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft)">${parts.join(' · ')}</span>`;
-}
-
+// ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
-  document.getElementById('body').innerHTML = `<tr><td colspan="9" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('body').innerHTML =
+    `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { baskets } = await adminApi.getBaskets();
     cache = baskets;
-    document.getElementById('body').innerHTML = baskets.length ? baskets.map(b => {
-      const recipeCount = (b.recipes || []).length;
-      return `
+    document.getElementById('body').innerHTML = baskets.length
+      ? baskets.map(b => `
         <tr>
           <td>
+            ${b.hasImage && b.imageUrl
+              ? `<img src="${escapeHtml(b.imageUrl)}" class="bk-thumb" alt="" loading="lazy" />`
+              : `<div class="bk-thumb-empty">🧺</div>`}
+          </td>
+          <td>
             <b>${escapeHtml(b.basketName)}</b>
-            <div class="muted mono" style="font-size:11px">${escapeHtml(b.basketId || '')}</div>
+            ${b.description ? `<div class="muted" style="font-size:11.5px;margin-top:2px">${escapeHtml(b.description.slice(0,60))}${b.description.length>60?'…':''}</div>` : ''}
           </td>
-          <td>
-            ${(Array.isArray(b.wellnessGoals) ? b.wellnessGoals : b.wellnessGoal ? [b.wellnessGoal] : [])
-              .map(g => `<span style="font-size:11px;background:var(--green-pale);color:var(--green);border-radius:5px;padding:2px 7px;margin:1px;display:inline-block">${escapeHtml(g)}</span>`)
-              .join('') || '–'}
+          <td style="font-size:12px">
+            ${b.ageGroup    ? `<div><span class="tag-sm grey">Age</span> ${escapeHtml(b.ageGroup)}</div>` : ''}
+            ${b.bmiCategory ? `<div><span class="tag-sm grey">BMI</span> ${escapeHtml(b.bmiCategory)}</div>` : ''}
+            ${b.activityLevel ? `<div><span class="tag-sm grey">Activity</span> ${escapeHtml(b.activityLevel)}</div>` : ''}
           </td>
-          <td style="max-width:180px" class="muted">
-            ${(b.ingredientNames || []).length
-              ? b.ingredientNames.slice(0, 3).join(', ') + (b.ingredientNames.length > 3 ? ` +${b.ingredientNames.length - 3} more` : '')
-              : '<span style="color:var(--ink-faint)">No products</span>'}
+          <td style="max-width:160px">
+            ${(b.wellnessGoals||[]).map(g=>`<span class="tag-sm">${escapeHtml(g)}</span>`).join('') || '<span class="muted">—</span>'}
           </td>
-          <td>${fmtNutritionSummary(b.nutritionSummary)}</td>
-          <td>
-            ${recipeCount
-              ? `<span class="recipe-badge">🍲 ${recipeCount} recipe${recipeCount > 1 ? 's' : ''}</span>`
+          <td style="max-width:160px">
+            ${(b.healthChallenges||[]).map(h=>`<span class="tag-sm">${escapeHtml(h)}</span>`).join('') || '<span class="muted">—</span>'}
+          </td>
+          <td style="max-width:120px">
+            ${(b.excludedProducts||[]).length
+              ? `<span class="tag-sm red">⛔ ${b.excludedProducts.length} excluded</span>`
               : '<span class="muted">—</span>'}
           </td>
-          <td class="num">${fmtMoney(b.price)}</td>
-          <td>${b.isFeatured ? '⭐' : '–'}</td>
           <td>
-            <span class="pill ${b.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-              ${b.isActive === false ? 'Inactive' : 'Active'}
+            <span class="pill ${b.isActive===false?'pill-cancelled':'pill-delivered'}">
+              ${b.isActive===false?'Inactive':'Active'}
             </span>
           </td>
-          <td>
-            <button class="btn btn-ghost btn-sm" onclick="viewBasket('${b._id}')">View</button>
+          <td style="white-space:nowrap">
             <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
-            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivate('${b._id}')">Deactivate</button>
-            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="hardDelete('${b._id}','${escapeHtml(b.basketName)}')">Delete</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)"
+              onclick="toggleActive('${b._id}',${b.isActive===false})">
+              ${b.isActive===false?'Activate':'Deactivate'}
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700"
+              onclick="hardDelete('${b._id}','${escapeHtml(b.basketName)}')">Delete</button>
           </td>
         </tr>
-      `;
-    }).join('') : `<tr><td colspan="9"><div class="empty"><div class="icon">🧺</div>No curated baskets yet</div></td></tr>`;
-  } catch (e) {
-    document.getElementById('body').innerHTML = `<tr><td colspan="9"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+      `).join('')
+      : `<tr><td colspan="8"><div class="empty"><div class="icon">🧺</div>No curated baskets yet. Add one above.</div></td></tr>`;
+  } catch(e) {
+    document.getElementById('body').innerHTML =
+      `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
+async function toggleActive(id, isInactive) {
+  if (!confirm((isInactive?'Activate':'Deactivate') + ' this basket?')) return;
+  try {
+    if (isInactive) await adminApi.updateBasket(id, { isActive: true });
+    else            await adminApi.deleteBasket(id);
+    showToast('Basket ' + (isInactive?'activated':'deactivated'), 'success');
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
 async function hardDelete(id, name) {
-  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
-  try { await adminApi.hardDeleteBasket(id); showToast('Basket permanently deleted', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+  if (!confirm(`Permanently delete "${name}"? Cannot be undone.`)) return;
+  try { await adminApi.hardDeleteBasket(id); showToast('Basket deleted','success'); load(); }
+  catch(e) { showToast(e.message,'error'); }
 }
 
-async function deactivate(id) {
-  if (!confirm('Deactivate this basket? It will stop appearing in recommendations.')) return;
-  try { await adminApi.deleteBasket(id); showToast('Basket deactivated', 'success'); load(); }
-  catch (e) { showToast(e.message, 'error'); }
+// ── Toggle chip helper ────────────────────────────────────────────────────────
+function initToggleChips(containerId, items, initial=[], colorClass='') {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  let selected = [...initial];
+  if (!items.length) {
+    wrap.innerHTML = `<span style="color:var(--ink-faint);font-size:12.5px">None available</span>`;
+    wrap._getSelected = () => selected;
+    return;
+  }
+  wrap.innerHTML = items.map(item => `
+    <span class="tog ${colorClass} ${selected.includes(item)?'on':''}" data-val="${escapeHtml(item)}">${escapeHtml(item)}</span>
+  `).join('');
+  wrap.querySelectorAll('.tog').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const v = chip.dataset.val;
+      if (selected.includes(v)) { selected = selected.filter(s=>s!==v); chip.classList.remove('on'); }
+      else { selected.push(v); chip.classList.add('on'); }
+    });
+  });
+  wrap._getSelected = () => selected;
 }
 
-// ── Product Picker (now tracks full ingredient objects) ─────────────────────
-// ingredientObjects = array of full ingredient docs (with nutrition)
-// ingredientNames   = array of name strings (for backward compat)
-function initProductPicker(containerId, initialNames = []) {
+// ── Excluded products picker ──────────────────────────────────────────────────
+function initExcludedPicker(containerId, initial=[]) {
   const root     = document.getElementById(containerId);
   const searchEl = root.querySelector('.picker-search');
   const dropdown = root.querySelector('.picker-dropdown');
   const chipsEl  = root.querySelector('.chips-wrap');
-  const hintEl   = root.querySelector('.picker-hint');
+  let selected   = [...initial];
+  let timer      = null;
 
-  // selected: array of full ingredient objects
-  // We start from names only (edit mode); objects get backfilled on first search
-  let selected    = [];          // [{_id, name, category, nutrition, ...}]
-  let nameOnlySet = new Set(initialNames); // names not yet resolved to objects
-  let searchTimer = null;
-
-  // If we're in edit mode, pre-load the ingredient objects for initial names
-  // so nutrition can be computed immediately when modal opens
-  if (initialNames.length) {
-    adminApi.getIngredients({ limit: 200 }).then(({ ingredients }) => {
-      const byName = {};
-      ingredients.forEach(i => { byName[i.name] = i; });
-      selected = initialNames.map(n => byName[n] || { name: n }).filter(Boolean);
-      nameOnlySet = new Set();
-      renderChips();
-      renderNutritionPanel(selected.filter(i => i._id)); // only real objects
-    }).catch(() => {
-      // fallback: keep as name-only stubs
-      selected = initialNames.map(n => ({ name: n }));
-      renderChips();
+  function renderChips() {
+    chipsEl.innerHTML = selected.length
+      ? selected.map((n,i) => `
+          <span class="chip-ex">${escapeHtml(n)}
+            <button class="chip-ex-remove" data-idx="${i}">✕</button>
+          </span>`).join('')
+      : `<span class="chips-empty">No products excluded — search to add</span>`;
+    chipsEl.querySelectorAll('.chip-ex-remove').forEach(btn => {
+      btn.addEventListener('click', () => { selected.splice(Number(btn.dataset.idx),1); renderChips(); });
     });
   }
 
-  function updateHint() {
-    if (hintEl) hintEl.textContent = `${selected.length} product(s) in basket`;
-  }
-
-  function renderChips() {
-    if (!selected.length) {
-      chipsEl.innerHTML = `<span class="chips-empty">No products selected — search above to add</span>`;
-    } else {
-      chipsEl.innerHTML = selected.map((ing, i) => `
-        <span class="chip">
-          ${escapeHtml(ing.name)}
-          <button class="chip-remove" data-idx="${i}" title="Remove">✕</button>
-        </span>
-      `).join('');
-      chipsEl.querySelectorAll('.chip-remove').forEach(btn => {
-        btn.addEventListener('click', () => {
-          selected.splice(Number(btn.dataset.idx), 1);
-          renderChips();
-          updateHint();
-          renderNutritionPanel(selected.filter(i => i._id));
-        });
-      });
-    }
-    updateHint();
-  }
-
   function renderDropdown(items) {
-    if (!items.length) {
-      dropdown.innerHTML = `<div class="picker-empty">No products found</div>`;
-    } else {
-      dropdown.innerHTML = items.map(ing => {
-        const already = selected.some(s => s.name === ing.name);
-        return `<div class="picker-option ${already ? 'already' : ''}" data-name="${escapeHtml(ing.name)}">
-          <span>${escapeHtml(ing.name)}</span>
-          <span class="p-cat">${already ? 'Added' : escapeHtml(ing.category || '')}</span>
-        </div>`;
-      }).join('');
-      // store full ingredient objects in a map for pick lookup
-      const ingMap = {};
-      items.forEach(i => { ingMap[i.name] = i; });
-      dropdown.querySelectorAll('.picker-option:not(.already)').forEach(opt => {
-        opt.addEventListener('mousedown', e => {
-          e.preventDefault();
-          const ing = ingMap[opt.dataset.name];
-          if (ing) selected.push(ing);
-          renderChips();
-          searchEl.value = '';
-          dropdown.classList.remove('open');
-          renderNutritionPanel(selected.filter(i => i._id));
-        });
-      });
-    }
+    dropdown.innerHTML = items.length
+      ? items.map(ing => {
+          const already = selected.includes(ing.name);
+          return `<div class="picker-option ${already?'already':''}" data-name="${escapeHtml(ing.name)}">
+            <span>${escapeHtml(ing.name)}</span>
+            <span style="font-size:11px;color:var(--ink-faint);margin-left:auto">${already?'Added':escapeHtml(ing.category||'')}</span>
+          </div>`;
+        }).join('')
+      : `<div class="picker-empty">No products found</div>`;
     dropdown.classList.add('open');
+    dropdown.querySelectorAll('.picker-option:not(.already)').forEach(opt => {
+      opt.addEventListener('mousedown', e => {
+        e.preventDefault();
+        selected.push(opt.dataset.name);
+        renderChips();
+        searchEl.value = '';
+        dropdown.classList.remove('open');
+      });
+    });
   }
 
   async function doSearch(q) {
     try {
       const { ingredients } = await adminApi.getIngredients({ search: q, limit: 40 });
       renderDropdown(ingredients);
-    } catch (e) {
-      dropdown.innerHTML = `<div class="picker-empty">Search failed — ${escapeHtml(e.message)}</div>`;
+    } catch(e) {
+      dropdown.innerHTML = `<div class="picker-empty">Search failed</div>`;
       dropdown.classList.add('open');
     }
   }
 
   searchEl.addEventListener('input', () => {
-    clearTimeout(searchTimer);
+    clearTimeout(timer);
     const q = searchEl.value.trim();
     if (!q) { dropdown.classList.remove('open'); return; }
-    searchTimer = setTimeout(() => doSearch(q), 250);
+    timer = setTimeout(() => doSearch(q), 250);
   });
   searchEl.addEventListener('focus', () => { if (!searchEl.value.trim()) doSearch(''); });
   searchEl.addEventListener('blur',  () => setTimeout(() => dropdown.classList.remove('open'), 180));
 
   renderChips();
-
-  // Expose getter — returns names (for backward compat) and full objects (for nutrition)
-  root._getSelected      = () => selected.map(i => i.name);
-  root._getSelectedObjs  = () => selected;
+  root._getSelected = () => selected;
 }
 
-// ── Recipe Builder ───────────────────────────────────────────────────────────
-function initRecipeBuilder(containerId, initialRecipes = []) {
-  const root = document.getElementById(containerId);
-
-  let recipes = initialRecipes.map(r => ({
-    title: r.title || '',
-    steps: Array.isArray(r.steps) && r.steps.length ? [...r.steps] : [''],
-  }));
-  if (!recipes.length) recipes = [{ title: '', steps: [''] }];
+// ── Nutrition target rows ─────────────────────────────────────────────────────
+function initNutritionRows(containerId, initial=[]) {
+  const wrap = document.getElementById(containerId);
+  let rows   = initial.length ? initial.map(r=>({...r})) : [];
 
   function render() {
-    root.innerHTML = '';
-    const list = document.createElement('div');
-    list.className = 'recipe-list';
+    wrap.innerHTML = '';
 
-    recipes.forEach((recipe, ri) => {
-      const card = document.createElement('div');
-      card.className = 'recipe-card';
+    if (rows.length) {
+      // header
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:grid;grid-template-columns:1fr 100px 90px 32px;gap:8px;margin-bottom:4px';
+      hdr.innerHTML = ['Nutrient','Value','Unit',''].map(t =>
+        `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint)">${t}</div>`
+      ).join('');
+      wrap.appendChild(hdr);
 
-      const head = document.createElement('div');
-      head.className = 'recipe-card-head';
+      rows.forEach((row, i) => {
+        const div = document.createElement('div');
+        div.className = 'nut-row';
 
-      const titleInput = document.createElement('input');
-      titleInput.type        = 'text';
-      titleInput.placeholder = `Recipe ${ri + 1} title — e.g. Spinach Dal Soup`;
-      titleInput.value       = recipe.title;
-      titleInput.addEventListener('input', () => { recipes[ri].title = titleInput.value; });
+        const sel = document.createElement('select');
+        NUTRIENTS.forEach(n => {
+          const o = document.createElement('option');
+          o.value = n; o.textContent = n;
+          if (n === row.nutrient) o.selected = true;
+          sel.appendChild(o);
+        });
+        if (!row.nutrient) sel.value = NUTRIENTS[0];
+        sel.addEventListener('change', () => { rows[i].nutrient = sel.value; });
 
-      const removeRecipeBtn = document.createElement('button');
-      removeRecipeBtn.type      = 'button';
-      removeRecipeBtn.className = 'remove-recipe-btn';
-      removeRecipeBtn.title     = 'Remove this recipe';
-      removeRecipeBtn.textContent = '✕ Remove';
-      removeRecipeBtn.addEventListener('click', () => {
-        recipes.splice(ri, 1);
-        if (!recipes.length) recipes = [{ title: '', steps: [''] }];
-        render();
+        const inp = document.createElement('input');
+        inp.type        = 'number';
+        inp.min         = '0';
+        inp.step        = '0.1';
+        inp.placeholder = '0';
+        inp.value       = row.value || '';
+        inp.addEventListener('input', () => { rows[i].value = inp.value; });
+
+        const unit = document.createElement('select');
+        UNITS.forEach(u => {
+          const o = document.createElement('option');
+          o.value = u; o.textContent = u;
+          if (u === row.unit) o.selected = true;
+          unit.appendChild(o);
+        });
+        unit.addEventListener('change', () => { rows[i].unit = unit.value; });
+
+        const rem = document.createElement('button');
+        rem.type      = 'button';
+        rem.className = 'nut-remove';
+        rem.title     = 'Remove';
+        rem.textContent = '✕';
+        rem.addEventListener('click', () => { rows.splice(i,1); render(); });
+
+        div.append(sel, inp, unit, rem);
+        wrap.appendChild(div);
       });
+    }
 
-      head.appendChild(titleInput);
-      head.appendChild(removeRecipeBtn);
-
-      const body = document.createElement('div');
-      body.className = 'recipe-card-body';
-
-      function renderSteps() {
-        body.innerHTML = '';
-        recipe.steps.forEach((step, si) => {
-          const row = document.createElement('div');
-          row.className = 'step-row';
-
-          const bullet = document.createElement('div');
-          bullet.className   = 'step-bullet';
-          bullet.textContent = si + 1;
-
-          const textarea = document.createElement('textarea');
-          textarea.className   = 'step-input';
-          textarea.rows        = 1;
-          textarea.placeholder = `Step ${si + 1} — e.g. Wash and chop spinach`;
-          textarea.value       = step;
-          textarea.addEventListener('input', () => {
-            recipes[ri].steps[si] = textarea.value;
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-          });
-          setTimeout(() => {
-            textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
-          }, 0);
-          textarea.addEventListener('keydown', e => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              recipes[ri].steps.splice(si + 1, 0, '');
-              renderSteps();
-              setTimeout(() => {
-                const inputs = body.querySelectorAll('.step-input');
-                if (inputs[si + 1]) inputs[si + 1].focus();
-              }, 10);
-            }
-          });
-
-          const removeBtn = document.createElement('button');
-          removeBtn.type      = 'button';
-          removeBtn.className = 'step-remove';
-          removeBtn.title     = 'Remove step';
-          removeBtn.textContent = '✕';
-          removeBtn.addEventListener('click', () => {
-            recipes[ri].steps.splice(si, 1);
-            if (!recipes[ri].steps.length) recipes[ri].steps = [''];
-            renderSteps();
-          });
-
-          row.appendChild(bullet);
-          row.appendChild(textarea);
-          row.appendChild(removeBtn);
-          body.appendChild(row);
-        });
-
-        const addStepBtn = document.createElement('button');
-        addStepBtn.type      = 'button';
-        addStepBtn.className = 'add-step-btn';
-        addStepBtn.innerHTML = '+ Add step';
-        addStepBtn.addEventListener('click', () => {
-          recipes[ri].steps.push('');
-          renderSteps();
-          setTimeout(() => {
-            const inputs = body.querySelectorAll('.step-input');
-            if (inputs.length) inputs[inputs.length - 1].focus();
-          }, 10);
-        });
-        body.appendChild(addStepBtn);
-      }
-
-      renderSteps();
-      card.appendChild(head);
-      card.appendChild(body);
-      list.appendChild(card);
-    });
-
-    root.appendChild(list);
-
-    const addRecipeBtn = document.createElement('button');
-    addRecipeBtn.type      = 'button';
-    addRecipeBtn.className = 'add-recipe-btn';
-    addRecipeBtn.innerHTML = '+ Add another recipe';
-    addRecipeBtn.addEventListener('click', () => {
-      recipes.push({ title: '', steps: [''] });
+    const addBtn = document.createElement('button');
+    addBtn.type      = 'button';
+    addBtn.className = 'add-nut-btn';
+    addBtn.textContent = '+ Add Nutrient';
+    addBtn.addEventListener('click', () => {
+      rows.push({ nutrient: NUTRIENTS[0], value: '', unit: UNITS[0] });
       render();
       setTimeout(() => {
-        const cards = root.querySelectorAll('.recipe-card');
-        if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }, 50);
+        const sels = wrap.querySelectorAll('.nut-row select');
+        if (sels.length) sels[sels.length-2].focus();
+      }, 30);
     });
-    root.appendChild(addRecipeBtn);
+    wrap.appendChild(addBtn);
   }
 
   render();
-  root._getRecipes = () => recipes
-    .map(r => ({
-      title: r.title.trim(),
-      steps: r.steps.map(s => s.trim()).filter(Boolean),
-    }))
-    .filter(r => r.steps.length > 0);
+  wrap._getRows = () => rows
+    .filter(r => r.nutrient && r.value !== '' && r.value !== null)
+    .map(r => ({ nutrient: r.nutrient, value: Number(r.value), unit: r.unit || UNITS[0] }));
 }
 
-// ── Wellness Goal Multi-Picker ───────────────────────────────────────────────
-function initGoalMultiPicker(containerId, currentGoals) {
-  const wrap = document.getElementById(containerId);
-  if (!wrap) return;
+// ── Image upload (edit mode) ──────────────────────────────────────────────────
+function initImageUpload(b) {
+  const fileInput  = document.getElementById('img-file-input');
+  const uploadBtn  = document.getElementById('img-upload-btn');
+  const statusEl   = document.getElementById('img-status');
+  const filenameEl = document.getElementById('img-filename');
+  const deleteBtn  = document.getElementById('img-delete-btn');
+  let pendingFile  = null;
 
-  let selected = Array.isArray(currentGoals) ? [...currentGoals]
-    : (currentGoals ? [currentGoals] : []);
+  if (!fileInput) return;
 
-  if (!goalsCache.length) {
-    wrap.innerHTML = `<span style="color:var(--ink-faint);font-size:12.5px">No goals found — add them in Wellness Goals first</span>`;
-    wrap._getSelected = () => selected;
-    return;
-  }
-
-  wrap.innerHTML = goalsCache.map(g => `
-    <span class="goal-toggle ${selected.includes(g.goalName) ? 'selected' : ''}"
-          data-goal="${escapeHtml(g.goalName)}">
-      ${escapeHtml(g.goalName)}
-    </span>
-  `).join('');
-
-  wrap.querySelectorAll('.goal-toggle').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const goal = chip.dataset.goal;
-      if (selected.includes(goal)) {
-        selected = selected.filter(s => s !== goal);
-        chip.classList.remove('selected');
-      } else {
-        selected.push(goal);
-        chip.classList.add('selected');
+  fileInput.addEventListener('change', function() {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      showToast('Only JPEG, PNG, or WebP allowed', 'error'); fileInput.value=''; return;
+    }
+    pendingFile = file;
+    filenameEl.textContent = file.name;
+    statusEl.className = 'img-info-status'; statusEl.textContent = '📎 Ready to upload — click Upload';
+    uploadBtn.disabled = false;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      var preview = document.getElementById('img-preview');
+      var noThumb = document.getElementById('img-no-thumb');
+      if (preview) { preview.src = ev.target.result; preview.style.display='block'; }
+      else {
+        if (noThumb) noThumb.style.display='none';
+        var img = document.createElement('img');
+        img.id='img-preview'; img.className='img-thumb-large';
+        img.src=ev.target.result; img.alt='Preview';
+        document.getElementById('img-thumb-wrap').prepend(img);
       }
-    });
+    };
+    reader.readAsDataURL(file);
   });
 
-  wrap._getSelected = () => selected;
+  uploadBtn.addEventListener('click', async function() {
+    if (!pendingFile) return;
+    uploadBtn.disabled=true; uploadBtn.textContent='⏳ Uploading…';
+    statusEl.className='img-info-status busy'; statusEl.textContent='Uploading to S3…';
+    try {
+      await uploadBasketImageToS3(b._id, pendingFile);
+      pendingFile=null;
+      statusEl.className='img-info-status ok'; statusEl.textContent='✅ Uploaded successfully';
+      uploadBtn.textContent='⬆ Upload'; uploadBtn.disabled=true;
+      if (!document.getElementById('img-delete-btn')) {
+        const btn = document.createElement('button');
+        btn.type='button'; btn.id='img-delete-btn';
+        btn.className='btn btn-ghost btn-sm'; btn.style.color='var(--red)';
+        btn.textContent='Remove';
+        btn.addEventListener('click', handleRemove);
+        uploadBtn.insertAdjacentElement('afterend', btn);
+      }
+      showToast('Image uploaded ✅','success'); load();
+    } catch(e) {
+      statusEl.className='img-info-status error'; statusEl.textContent='❌ '+e.message;
+      uploadBtn.disabled=false; uploadBtn.textContent='⬆ Retry';
+      showToast(e.message,'error');
+    }
+  });
+
+  async function handleRemove() {
+    if (!confirm('Remove image for this basket?')) return;
+    const btn = document.getElementById('img-delete-btn');
+    btn.disabled=true; btn.textContent='Removing…';
+    try {
+      await adminApi.deleteBasketImage(b._id);
+      const preview=document.getElementById('img-preview');
+      const noThumb=document.getElementById('img-no-thumb');
+      if (preview) preview.style.display='none';
+      if (noThumb) noThumb.style.display='flex';
+      filenameEl.textContent='No image yet';
+      statusEl.className='img-info-status'; statusEl.textContent='';
+      uploadBtn.disabled=true; uploadBtn.textContent='⬆ Upload';
+      btn.remove(); fileInput.value=''; pendingFile=null;
+      showToast('Image removed','success'); load();
+    } catch(e) { showToast(e.message,'error'); btn.disabled=false; btn.textContent='Remove'; }
+  }
+
+  if (deleteBtn) deleteBtn.addEventListener('click', handleRemove);
 }
 
-// ── Modal ────────────────────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 async function openModal(id) {
-  if (!goalsCache.length) {
+  if (!goalsCache.length || !hcCache.length) {
     try {
-      const { goals } = await adminApi.getGoals();
-      goalsCache = goals.filter(g => g.isActive !== false);
+      const [g,h] = await Promise.all([adminApi.getGoals(), adminApi.getHealthChallenges()]);
+      goalsCache  = g.goals.filter(x => x.isActive !== false);
+      hcCache     = h.challenges.filter(x => x.isActive !== false);
     } catch(e) {}
   }
 
@@ -700,205 +525,213 @@ async function openModal(id) {
   const isEdit = !!b;
   const root   = document.getElementById('modal-root');
 
+  const imageSection = isEdit ? `
+    <div class="form-section">🖼 Basket Image <span style="font-weight:400;color:var(--ink-faint)">(optional)</span></div>
+    <div class="field full">
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:6px">
+        <div id="img-thumb-wrap" style="flex-shrink:0">
+          ${b.hasImage && b.imageUrl
+            ? `<img id="img-preview" class="img-thumb-large" src="${escapeHtml(b.imageUrl)}" alt="Current"
+                 onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />`
+            : ''}
+          <div id="img-no-thumb" class="img-thumb-placeholder" style="display:${b.hasImage && b.imageUrl?'none':'flex'}">🧺</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="img-info-name" id="img-filename">${b.imageUrl ? 'Image saved' : 'No image yet'}</div>
+          <div class="img-info-status ok" id="img-status">${b.imageUrl ? '✅ Saved to S3' : ''}</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+            <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
+            <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
+            ${b.imageUrl ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>` : ''}
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">💡 Choose a file → click Upload. Saves independently from fields below.</div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="form-section">🖼 Basket Image</div>
+    <div class="field full">
+      <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">
+        💡 <b>Save the basket first</b>, then re-open to upload an image.
+      </div>
+    </div>
+  `;
+
   root.innerHTML = `
-    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:620px">
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:660px">
         <div class="modal-head">
-          <h3>${isEdit ? 'Edit Basket' : 'Add Basket'}</h3>
+          <h3>${isEdit ? 'Edit Basket' : 'Add Curated Basket'}</h3>
           <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
         </div>
-        <form id="form" class="form-grid">
+        <form id="bk-form" class="form-grid">
 
-          <div class="field">
-            <label>Basket Name *</label>
-            <input name="basketName" value="${escapeHtml(b?.basketName || '')}" required />
-          </div>
-
-          <div class="field">
-            <label>Basket ID</label>
-            <input name="basketId" value="${escapeHtml(b?.basketId || '')}" placeholder="e.g. BSKT001" />
-          </div>
+          <!-- ── Basic Info ─────────────────────────────── -->
+          <div class="form-section">📋 Basic Info</div>
 
           <div class="field full">
-            <label>Wellness Goals <span style="font-weight:400;color:var(--ink-faint)">— select all that apply</span></label>
-            <div class="goal-multi-wrap" id="goal-multi-picker"></div>
-          </div>
-
-          <div class="field">
-            <label>Bundle Price (₹) *</label>
-            <input name="price" type="number" min="0" value="${b?.price ?? ''}" required placeholder="Flat price for whole basket" />
+            <label>Basket Name *</label>
+            <input name="basketName" value="${escapeHtml(b?.basketName||'')}" placeholder="e.g. Iron Support Basket" required />
           </div>
 
           <div class="field full">
             <label>Description</label>
-            <input name="description" value="${escapeHtml(b?.description || '')}" />
+            <input name="description" value="${escapeHtml(b?.description||'')}" placeholder="Short description shown to customers" />
+          </div>
+
+          <!-- ── Target Profile ─────────────────────────── -->
+          <div class="form-section">🎯 Target Profile</div>
+
+          <div class="field">
+            <label>Age Group *</label>
+            <select name="ageGroup">
+              <option value="">Select age group</option>
+              ${AGE_GROUPS.map(a => `<option value="${escapeHtml(a)}" ${b?.ageGroup===a?'selected':''}>${escapeHtml(a)}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="field">
+            <label>Activity Level *</label>
+            <select name="activityLevel">
+              <option value="">Select activity level</option>
+              ${ACTIVITY.map(a => `<option value="${escapeHtml(a)}" ${b?.activityLevel===a?'selected':''}>${escapeHtml(a)}</option>`).join('')}
+            </select>
           </div>
 
           <div class="field full">
-            <label>Products in this basket</label>
-            <div id="product-picker">
+            <label>BMI Category *</label>
+            <div class="toggle-chips" id="bmi-chips">
+              ${BMI_CATS.map(c => `
+                <span class="tog ${b?.bmiCategory===c.value?'on':''}" data-val="${c.value}">${escapeHtml(c.label)}</span>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- ── Wellness Goals ─────────────────────────── -->
+          <div class="form-section">🌿 Wellness Goals</div>
+          <div class="field full">
+            <label>Select all that apply</label>
+            <div class="toggle-chips" id="goals-chips"></div>
+          </div>
+
+          <!-- ── Health Challenges ──────────────────────── -->
+          <div class="form-section">🩺 Health Challenges</div>
+          <div class="field full">
+            <label>Select conditions this basket supports</label>
+            <div class="toggle-chips" id="hc-chips"></div>
+          </div>
+
+          <!-- ── Excluded Products ──────────────────────── -->
+          <div class="form-section">⛔ Excluded Products</div>
+          <div class="field full">
+            <label>Products that must NEVER go into this basket</label>
+            <div id="excluded-picker">
               <div class="picker-outer">
-                <input class="picker-search" type="text" placeholder="Search products to add…" autocomplete="off" />
+                <input class="picker-search" type="text" placeholder="Search products to exclude…" autocomplete="off" />
                 <div class="picker-dropdown"></div>
               </div>
               <div class="chips-wrap"></div>
-              <div class="picker-hint"></div>
+            </div>
+            <div style="font-size:11.5px;color:var(--ink-faint);margin-top:4px">
+              e.g. For diabetics: Potato, Beetroot, Banana
             </div>
           </div>
 
+          <!-- ── Nutrition Targets ──────────────────────── -->
+          <div class="form-section">🥗 Nutrition Targets</div>
           <div class="field full">
-            <label>Target Nutrients <span style="font-weight:400;color:var(--ink-faint)">— auto-computed from chosen products</span></label>
-            <!-- Live nutrition panel — updates as products are added/removed -->
-            <div class="nutrition-panel" id="nutrition-panel">
-              <div class="nutrition-panel-head">
-                <span class="np-title">🥗 Nutrition Summary <span class="np-sub">— auto-computed from products</span></span>
-              </div>
-              <div class="nutrition-empty">Add products above to see aggregated nutrition values</div>
-            </div>
+            <label>Target nutrition values for this basket profile</label>
+            <div id="nut-rows"></div>
           </div>
 
-          <div class="field full">
-            <label>
-              Recipes
-              <span style="font-weight:400;color:var(--ink-faint)">— each recipe has a title and bullet-point steps shown to the customer</span>
-            </label>
-            <div id="recipe-builder"></div>
-          </div>
+          <!-- ── Image ──────────────────────────────────── -->
+          ${imageSection}
 
-          <div class="field full">
-            <label class="chip-toggle ${b?.isFeatured ? 'on' : ''}" id="featured-chip" style="display:inline-flex">
-              <input type="checkbox" style="display:none" ${b?.isFeatured ? 'checked' : ''} /> ⭐ Featured Basket
-            </label>
-          </div>
+          <!-- ── Status ─────────────────────────────────── -->
+          ${isEdit ? `
+          <div class="form-section">⚙️ Settings</div>
+          <div class="field">
+            <label>Status</label>
+            <select name="isActive">
+              <option value="true"  ${b.isActive!==false?'selected':''}>Active</option>
+              <option value="false" ${b.isActive===false?'selected':''}>Inactive</option>
+            </select>
+          </div>` : ''}
 
         </form>
         <div class="modal-foot">
           <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
-          <button class="btn btn-primary" id="save">${isEdit ? 'Save Changes' : 'Create Basket'}</button>
+          <button class="btn btn-primary" id="bk-save">${isEdit?'Save Changes':'Create Basket'}</button>
         </div>
       </div>
     </div>
   `;
 
-  initProductPicker('product-picker', b?.ingredientNames || []);
-
-  const existingGoals = Array.isArray(b?.wellnessGoals) ? b.wellnessGoals
-    : (b?.wellnessGoal ? [b.wellnessGoal] : []);
-  initGoalMultiPicker('goal-multi-picker', existingGoals);
-  initRecipeBuilder('recipe-builder', b?.recipes || []);
-
-  // If editing and nutritionSummary exists, render it immediately (before lazy object load)
-  if (b?.nutritionSummary) {
-    const tempIngs = Object.keys(b.nutritionSummary).length
-      ? [{ _id: 'stub', name: (b.ingredientNames || []).join(', '), nutrition: b.nutritionSummary }]
-      : [];
-    renderNutritionPanel(tempIngs.length ? [{ _id: 'stub', name: '', nutrition: b.nutritionSummary, ...b.nutritionSummary }] : []);
-  }
-
-  const chip = document.getElementById('featured-chip');
-  chip.addEventListener('click', e => {
-    e.preventDefault();
-    chip.classList.toggle('on');
-    chip.querySelector('input').checked = chip.classList.contains('on');
+  // BMI single-select chips
+  let selectedBmi = b?.bmiCategory || '';
+  document.querySelectorAll('#bmi-chips .tog').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#bmi-chips .tog').forEach(c => c.classList.remove('on'));
+      chip.classList.add('on');
+      selectedBmi = chip.dataset.val;
+    });
   });
 
-  document.getElementById('save').addEventListener('click', async () => {
-    const fd              = new FormData(document.getElementById('form'));
-    const pickerEl        = document.getElementById('product-picker');
-    const recipeBuilderEl = document.getElementById('recipe-builder');
-    const selectedNames   = pickerEl._getSelected();
-    const selectedObjs    = pickerEl._getSelectedObjs();
-    const recipes         = recipeBuilderEl._getRecipes();
+  // Goals + HC toggle chips
+  initToggleChips('goals-chips', goalsCache.map(g=>g.goalName), b?.wellnessGoals||[]);
+  initToggleChips('hc-chips',    hcCache.map(h=>h.name),        b?.healthChallenges||[], 'red');
 
-    // Compute nutritionSummary from the actual ingredient objects
-    const realObjs       = selectedObjs.filter(i => i._id);
-    const nutritionSummary = aggregateNutrition(realObjs);
+  // Excluded products picker
+  initExcludedPicker('excluded-picker', b?.excludedProducts||[]);
+
+  // Nutrition rows
+  initNutritionRows('nut-rows', b?.nutritionTargets||[]);
+
+  // Image upload
+  if (isEdit) initImageUpload(b);
+
+  // Save
+  document.getElementById('bk-save').addEventListener('click', async () => {
+    const fd = new FormData(document.getElementById('bk-form'));
+    const basketName = (fd.get('basketName')||'').trim();
+    if (!basketName) { showToast('Basket name is required','error'); return; }
+    if (!selectedBmi) { showToast('Please select a BMI category','error'); return; }
+    if (!fd.get('ageGroup'))    { showToast('Please select an age group','error'); return; }
+    if (!fd.get('activityLevel')) { showToast('Please select an activity level','error'); return; }
+
+    const goalsPicker    = document.getElementById('goals-chips');
+    const hcPicker       = document.getElementById('hc-chips');
+    const excludedPicker = document.getElementById('excluded-picker');
+    const nutWrap        = document.getElementById('nut-rows');
 
     const body = {
-      basketName:      fd.get('basketName'),
-      basketId:        fd.get('basketId') || undefined,
-      wellnessGoals:   (() => {
-        const picker = document.getElementById('goal-multi-picker');
-        return picker?._getSelected ? picker._getSelected() : [];
-      })(),
-      price:           fd.get('price') !== '' ? Number(fd.get('price')) : undefined,
-      description:     fd.get('description') || undefined,
-      ingredientNames: selectedNames,
-      nutritionSummary: nutritionSummary || undefined,
-      recipes,
-      isFeatured:      chip.classList.contains('on'),
+      basketName,
+      description:      (fd.get('description')||'').trim(),
+      ageGroup:         fd.get('ageGroup'),
+      bmiCategory:      selectedBmi,
+      activityLevel:    fd.get('activityLevel'),
+      wellnessGoals:    goalsPicker?._getSelected ? goalsPicker._getSelected() : [],
+      healthChallenges: hcPicker?._getSelected    ? hcPicker._getSelected()    : [],
+      excludedProducts: excludedPicker?._getSelected ? excludedPicker._getSelected() : [],
+      nutritionTargets: nutWrap?._getRows          ? nutWrap._getRows()         : [],
     };
+    if (isEdit) body.isActive = fd.get('isActive') === 'true';
 
-    if (!body.basketName)        { showToast('Basket name is required', 'error'); return; }
-    if (body.price === undefined) { showToast('Bundle price is required', 'error'); return; }
-
-    const btn = document.getElementById('save');
-    btn.disabled = true; btn.textContent = 'Saving…';
-
+    const btn = document.getElementById('bk-save');
+    btn.disabled=true; btn.textContent='Saving…';
     try {
       if (isEdit) await adminApi.updateBasket(b._id, body);
       else        await adminApi.createBasket(body);
-      showToast('Basket saved', 'success');
-      document.getElementById('modal-root').innerHTML = '';
+      showToast('Basket saved','success');
+      document.getElementById('modal-root').innerHTML='';
       load();
-    } catch (e) {
-      showToast(e.message, 'error');
-      btn.disabled = false; btn.textContent = isEdit ? 'Save Changes' : 'Create Basket';
+    } catch(e) {
+      showToast(e.message,'error');
+      btn.disabled=false; btn.textContent=isEdit?'Save Changes':'Create Basket';
     }
   });
-}
 
-function viewBasket(id) {
-  const b = cache.find(x => x._id === id);
-  if (!b) return;
-  const root = document.getElementById('modal-root');
-  const ns = b.nutritionSummary || {};
-  const nutFields = [['Calories','calories','kcal'],['Carbs','carbs','g'],['Protein','protein','g'],['Fat','fat','g'],
-    ['Fiber','fiber','g'],['Iron','iron','mg'],['Calcium','calcium','mg'],['Vitamin C','vitaminC','mg']];
-  const nutHtml = nutFields.filter(([,k]) => ns[k] != null).map(([l,k,u]) =>
-    `<div style="background:var(--white);padding:10px 12px">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">${l}</div>
-      <div style="font-family:var(--font-mono);font-size:14px;font-weight:700">${ns[k]}<span style="font-size:10px;color:var(--ink-faint)"> ${u}</span></div>
-    </div>`).join('');
-
-  root.innerHTML = `
-    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
-      <div class="modal" style="max-width:540px">
-        <div class="modal-head">
-          <h3>🧺 ${escapeHtml(b.basketName)}</h3>
-          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
-        </div>
-        <div style="max-height:65vh;overflow-y:auto;padding-right:4px">
-          <div class="form-grid" style="gap:0 14px;margin-bottom:14px">
-            <div class="field"><label>Basket ID</label><div style="font-family:var(--font-mono);font-size:12px">${escapeHtml(b.basketId||'—')}</div></div>
-            <div class="field"><label>Price</label><div style="font-weight:700;font-size:18px;color:var(--green)">${fmtMoney(b.price)}</div></div>
-            <div class="field full"><label>Wellness Goals</label>
-              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
-                ${(Array.isArray(b.wellnessGoals)?b.wellnessGoals:b.wellnessGoal?[b.wellnessGoal]:[]).map(g =>
-                  `<span style="background:var(--green-pale);color:var(--green);border-radius:5px;padding:2px 8px;font-size:12px">${escapeHtml(g)}</span>`).join('') || '—'}
-              </div>
-            </div>
-            ${b.description ? `<div class="field full"><label>Description</label><div style="font-size:13px">${escapeHtml(b.description)}</div></div>` : ''}
-            <div class="field full"><label>Products (${(b.ingredientNames||[]).length})</label>
-              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:4px">
-                ${(b.ingredientNames||[]).map(n => `<span style="background:var(--cream);border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:12px">${escapeHtml(n)}</span>`).join('') || '—'}
-              </div>
-            </div>
-          </div>
-          ${nutHtml ? `
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px">Nutrition Summary</div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px">${nutHtml}</div>` : ''}
-          <div class="field"><label>Status</label>
-            <span class="pill ${b.isActive===false?'pill-cancelled':'pill-delivered'}">${b.isActive===false?'Inactive':'Active'}</span>
-            ${b.isFeatured ? '<span style="margin-left:8px">⭐ Featured</span>' : ''}
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
-          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${b._id}')">Edit</button>
-        </div>
-      </div>
-    </div>`;
+  setTimeout(() => document.querySelector('#bk-form input[name="basketName"]')?.focus(), 50);
 }
 
 load();

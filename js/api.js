@@ -202,6 +202,9 @@ const adminApi = {
   updateHealthChallenge:      (id, body) => req('PUT', `/admin/health-challenges/${id}`, body),
   deleteHealthChallenge:      (id) => req('DELETE', `/admin/health-challenges/${id}`),
   hardDeleteHealthChallenge:  (id) => req('DELETE', `/admin/health-challenges/${id}/hard`),
+  presignHealthChallengeImage: (id, mimeType) => req('GET', `/admin/health-challenges/${id}/image/presign${qs({ mimeType })}`),
+  confirmHealthChallengeImage: (id, imageKey, imageUrl) => req('POST', `/admin/health-challenges/${id}/image/confirm`, { imageKey, imageUrl }),
+  deleteHealthChallengeImage:  (id) => req('DELETE', `/admin/health-challenges/${id}/image`),
 
   getPreferences:             (params) => req('GET', `/admin/preferences${params?'?'+new URLSearchParams(params):''}`),
   createPreference:           (body) => req('POST', '/admin/preferences', body),
@@ -296,5 +299,18 @@ async function uploadGoalImageToS3(goalId, file) {
   });
   if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
   await adminApi.confirmGoalImage(goalId, imageKey, imageUrl);
+  return { imageUrl };
+}
+
+async function uploadHealthChallengeImageToS3(challengeId, file) {
+  const { blob, mimeType } = await compressImageToBlob(file);
+  const { signedUrl, imageKey, imageUrl } = await adminApi.presignHealthChallengeImage(challengeId, mimeType);
+  const s3Res = await fetch(signedUrl, {
+    method:  'PUT',
+    headers: { 'Content-Type': mimeType },
+    body:    blob,
+  });
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
+  await adminApi.confirmHealthChallengeImage(challengeId, imageKey, imageUrl);
   return { imageUrl };
 }

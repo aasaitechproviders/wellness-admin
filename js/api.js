@@ -203,6 +203,12 @@ const adminApi = {
   deleteHealthChallenge:      (id) => req('DELETE', `/admin/health-challenges/${id}`),
   hardDeleteHealthChallenge:  (id) => req('DELETE', `/admin/health-challenges/${id}/hard`),
 
+  getPreferences:             (params) => req('GET', `/admin/preferences${params?'?'+new URLSearchParams(params):''}`),
+  createPreference:           (body) => req('POST', '/admin/preferences', body),
+  updatePreference:           (id, body) => req('PUT', `/admin/preferences/${id}`, body),
+  deletePreference:           (id) => req('DELETE', `/admin/preferences/${id}`),
+  hardDeletePreference:       (id) => req('DELETE', `/admin/preferences/${id}/hard`),
+
   // Team Users (master admin only)
   getTeamUsers:    () => req('GET', '/admin/team'),
   createTeamUser:  (body) => req('POST', '/admin/team', body),

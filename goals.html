@@ -9,152 +9,126 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  .goal-thumb {
-    width: 44px; height: 44px; border-radius: 8px;
-    object-fit: cover; border: 1.5px solid var(--border); display: block;
-  }
-  .goal-thumb-empty {
-    width: 44px; height: 44px; border-radius: 8px;
-    border: 1.5px dashed var(--border); background: var(--surface);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 18px; color: var(--ink-faint);
-  }
-
-  /* ── Image upload section ── */
-  .img-box {
-    border: 2px dashed var(--border); border-radius: 10px;
-    background: var(--surface); overflow: hidden;
-    transition: border-color .15s;
-  }
-  .img-box:hover { border-color: var(--green); }
-  .img-box-inner {
-    display: flex; align-items: center; gap: 14px; padding: 14px;
-  }
-  .img-thumb-large {
-    width: 80px; height: 80px; border-radius: 8px;
-    object-fit: cover; border: 1.5px solid var(--border);
-    flex-shrink: 0; display: block;
-  }
-  .img-thumb-placeholder {
-    width: 80px; height: 80px; border-radius: 8px;
-    border: 1.5px dashed var(--border); background: var(--white);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 26px; flex-shrink: 0;
-  }
-  .img-info { flex: 1; min-width: 0; }
-  .img-info-name {
-    font-size: 13px; font-weight: 600; color: var(--ink);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .img-info-hint { font-size: 12px; color: var(--ink-faint); margin-top: 3px; }
-  .img-info-status { font-size: 12px; margin-top: 6px; font-weight: 500; }
-  .img-info-status.ok    { color: var(--green); }
-  .img-info-status.error { color: var(--red); }
-  .img-info-status.busy  { color: #7B5E2A; }
-  .img-btn-row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-  /* Hidden real file input layered over the choose button */
-  .img-choose-wrap { position: relative; display: inline-block; }
-  .img-choose-wrap input[type=file] {
-    position: absolute; inset: 0; opacity: 0; cursor: pointer;
-    width: 100%; height: 100%;
-  }
+  .goal-thumb { width:44px;height:44px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);display:block; }
+  .goal-thumb-empty { width:44px;height:44px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-faint); }
+  .img-box { border:2px dashed var(--border);border-radius:10px;background:var(--surface);overflow:hidden;transition:border-color .15s; }
+  .img-box:hover { border-color:var(--green); }
+  .img-box-inner { display:flex;align-items:center;gap:14px;padding:14px; }
+  .img-thumb-large { width:80px;height:80px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);flex-shrink:0;display:block; }
+  .img-thumb-placeholder { width:80px;height:80px;border-radius:8px;border:1.5px dashed var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+  .img-info { flex:1;min-width:0; }
+  .img-info-name { font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .img-info-hint { font-size:12px;color:var(--ink-faint);margin-top:3px; }
+  .img-info-status { font-size:12px;margin-top:6px;font-weight:500; }
+  .img-info-status.ok    { color:var(--green); }
+  .img-info-status.error { color:var(--red); }
+  .img-info-status.busy  { color:#7B5E2A; }
+  .img-btn-row { display:flex;gap:6px;margin-top:8px;flex-wrap:wrap; }
+  .img-choose-wrap { position:relative;display:inline-block; }
+  .img-choose-wrap input[type=file] { position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%; }
 </style>
 </head>
 <body>
 <script src="js/api.js"></script>
-<script>Auth.guard();</script>
+<script>Auth.guardMenu('goals');</script>
 <script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
   active: 'goals',
   title: 'Wellness Goals',
   sub: 'Goals shown to customers during onboarding — drives personalised basket recommendations',
-  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Goal</button>`,
+  actions: '<button class="btn btn-primary btn-sm" id="add-btn">+ Add Goal</button>',
 });
 
 let cache = [];
 
-content.innerHTML = `
-  <div class="panel">
-    <div class="table-wrap">
-      <table class="data">
-        <thead><tr>
-          <th style="width:60px">Image</th>
-          <th>Goal Name</th>
-          <th>Goal ID</th>
-          <th>Linked Basket</th>
-          <th>Status</th>
-          <th></th>
-        </tr></thead>
-        <tbody id="body">
-          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  <div id="modal-root"></div>
-`;
+content.innerHTML = '' +
+  '<div class="panel">' +
+    '<div class="table-wrap">' +
+      '<table class="data">' +
+        '<thead><tr>' +
+          '<th style="width:60px">Image</th>' +
+          '<th>Goal Name</th>' +
+          '<th>Goal ID</th>' +
+          '<th>Linked Basket</th>' +
+          '<th>Status</th>' +
+          '<th></th>' +
+        '</tr></thead>' +
+        '<tbody id="body">' +
+          '<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>' +
+        '</tbody>' +
+      '</table>' +
+    '</div>' +
+  '</div>' +
+  '<div id="modal-root"></div>';
 
-document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+document.getElementById('add-btn').addEventListener('click', function() { openModal(null); });
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function thumbCell(g) {
+  if (g.imageUrl) {
+    return '<td><img class="goal-thumb" src="' + escapeHtml(g.imageUrl) + '" alt="" loading="lazy" ' +
+      'onerror="this.replaceWith(Object.assign(document.createElement(\'div\'),{className:\'goal-thumb-empty\',textContent:\'🎯\'}))" /></td>';
+  }
+  return '<td><div class="goal-thumb-empty">🎯</div></td>';
+}
+
+function basketCell(g) {
+  if (g.basketId) {
+    return '<td><span style="font-size:12px;font-weight:600;color:var(--green)">✓ ' + escapeHtml(g.basketId) + '</span></td>';
+  }
+  return '<td><span style="font-size:12px;color:var(--red);font-weight:600">⚠ Not linked</span></td>';
+}
+
+function statusPill(g) {
+  var inactive = g.isActive === false;
+  return '<td><span class="pill ' + (inactive ? 'pill-cancelled' : 'pill-delivered') + '">' +
+    (inactive ? 'Inactive' : 'Active') + '</span></td>';
+}
+
+function goalRow(g) {
+  return '<tr>' +
+    thumbCell(g) +
+    '<td><b>' + escapeHtml(g.goalName) + '</b></td>' +
+    '<td class="mono">' + escapeHtml(g.goalId) + '</td>' +
+    basketCell(g) +
+    statusPill(g) +
+    '<td style="white-space:nowrap">' +
+      '<button class="btn btn-ghost btn-sm" onclick="viewGoal(\'' + g._id + '\')">View</button> ' +
+      '<button class="btn btn-ghost btn-sm" onclick="openModal(\'' + g._id + '\')">Edit</button> ' +
+      '<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deactivateGoal(\'' + g._id + '\',' + (g.isActive === false) + ')">' +
+        (g.isActive === false ? 'Activate' : 'Deactivate') +
+      '</button> ' +
+      '<button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700" onclick="confirmDelete(\'' + g._id + '\',\'' + escapeHtml(g.goalName) + '\')">Delete</button>' +
+    '</td>' +
+  '</tr>';
+}
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
   document.getElementById('body').innerHTML =
-    `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+    '<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>';
   try {
-    const { goals } = await adminApi.getGoals();
-    cache = goals;
-    document.getElementById('body').innerHTML = goals.length
-      ? goals.map(g => `
-        <tr>
-          <td>
-            ${g.imageUrl
-              ? `<img class="goal-thumb" src="${escapeHtml(g.imageUrl)}" alt="" loading="lazy"
-                   onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'goal-thumb-empty',textContent:'🎯'}))" />`
-              : `<div class="goal-thumb-empty">🎯</div>`
-            }
-          </td>
-          <td><b>${escapeHtml(g.goalName)}</b></td>
-          <td class="mono">${escapeHtml(g.goalId)}</td>
-          <td>
-              ${g.basketId
-                ? \`<span style="font-size:12px;font-weight:600;color:var(--green)">✓ \${escapeHtml(g.basketId)}</span>\`
-                : \`<span style="font-size:12px;color:var(--red);font-weight:600">⚠ Not linked</span>\`
-              }
-            </td>
-          <td>
-            <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-              ${g.isActive === false ? 'Inactive' : 'Active'}
-            </span>
-          </td>
-          <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" onclick="viewGoal('${g._id}')">View</button>
-            <button class="btn btn-ghost btn-sm" onclick="openModal('${g._id}')">Edit</button>
-            <button class="btn btn-ghost btn-sm" style="color:var(--red)"
-              onclick="deactivateGoal('${g._id}', ${g.isActive === false})">
-              ${g.isActive === false ? 'Activate' : 'Deactivate'}
-            </button>
-            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700"
-              onclick="confirmDelete('${g._id}', '${escapeHtml(g.goalName)}')">Delete</button>
-          </td>
-        </tr>
-      `).join('')
-      : `<tr><td colspan="6"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>`;
+    var data = await adminApi.getGoals();
+    cache = data.goals;
+    document.getElementById('body').innerHTML = cache.length
+      ? cache.map(goalRow).join('')
+      : '<tr><td colspan="6"><div class="empty"><div class="icon">🎯</div>No wellness goals yet</div></td></tr>';
   } catch (e) {
     document.getElementById('body').innerHTML =
-      `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+      '<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>' + escapeHtml(e.message) + '</div></td></tr>';
   }
 }
 
 // ── Delete / Deactivate ───────────────────────────────────────────────────────
 async function confirmDelete(id, name) {
-  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  if (!confirm('Permanently delete "' + name + '"? This cannot be undone.')) return;
   try { await adminApi.hardDeleteGoal(id); showToast('Goal deleted', 'success'); load(); }
   catch (e) { showToast(e.message, 'error'); }
 }
 
 async function deactivateGoal(id, isCurrentlyInactive) {
-  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
+  var action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
   if (!confirm(action + ' this wellness goal?')) return;
   try {
     await adminApi.updateGoal(id, { isActive: !!isCurrentlyInactive });
@@ -163,132 +137,125 @@ async function deactivateGoal(id, isCurrentlyInactive) {
   } catch (e) { showToast(e.message, 'error'); }
 }
 
+// ── Goal ID suggestions ───────────────────────────────────────────────────────
+var GOAL_IDS = [
+  'Immunity Support','Weight Management','Protein Support','Iron Support',
+  'Heart Wellness','Diabetes Control','Senior Wellness','Kids Nutrition',
+  'Digestive Wellness','Detox','Bone Health','General Wellness'
+];
+
+function goalIdChips() {
+  return GOAL_IDS.map(function(id) {
+    return '<span onclick="document.querySelector(\'[name=goalId]\').value=\'' + id + '\'" ' +
+      'style="font-size:11px;padding:3px 9px;border-radius:50px;background:#fff;border:1px solid var(--green-muted);cursor:pointer;color:var(--ink);font-family:var(--font-mono)">' +
+      id + '</span>';
+  }).join('');
+}
+
 // ── Add / Edit Modal ──────────────────────────────────────────────────────────
 function openModal(id) {
-  const g      = id ? cache.find(x => x._id === id) : null;
-  const isEdit = !!g;
-  const root   = document.getElementById('modal-root');
+  var g      = id ? cache.find(function(x) { return x._id === id; }) : null;
+  var isEdit = !!g;
+  var root   = document.getElementById('modal-root');
 
-  root.innerHTML = `
-    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
-      <div class="modal" style="max-width:500px">
-        <div class="modal-head">
-          <h3>${isEdit ? 'Edit Goal' : 'Add Goal'}</h3>
-          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
-        </div>
-        <div style="max-height:80vh;overflow-y:auto;padding-right:4px">
-        <form id="goal-form" class="form-grid">
+  var goalIdSection = isEdit
+    ? '<div class="field full">' +
+        '<label>Goal ID</label>' +
+        '<input name="goalId" value="' + escapeHtml(g.goalId) + '" readonly style="background:var(--surface);color:var(--ink-faint)" />' +
+      '</div>'
+    : '<div class="field full">' +
+        '<label>Goal ID * <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(must match exactly what the customer app uses)</span></label>' +
+        '<input name="goalId" placeholder="e.g. Immunity Support" required />' +
+        '<div style="margin-top:6px;background:var(--green-pale);border:1px solid var(--green-muted);border-radius:8px;padding:10px 12px;">' +
+          '<div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⚠️ Use one of these exact Goal IDs:</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:5px;">' + goalIdChips() + '</div>' +
+          '<div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Click a value to auto-fill. This must match exactly — it links goals to baskets in the recommendation engine.</div>' +
+        '</div>' +
+      '</div>';
 
-          <div class="field full">
-            <label>Goal Name *</label>
-            <input name="goalName" value="${escapeHtml(g?.goalName || '')}"
-              placeholder="e.g. Immunity Support" required />
-          </div>
+  var statusSection = isEdit
+    ? '<div class="field full"><label>Status</label>' +
+        '<select name="isActive">' +
+          '<option value="true"' + (g.isActive !== false ? ' selected' : '') + '>Active — shown to customers</option>' +
+          '<option value="false"' + (g.isActive === false ? ' selected' : '') + '>Inactive — hidden from customers</option>' +
+        '</select>' +
+      '</div>'
+    : '';
 
-          <div class="field full">
-            <label>Goal ID * <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(must match exactly what the customer app uses)</span></label>
-            <input name="goalId" value="${escapeHtml(g?.goalId || '')}"
-              placeholder="e.g. Immunity Support"
-              ${isEdit ? 'readonly style="background:var(--surface);color:var(--ink-faint)"' : 'required'} />
-            ${isEdit ? '' : `
-            <div style="margin-top:6px;background:var(--green-pale);border:1px solid var(--green-muted);border-radius:8px;padding:10px 12px;">
-              <div style="font-size:11px;font-weight:700;color:var(--green);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⚠️ Use one of these exact Goal IDs:</div>
-              <div style="display:flex;flex-wrap:wrap;gap:5px;">
-                ${["Immunity Support","Weight Management","Protein Support","Iron Support","Heart Wellness","Diabetes Control","Senior Wellness","Kids Nutrition","Digestive Wellness","Detox","Bone Health","General Wellness"].map(id =>
-                  \`<span onclick="document.querySelector('[name=goalId]').value='\${id}'" style="font-size:11px;padding:3px 9px;border-radius:50px;background:#fff;border:1px solid var(--green-muted);cursor:pointer;color:var(--ink);font-family:var(--font-mono)">\${id}</span>\`
-                ).join('')}
-              </div>
-              <div style="font-size:11px;color:var(--ink-faint);margin-top:6px">Click a value to auto-fill. This must match exactly — it links goals to baskets in the recommendation engine.</div>
-            </div>`}
-          </div>
+  var imageSection = isEdit
+    ? '<div class="field full"><label>Goal Image</label>' +
+        '<div class="img-box" id="img-box"><div class="img-box-inner">' +
+          '<div id="img-thumb-wrap">' +
+            (g.imageUrl
+              ? '<img id="img-preview" class="img-thumb-large" src="' + escapeHtml(g.imageUrl) + '" alt="Current image" onerror="this.style.display=\'none\';document.getElementById(\'img-no-thumb\').style.display=\'flex\'" />' +
+                '<div id="img-no-thumb" class="img-thumb-placeholder" style="display:none">🎯</div>'
+              : '<div id="img-no-thumb" class="img-thumb-placeholder">🎯</div>'
+            ) +
+          '</div>' +
+          '<div class="img-info">' +
+            '<div class="img-info-name" id="img-filename">' + (g.imageUrl ? 'Image saved' : 'No image yet') + '</div>' +
+            '<div class="img-info-hint">JPEG · PNG · WebP · max 1.5 MB<br>Recommended: square 400×400 px</div>' +
+            '<div class="img-info-status ok" id="img-status">' + (g.imageUrl ? '✅ Saved to S3' : '') + '</div>' +
+            '<div class="img-btn-row">' +
+              '<div class="img-choose-wrap">' +
+                '<button type="button" class="btn btn-ghost btn-sm">📂 Choose File</button>' +
+                '<input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />' +
+              '</div>' +
+              '<button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>' +
+              (g.imageUrl ? '<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>' : '') +
+            '</div>' +
+          '</div>' +
+        '</div></div>' +
+        '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">💡 Choose a file → click <b>Upload</b>. Image uploads independently from the goal fields below.</div>' +
+      '</div>'
+    : '<div class="field full"><div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">💡 <b>Save the goal first</b>, then re-open it to upload an image.</div></div>';
 
-          <div class="field full">
-            <label>Description</label>
-            <input name="description" value="${escapeHtml(g?.description || '')}"
-              placeholder="Brief description shown to customers" />
-          </div>
+  root.innerHTML =
+    '<div class="modal-backdrop" onclick="if(event.target===this)this.remove()">' +
+      '<div class="modal" style="max-width:500px">' +
+        '<div class="modal-head">' +
+          '<h3>' + (isEdit ? 'Edit Goal' : 'Add Goal') + '</h3>' +
+          '<button class="modal-close" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">✕</button>' +
+        '</div>' +
+        '<div style="max-height:80vh;overflow-y:auto;padding-right:4px">' +
+          '<form id="goal-form" class="form-grid">' +
+            '<div class="field full"><label>Goal Name *</label>' +
+              '<input name="goalName" value="' + escapeHtml(g ? g.goalName : '') + '" placeholder="e.g. Immunity Support" required />' +
+            '</div>' +
+            goalIdSection +
+            '<div class="field full"><label>Description</label>' +
+              '<input name="description" value="' + escapeHtml(g ? (g.description || '') : '') + '" placeholder="Brief description shown to customers" />' +
+            '</div>' +
+            '<div class="field full">' +
+              '<label>Linked Curated Basket <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(basket shown when customer selects this goal)</span></label>' +
+              '<select name="basketId" id="basket-select" style="width:100%"><option value="">Loading baskets…</option></select>' +
+              '<div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">⚡ This is the key link — selecting a goal recommends this basket to that customer.</div>' +
+            '</div>' +
+            statusSection +
+            imageSection +
+          '</form>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-outline" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">Cancel</button>' +
+          '<button class="btn btn-primary" id="goal-save-btn">' + (isEdit ? 'Save Changes' : 'Create Goal') + '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 
-          <div class="field full">
-            <label>Linked Curated Basket <span style="font-size:11px;font-weight:400;color:var(--ink-faint)">(basket shown when customer selects this goal)</span></label>
-            <select name="basketId" id="basket-select" style="width:100%">
-              <option value="">Loading baskets…</option>
-            </select>
-            <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">
-              ⚡ This is the key link — selecting a goal recommends this basket to that customer.
-            </div>
-          </div>
-
-          ${isEdit ? `
-          <!-- ── Image upload (edit mode only) ─────────────────────── -->
-          <div class="field full">
-            <label>Goal Image</label>
-            <div class="img-box" id="img-box">
-              <div class="img-box-inner">
-                <div id="img-thumb-wrap">
-                  ${g.imageUrl
-                    ? `<img id="img-preview" class="img-thumb-large"
-                         src="${escapeHtml(g.imageUrl)}" alt="Current image"
-                         onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />
-                       <div id="img-no-thumb" class="img-thumb-placeholder" style="display:none">🎯</div>`
-                    : `<div id="img-no-thumb" class="img-thumb-placeholder">🎯</div>`
-                  }
-                </div>
-                <div class="img-info">
-                  <div class="img-info-name" id="img-filename">
-                    ${g.imageUrl ? 'Image saved' : 'No image yet'}
-                  </div>
-                  <div class="img-info-hint">JPEG · PNG · WebP · max 1.5 MB<br>Recommended: square 400×400 px or larger</div>
-                  <div class="img-info-status ok" id="img-status">
-                    ${g.imageUrl ? '✅ Saved to S3' : ''}
-                  </div>
-                  <div class="img-btn-row">
-                    <div class="img-choose-wrap">
-                      <button type="button" class="btn btn-ghost btn-sm">📂 Choose File</button>
-                      <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
-                    </div>
-                    <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
-                    ${g.imageUrl
-                      ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>`
-                      : ''
-                    }
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">
-              💡 Choose a file → click <b>Upload</b>. Image uploads independently from the goal fields below.
-            </div>
-          </div>
-          ` : `
-          <div class="field full">
-            <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">
-              💡 <b>Save the goal first</b>, then re-open it to upload an image.
-            </div>
-          </div>
-          `}
-
-        </form>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
-          <button class="btn btn-primary" id="goal-save-btn">${isEdit ? 'Save Changes' : 'Create Goal'}</button>
-        </div>
-      </div>
-    </div>
-  `;
-
-  // ── Load baskets into the basket select dropdown ───────────────────────────
+  // ── Load basket options ──────────────────────────────────────────────────
   (async function loadBasketOptions() {
-    const sel = document.getElementById('basket-select');
+    var sel = document.getElementById('basket-select');
     if (!sel) return;
     try {
-      const data = await adminApi.getBaskets();
-      const baskets = data.baskets || [];
-      sel.innerHTML = '<option value="">— None / Not linked —</option>' +
-        baskets.map(b => {
-          const selected = (g?.basketId && g.basketId === b.basketId) ? 'selected' : '';
-          return \`<option value="\${escapeHtml(b.basketId)}" \${selected}>\${escapeHtml(b.basketName)} (\${escapeHtml(b.basketId)})</option>\`;
-        }).join('');
+      var data = await adminApi.getBaskets();
+      var baskets = data.baskets || [];
+      var opts = '<option value="">— None / Not linked —</option>';
+      baskets.forEach(function(b) {
+        var selected = (g && g.basketId && g.basketId === b.basketId) ? ' selected' : '';
+        opts += '<option value="' + escapeHtml(b.basketId) + '"' + selected + '>' +
+          escapeHtml(b.basketName) + ' (' + escapeHtml(b.basketId) + ')</option>';
+      });
+      sel.innerHTML = opts;
     } catch(e) {
       sel.innerHTML = '<option value="">Could not load baskets</option>';
     }
@@ -296,121 +263,86 @@ function openModal(id) {
 
   // ── Image handling (edit mode only) ────────────────────────────────────────
   if (isEdit) {
-    const fileInput  = document.getElementById('img-file-input');
-    const uploadBtn  = document.getElementById('img-upload-btn');
-    const statusEl   = document.getElementById('img-status');
-    const filenameEl = document.getElementById('img-filename');
-    const deleteBtn  = document.getElementById('img-delete-btn');
+    var fileInput  = document.getElementById('img-file-input');
+    var uploadBtn  = document.getElementById('img-upload-btn');
+    var statusEl   = document.getElementById('img-status');
+    var filenameEl = document.getElementById('img-filename');
+    var deleteBtn  = document.getElementById('img-delete-btn');
+    var pendingFile = null;
 
-    let pendingFile = null;
-
-    // File selected
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
+    fileInput.addEventListener('change', function() {
+      var file = fileInput.files[0];
       if (!file) return;
-
-      // Type check
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
         showToast('Only JPEG, PNG, or WebP allowed', 'error');
         fileInput.value = '';
         return;
       }
-
       pendingFile = file;
-      filenameEl.textContent = file.name;
-      statusEl.className  = 'img-status';
-      statusEl.textContent = '📎 Ready to upload — click Upload';
-      uploadBtn.disabled  = false;
+      filenameEl.textContent  = file.name;
+      statusEl.className      = 'img-info-status';
+      statusEl.textContent    = '📎 Ready to upload — click Upload';
+      uploadBtn.disabled      = false;
 
-      // Show local preview immediately
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const preview = document.getElementById('img-preview');
-        const noThumb = document.getElementById('img-no-thumb');
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var preview = document.getElementById('img-preview');
+        var noThumb = document.getElementById('img-no-thumb');
         if (preview) {
           preview.src = ev.target.result;
           preview.style.display = 'block';
         } else {
-          // No existing preview element — replace placeholder
           if (noThumb) noThumb.style.display = 'none';
-          const img = document.createElement('img');
-          img.id        = 'img-preview';
-          img.className = 'img-thumb-large';
-          img.src       = ev.target.result;
-          img.alt       = 'Preview';
+          var img = document.createElement('img');
+          img.id = 'img-preview'; img.className = 'img-thumb-large';
+          img.src = ev.target.result; img.alt = 'Preview';
           document.getElementById('img-thumb-wrap').prepend(img);
         }
       };
       reader.readAsDataURL(file);
     });
 
-    // Upload to S3
-    uploadBtn.addEventListener('click', async () => {
+    uploadBtn.addEventListener('click', async function() {
       if (!pendingFile) return;
-
-      uploadBtn.disabled   = true;
-      uploadBtn.textContent = '⏳ Uploading…';
-      statusEl.className   = 'img-info-status busy';
-      statusEl.textContent = 'Compressing and uploading to S3…';
-
+      uploadBtn.disabled = true; uploadBtn.textContent = '⏳ Uploading…';
+      statusEl.className = 'img-info-status busy'; statusEl.textContent = 'Uploading to S3…';
       try {
-        const { imageUrl } = await uploadGoalImageToS3(g._id, pendingFile);
+        var res = await uploadGoalImageToS3(g._id, pendingFile);
         pendingFile = null;
-
-        statusEl.className   = 'img-info-status ok';
-        statusEl.textContent = '✅ Uploaded successfully';
-        uploadBtn.textContent = '⬆ Upload';
-        // keep disabled — no new file selected
-        uploadBtn.disabled = true;
-
-        // Add remove button if not already there
+        statusEl.className = 'img-info-status ok'; statusEl.textContent = '✅ Uploaded successfully';
+        uploadBtn.textContent = '⬆ Upload'; uploadBtn.disabled = true;
         if (!document.getElementById('img-delete-btn')) {
-          const btn = document.createElement('button');
-          btn.type      = 'button';
-          btn.id        = 'img-delete-btn';
-          btn.className = 'btn btn-ghost btn-sm';
-          btn.style.color = 'var(--red)';
+          var btn = document.createElement('button');
+          btn.type = 'button'; btn.id = 'img-delete-btn';
+          btn.className = 'btn btn-ghost btn-sm'; btn.style.color = 'var(--red)';
           btn.textContent = 'Remove';
           btn.addEventListener('click', handleRemove);
           uploadBtn.insertAdjacentElement('afterend', btn);
         }
-
         showToast('Goal image uploaded ✅', 'success');
-        load(); // refresh table thumbnail
+        load();
       } catch (e) {
-        statusEl.className   = 'img-info-status error';
-        statusEl.textContent = '❌ ' + e.message;
-        uploadBtn.disabled   = false;
-        uploadBtn.textContent = '⬆ Retry';
+        statusEl.className = 'img-info-status error'; statusEl.textContent = '❌ ' + e.message;
+        uploadBtn.disabled = false; uploadBtn.textContent = '⬆ Retry';
         showToast(e.message, 'error');
       }
     });
 
-    // Remove image from S3 + MongoDB
     async function handleRemove() {
       if (!confirm('Remove image for this goal?')) return;
-      const btn = document.getElementById('img-delete-btn');
+      var btn = document.getElementById('img-delete-btn');
       btn.disabled = true; btn.textContent = 'Removing…';
       try {
         await adminApi.deleteGoalImage(g._id);
-
-        // Reset preview
-        const preview = document.getElementById('img-preview');
-        const noThumb = document.getElementById('img-no-thumb');
-        if (preview) { preview.style.display = 'none'; }
-        if (noThumb) { noThumb.style.display = 'flex'; }
-
+        var preview = document.getElementById('img-preview');
+        var noThumb = document.getElementById('img-no-thumb');
+        if (preview) preview.style.display = 'none';
+        if (noThumb) noThumb.style.display = 'flex';
         filenameEl.textContent = 'No image yet';
-        statusEl.className   = 'img-info-status';
-        statusEl.textContent = '';
-        uploadBtn.disabled   = true;
-        uploadBtn.textContent = '⬆ Upload';
-        btn.remove();
-        fileInput.value = '';
-        pendingFile = null;
-
-        showToast('Image removed', 'success');
-        load();
+        statusEl.className = 'img-info-status'; statusEl.textContent = '';
+        uploadBtn.disabled = true; uploadBtn.textContent = '⬆ Upload';
+        btn.remove(); fileInput.value = ''; pendingFile = null;
+        showToast('Image removed', 'success'); load();
       } catch (e) {
         showToast(e.message, 'error');
         btn.disabled = false; btn.textContent = 'Remove';
@@ -420,20 +352,20 @@ function openModal(id) {
     if (deleteBtn) deleteBtn.addEventListener('click', handleRemove);
   }
 
-  // ── Save goal fields ───────────────────────────────────────────────────────
-  document.getElementById('goal-save-btn').addEventListener('click', async () => {
-    const fd   = new FormData(document.getElementById('goal-form'));
-    const body = {
+  // ── Save goal fields ──────────────────────────────────────────────────────
+  document.getElementById('goal-save-btn').addEventListener('click', async function() {
+    var fd = new FormData(document.getElementById('goal-form'));
+    var body = {
       goalName:    fd.get('goalName'),
-      goalId:      fd.get('goalId'),
+      goalId:      fd.get('goalId') || (g ? g.goalId : ''),
       description: fd.get('description') || undefined,
       basketId:    fd.get('basketId')    || undefined,
     };
-
+    if (isEdit) body.isActive = fd.get('isActive') === 'true';
     if (!body.goalName)          { showToast('Goal name is required', 'error'); return; }
     if (!isEdit && !body.goalId) { showToast('Goal ID is required', 'error'); return; }
 
-    const btn = document.getElementById('goal-save-btn');
+    var btn = document.getElementById('goal-save-btn');
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
       if (isEdit) await adminApi.updateGoal(g._id, body);
@@ -449,50 +381,41 @@ function openModal(id) {
   });
 }
 
-// ── View Modal ─────────────────────────────────────────────────────────────────
+// ── View Modal ────────────────────────────────────────────────────────────────
 function viewGoal(id) {
-  const g    = cache.find(x => x._id === id);
+  var g = cache.find(function(x) { return x._id === id; });
   if (!g) return;
-  const root = document.getElementById('modal-root');
-  root.innerHTML = `
-    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
-      <div class="modal" style="max-width:420px">
-        <div class="modal-head">
-          <h3>🎯 ${escapeHtml(g.goalName)}</h3>
-          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0 8px">
-          ${g.imageUrl
-            ? `<div style="text-align:center">
-                <img src="${escapeHtml(g.imageUrl)}" alt="${escapeHtml(g.goalName)}"
-                  style="max-width:100%;max-height:200px;object-fit:contain;border-radius:10px;border:1.5px solid var(--border)" />
-               </div>`
-            : `<div style="text-align:center;padding:24px;background:var(--surface);border-radius:10px;
-                  border:1.5px dashed var(--border);color:var(--ink-faint);font-size:13px">
-                No image uploaded
-               </div>`
-          }
-          <div>
-            <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Goal ID</div>
-            <div style="font-family:var(--font-mono);font-size:14px">${escapeHtml(g.goalId)}</div>
-          </div>
-          ${g.description ? `
-          <div>
-            <div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Description</div>
-            <div style="font-size:13.5px">${escapeHtml(g.description)}</div>
-          </div>` : ''}
-          <div>
-            <span class="pill ${g.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">
-              ${g.isActive === false ? 'Inactive' : 'Active'}
-            </span>
-          </div>
-        </div>
-        <div class="modal-foot">
-          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Close</button>
-          <button class="btn btn-primary" onclick="document.getElementById('modal-root').innerHTML='';openModal('${g._id}')">Edit / Upload Image</button>
-        </div>
-      </div>
-    </div>`;
+  var root = document.getElementById('modal-root');
+
+  var imageSection = g.imageUrl
+    ? '<div style="text-align:center"><img src="' + escapeHtml(g.imageUrl) + '" alt="' + escapeHtml(g.goalName) + '" style="max-width:100%;max-height:200px;object-fit:contain;border-radius:10px;border:1.5px solid var(--border)" /></div>'
+    : '<div style="text-align:center;padding:24px;background:var(--surface);border-radius:10px;border:1.5px dashed var(--border);color:var(--ink-faint);font-size:13px">No image uploaded</div>';
+
+  var descSection = g.description
+    ? '<div><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Description</div><div style="font-size:13.5px">' + escapeHtml(g.description) + '</div></div>'
+    : '';
+
+  root.innerHTML =
+    '<div class="modal-backdrop" onclick="if(event.target===this)this.remove()">' +
+      '<div class="modal" style="max-width:420px">' +
+        '<div class="modal-head">' +
+          '<h3>🎯 ' + escapeHtml(g.goalName) + '</h3>' +
+          '<button class="modal-close" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">✕</button>' +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:12px;padding:4px 0 8px">' +
+          imageSection +
+          '<div><div style="font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">Goal ID</div>' +
+            '<div style="font-family:var(--font-mono);font-size:14px">' + escapeHtml(g.goalId) + '</div></div>' +
+          descSection +
+          '<div><span class="pill ' + (g.isActive === false ? 'pill-cancelled' : 'pill-delivered') + '">' +
+            (g.isActive === false ? 'Inactive' : 'Active') + '</span></div>' +
+        '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-outline" onclick="document.getElementById(\'modal-root\').innerHTML=\'\'">Close</button>' +
+          '<button class="btn btn-primary" onclick="document.getElementById(\'modal-root\').innerHTML=\'\';openModal(\'' + g._id + '\')">Edit / Upload Image</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
 }
 
 load();

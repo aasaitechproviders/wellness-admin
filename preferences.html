@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Preferences · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('preferences');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'preferences',
+  title: 'Preferences',
+  sub: 'Manage taste profiles, cooking styles and allergy options shown to customers',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Option</button>`,
+});
+
+// active category tab
+let activeTab = 'taste';
+let cache = [];
+
+const CATEGORY_META = {
+  taste:   { label: 'Taste Preferences',       icon: '😋', col: 3, hint: 'e.g. Sweet, Mild, Tangy — shown when customers describe their palate' },
+  cooking: { label: 'Cooking Preferences',      icon: '👨‍🍳', col: 2, hint: 'e.g. Quick Cooking, Salads — how customers prefer to prepare food' },
+  allergy: { label: 'Allergies & Restrictions', icon: '🛡️', col: 3, hint: 'e.g. Nut Allergy, Gluten Sensitivity — dietary restrictions to flag in baskets' },
+};
+
+content.innerHTML = `
+  <div class="panel">
+    <div style="background:var(--green-pale);border:1px solid var(--green-muted);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:18px;font-size:13px;color:var(--green)">
+      💡 All active options are fetched by the customer app in real-time — no hardcoded values. Changes here take effect immediately.
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:20px;overflow-x:auto">
+      ${Object.entries(CATEGORY_META).map(([k,m])=>`
+        <button id="tab-${k}" onclick="switchTab('${k}')"
+          style="padding:10px 22px;font-size:13px;font-weight:600;background:none;border:none;cursor:pointer;border-bottom:2.5px solid transparent;margin-bottom:-2px;white-space:nowrap;color:var(--ink-faint)">
+          ${m.icon} ${m.label}
+        </button>
+      `).join('')}
+    </div>
+
+    <!-- Tab content -->
+    <div id="tab-content"></div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+function switchTab(tab) {
+  activeTab = tab;
+  // Style tabs
+  Object.keys(CATEGORY_META).forEach(k => {
+    const btn = document.getElementById('tab-'+k);
+    if (btn) {
+      btn.style.borderBottomColor = k === tab ? 'var(--green)' : 'transparent';
+      btn.style.color = k === tab ? 'var(--green)' : 'var(--ink-faint)';
+    }
+  });
+  renderTab();
+}
+
+function renderTab() {
+  const meta  = CATEGORY_META[activeTab];
+  const items = cache.filter(p => p.category === activeTab);
+  const el    = document.getElementById('tab-content');
+  el.innerHTML = `
+    <p style="font-size:13px;color:var(--ink-faint);margin-bottom:16px">${meta.hint}</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">
+      ${items.length
+        ? items.map(p => `
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:24px;border:1.5px solid ${p.isActive===false?'var(--border)':'var(--green-muted)'};background:${p.isActive===false?'#fafafa':'var(--green-pale)'};opacity:${p.isActive===false?0.6:1}">
+            <span style="font-size:13px;font-weight:600;color:${p.isActive===false?'var(--ink-faint)':'var(--green)'}">${escapeHtml(p.name)}</span>
+            ${p.isActive===false?'<span style="font-size:10px;color:var(--ink-faint)">(inactive)</span>':''}
+            <span onclick="openModal('${p._id}')" title="Edit" style="cursor:pointer;font-size:13px;color:var(--ink-faint);padding:0 3px">✏️</span>
+            <span onclick="toggleActive('${p._id}',${p.isActive===false})" title="${p.isActive===false?'Activate':'Deactivate'}" style="cursor:pointer;font-size:13px;color:var(--ink-faint);padding:0 3px">${p.isActive===false?'✅':'🚫'}</span>
+            <span onclick="confirmDelete('${p._id}','${escapeHtml(p.name)}')" title="Delete" style="cursor:pointer;font-size:13px;color:#c9444d;padding:0 3px">🗑️</span>
+          </div>
+        `).join('')
+        : `<div class="empty" style="width:100%"><div class="icon">${meta.icon}</div>No ${meta.label.toLowerCase()} yet. Click "+ Add Option" to create one.</div>`
+      }
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:14px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:13px;color:var(--ink-faint)">${items.filter(p=>p.isActive!==false).length} active · ${items.filter(p=>p.isActive===false).length} inactive</span>
+      <button class="btn btn-primary btn-sm" onclick="openModal(null)">+ Add ${CATEGORY_META[activeTab].label.split(' ')[0]}</button>
+    </div>
+  `;
+}
+
+async function load() {
+  document.getElementById('tab-content').innerHTML =
+    `<div class="loading-row"><div class="spinner"></div></div>`;
+  try {
+    const data = await adminApi.getPreferences();
+    cache = data.preferences || [];
+    renderTab();
+  } catch (e) {
+    document.getElementById('tab-content').innerHTML =
+      `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
+  }
+}
+
+async function toggleActive(id, isCurrentlyInactive) {
+  const action = isCurrentlyInactive ? 'Activate' : 'Deactivate';
+  if (!confirm(action + ' this option?')) return;
+  try {
+    await adminApi.updatePreference(id, { isActive: !!isCurrentlyInactive });
+    showToast('Option ' + action.toLowerCase() + 'd', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function confirmDelete(id, name) {
+  if (!confirm(`Permanently delete "${name}"? This cannot be undone.`)) return;
+  try {
+    await adminApi.hardDeletePreference(id);
+    showToast('Option deleted', 'success');
+    load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function openModal(id) {
+  const p      = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!p;
+  const root   = document.getElementById('modal-root');
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this) this.remove()">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Option' : 'Add Preference Option'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="pref-form" class="form-grid">
+          <div class="field full">
+            <label>Category *</label>
+            <select name="category" ${isEdit ? 'disabled' : ''}>
+              <option value="taste"   ${(p?.category||activeTab)==='taste'  ?'selected':''}>😋 Taste Preferences</option>
+              <option value="cooking" ${(p?.category||activeTab)==='cooking'?'selected':''}>👨‍🍳 Cooking Preferences</option>
+              <option value="allergy" ${(p?.category||activeTab)==='allergy'?'selected':''}>🛡️ Allergies &amp; Restrictions</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Option Name *</label>
+            <input name="name" value="${escapeHtml(p?.name || '')}"
+              placeholder="e.g. ${activeTab==='taste'?'Tangy':activeTab==='cooking'?'Air Frying':'Soy Allergy'}"
+              required style="font-size:15px" />
+            <div style="font-size:12px;color:var(--ink-faint);margin-top:4px">
+              This exact text is shown to customers in the app.
+            </div>
+          </div>
+          ${isEdit ? `
+          <div class="field full">
+            <label>Status</label>
+            <select name="isActive">
+              <option value="true"  ${p.isActive!==false?'selected':''}>Active — shown to customers</option>
+              <option value="false" ${p.isActive===false ?'selected':''}>Inactive — hidden from customers</option>
+            </select>
+          </div>` : ''}
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="pref-save-btn">${isEdit ? 'Save Changes' : 'Add Option'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('pref-save-btn').addEventListener('click', async () => {
+    const fd       = new FormData(document.getElementById('pref-form'));
+    const name     = (fd.get('name') || '').trim();
+    const category = isEdit ? p.category : fd.get('category');
+    if (!name)     { showToast('Option name is required', 'error'); return; }
+
+    const body = { name, category };
+    if (isEdit) body.isActive = fd.get('isActive') === 'true';
+
+    const btn = document.getElementById('pref-save-btn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      if (isEdit) await adminApi.updatePreference(p._id, body);
+      else        await adminApi.createPreference(body);
+      showToast(isEdit ? 'Option updated' : 'Option added', 'success');
+      document.getElementById('modal-root').innerHTML = '';
+      // Switch to the saved category tab
+      activeTab = category;
+      load();
+    } catch (e) {
+      showToast(e.message, 'error');
+      btn.disabled = false;
+      btn.textContent = isEdit ? 'Save Changes' : 'Add Option';
+    }
+  });
+
+  setTimeout(() => document.querySelector('#pref-form input[name="name"]')?.focus(), 50);
+}
+
+// Init
+switchTab('taste');
+load();
+</script>
+</body>
+</html>

@@ -7,6 +7,7 @@ const NAV_ITEMS = [
   { key: 'customers',          href: 'customers.html',          label: 'Customers',            icon: 'M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1 M9 11a3 3 0 100-6 3 3 0 000 6z M22 19v-1a3.5 3.5 0 00-3-3.5 M16 4.2a3 3 0 010 5.6' },
   { key: 'ingredients',        href: 'ingredients.html',        label: 'Products',             icon: 'M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z' },
   { key: 'baskets',            href: 'baskets.html',            label: 'Curated Baskets',      icon: 'M3 9h18l-2 11H5L3 9z M3 9l2-5h14l2 5' },
+  { key: 'essential-baskets',  href: 'essential-baskets.html',  label: 'Essential Baskets',    icon: 'M20 7H4a1 1 0 00-1 1v10a1 1 0 001 1h16a1 1 0 001-1V8a1 1 0 00-1-1z M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2' },
   { key: 'subscription-plans', href: 'subscription-plans.html', label: 'Subscription Packages',icon: 'M4 4h16v16H4z M4 9h16 M9 4v16' },
   { key: 'goals',              href: 'goals.html',              label: 'Wellness Goals',       icon: 'M12 2a10 10 0 1010 10A10 10 0 0012 2z M12 6a6 6 0 106 6 6 6 0 00-6-6z M12 10a2 2 0 102 2 2 2 0 00-2-2z' },
   { key: 'health-challenges',   href: 'health-challenges.html',  label: 'Health Challenges',    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4' },

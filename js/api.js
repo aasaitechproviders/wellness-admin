@@ -5,7 +5,7 @@ const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southea
 // Role definitions — which sidebar menus each default role can access
 // Admin can override per-user via allowedMenus[]
 const ROLE_DEFAULTS = {
-  admin:     ['dashboard','orders','customers','ingredients','baskets','subscription-plans','goals','health-challenges','coupons','apartments','team','wellness-partners'],
+  admin:     ['dashboard','orders','customers','ingredients','baskets','essential-baskets','subscription-plans','goals','health-challenges','coupons','apartments','team','wellness-partners'],
   nutrition: ['ingredients','baskets','goals','health-challenges'],
   team:      ['ingredients','apartments'],
 };
@@ -175,6 +175,16 @@ const adminApi = {
   deleteCoupon:     (id) => req('DELETE', `/admin/coupons/${id}`),
   hardDeleteCoupon: (id) => req('DELETE', `/admin/coupons/${id}/hard`),
 
+  // Essential Baskets
+  getEssentialBaskets:         () => req('GET', '/admin/essential-baskets'),
+  createEssentialBasket:       (body) => req('POST', '/admin/essential-baskets', body),
+  updateEssentialBasket:       (id, body) => req('PUT', `/admin/essential-baskets/${id}`, body),
+  deleteEssentialBasket:       (id) => req('DELETE', `/admin/essential-baskets/${id}`),
+  hardDeleteEssentialBasket:   (id) => req('DELETE', `/admin/essential-baskets/${id}/hard`),
+  presignEssentialBasketImage: (id, mimeType) => req('GET', `/admin/essential-baskets/${id}/image/presign${qs({ mimeType })}`),
+  confirmEssentialBasketImage: (id, imageKey, imageUrl) => req('POST', `/admin/essential-baskets/${id}/image/confirm`, { imageKey, imageUrl }),
+  deleteEssentialBasketImage:  (id) => req('DELETE', `/admin/essential-baskets/${id}/image`),
+
   // Curated Baskets
   getBaskets:              () => req('GET', '/admin/baskets'),
   createBasket:            (body) => req('POST', '/admin/baskets', body),
@@ -321,12 +331,17 @@ async function uploadHealthChallengeImageToS3(challengeId, file) {
 async function uploadBasketImageToS3(basketId, file) {
   const { blob, mimeType } = await compressImageToBlob(file);
   const { signedUrl, imageKey, imageUrl } = await adminApi.presignBasketImage(basketId, mimeType);
-  const s3Res = await fetch(signedUrl, {
-    method:  'PUT',
-    headers: { 'Content-Type': mimeType },
-    body:    blob,
-  });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
+  const s3Res = await fetch(signedUrl, { method:'PUT', headers:{'Content-Type':mimeType}, body:blob });
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status})`);
   await adminApi.confirmBasketImage(basketId, imageKey, imageUrl);
+  return { imageUrl };
+}
+
+async function uploadEssentialBasketImageToS3(basketId, file) {
+  const { blob, mimeType } = await compressImageToBlob(file);
+  const { signedUrl, imageKey, imageUrl } = await adminApi.presignEssentialBasketImage(basketId, mimeType);
+  const s3Res = await fetch(signedUrl, { method:'PUT', headers:{'Content-Type':mimeType}, body:blob });
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status})`);
+  await adminApi.confirmEssentialBasketImage(basketId, imageKey, imageUrl);
   return { imageUrl };
 }

@@ -176,11 +176,14 @@ const adminApi = {
   hardDeleteCoupon: (id) => req('DELETE', `/admin/coupons/${id}/hard`),
 
   // Curated Baskets
-  getBaskets:         () => req('GET', '/admin/baskets'),
-  createBasket:       (body) => req('POST', '/admin/baskets', body),
-  updateBasket:       (id, body) => req('PUT', `/admin/baskets/${id}`, body),
-  deleteBasket:       (id) => req('DELETE', `/admin/baskets/${id}`),
-  hardDeleteBasket:   (id) => req('DELETE', `/admin/baskets/${id}/hard`),
+  getBaskets:              () => req('GET', '/admin/baskets'),
+  createBasket:            (body) => req('POST', '/admin/baskets', body),
+  updateBasket:            (id, body) => req('PUT', `/admin/baskets/${id}`, body),
+  deleteBasket:            (id) => req('DELETE', `/admin/baskets/${id}`),
+  hardDeleteBasket:        (id) => req('DELETE', `/admin/baskets/${id}/hard`),
+  presignBasketImage:      (id, mimeType) => req('GET', `/admin/baskets/${id}/image/presign${qs({ mimeType })}`),
+  confirmBasketImage:      (id, imageKey, imageUrl) => req('POST', `/admin/baskets/${id}/image/confirm`, { imageKey, imageUrl }),
+  deleteBasketImage:       (id) => req('DELETE', `/admin/baskets/${id}/image`),
 
   // Apartments
   getApartments:       () => req('GET', '/admin/apartments'),
@@ -312,5 +315,18 @@ async function uploadHealthChallengeImageToS3(challengeId, file) {
   });
   if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
   await adminApi.confirmHealthChallengeImage(challengeId, imageKey, imageUrl);
+  return { imageUrl };
+}
+
+async function uploadBasketImageToS3(basketId, file) {
+  const { blob, mimeType } = await compressImageToBlob(file);
+  const { signedUrl, imageKey, imageUrl } = await adminApi.presignBasketImage(basketId, mimeType);
+  const s3Res = await fetch(signedUrl, {
+    method:  'PUT',
+    headers: { 'Content-Type': mimeType },
+    body:    blob,
+  });
+  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
+  await adminApi.confirmBasketImage(basketId, imageKey, imageUrl);
   return { imageUrl };
 }

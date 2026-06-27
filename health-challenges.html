@@ -8,6 +8,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<style>
+  .hc-thumb { width:44px;height:44px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);display:block; }
+  .hc-thumb-empty { width:44px;height:44px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--ink-faint); }
+  .img-thumb-large { width:80px;height:80px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);flex-shrink:0;display:block; }
+  .img-thumb-placeholder { width:80px;height:80px;border-radius:8px;border:1.5px dashed var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+  .img-info-name { font-size:13px;font-weight:600;color:var(--ink); }
+  .img-info-status { font-size:12px;margin-top:4px;font-weight:500; }
+  .img-info-status.ok    { color:var(--green); }
+  .img-info-status.error { color:var(--red); }
+  .img-info-status.busy  { color:#7B5E2A; }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -59,8 +70,8 @@ async function load() {
         <tr>
           <td>
             ${c.hasImage && c.imageUrl
-              ? `<img src="${escapeHtml(c.imageUrl)}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border)" loading="lazy" />`
-              : `<div style="width:40px;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:18px">🩺</div>`
+              ? `<img src="${escapeHtml(c.imageUrl)}" class="hc-thumb" alt="" loading="lazy" />`
+              : `<div class="hc-thumb-empty">🩺</div>`
             }
           </td>
           <td><b>${escapeHtml(c.name)}</b></td>
@@ -117,24 +128,26 @@ function openModal(id) {
   const imageSection = isEdit ? `
     <div class="field full">
       <label>Challenge Image</label>
-      <div id="img-thumb-wrap" style="margin-bottom:10px">
-        ${c.hasImage && c.imageUrl
-          ? `<img id="img-preview" class="img-thumb-large" src="${escapeHtml(c.imageUrl)}" alt="Current image"
-               onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />`
-          : ''
-        }
-        <div id="img-no-thumb" style="width:80px;height:80px;border-radius:8px;background:var(--surface);border:2px dashed var(--border);display:${c.hasImage && c.imageUrl ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:28px">🩺</div>
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:10px">
+        <div id="img-thumb-wrap" style="flex-shrink:0">
+          ${c.hasImage && c.imageUrl
+            ? `<img id="img-preview" class="img-thumb-large" src="${escapeHtml(c.imageUrl)}" alt="Current image"
+                 onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />`
+            : ''
+          }
+          <div id="img-no-thumb" class="img-thumb-placeholder" style="display:${c.hasImage && c.imageUrl ? 'none' : 'flex'}">🩺</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="img-info-name" id="img-filename">${c.imageUrl ? 'Image saved' : 'No image yet'}</div>
+          <div class="img-info-status ok" id="img-status">${c.imageUrl ? '✅ Saved to S3' : ''}</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+            <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
+            <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
+            ${c.imageUrl ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>` : ''}
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:6px">💡 Choose a file → click <b>Upload</b>. Saves independently from the fields below.</div>
+        </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        <div class="img-info-name" id="img-filename">${c.imageUrl ? 'Image saved' : 'No image yet'}</div>
-        <div class="img-info-status ok" id="img-status">${c.imageUrl ? '✅ Saved to S3' : ''}</div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
-        <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
-        ${c.imageUrl ? `<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>` : ''}
-      </div>
-      <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">💡 Choose a file → click <b>Upload</b>. Image uploads independently from the fields below.</div>
     </div>
   ` : `<div class="field full"><div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">💡 <b>Save the challenge first</b>, then re-open it to upload an image.</div></div>`;
 

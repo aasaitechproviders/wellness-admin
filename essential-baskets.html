@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Essential Baskets · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  /* Image */
+  .eb-thumb { width:48px;height:48px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);display:block; }
+  .eb-thumb-empty { width:48px;height:48px;border-radius:8px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink-faint); }
+  .img-thumb-large { width:80px;height:80px;border-radius:8px;object-fit:cover;border:1.5px solid var(--border);flex-shrink:0;display:block; }
+  .img-thumb-placeholder { width:80px;height:80px;border-radius:8px;border:1.5px dashed var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0; }
+  .img-info-name { font-size:13px;font-weight:600;color:var(--ink); }
+  .img-info-status { font-size:12px;margin-top:4px;font-weight:500; }
+  .img-info-status.ok    { color:var(--green); }
+  .img-info-status.error { color:var(--red); }
+  .img-info-status.busy  { color:#7B5E2A; }
+
+  /* Product rows */
+  .prod-row {
+    display:grid;grid-template-columns:1fr 90px 80px 32px;
+    gap:8px;align-items:center;margin-bottom:8px;
+  }
+  .prod-row input, .prod-row select {
+    padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;
+    font-family:var(--font-body);font-size:13px;color:var(--ink);
+    background:var(--white);outline:none;width:100%;box-sizing:border-box;
+  }
+  .prod-row input:focus, .prod-row select:focus { border-color:var(--green); }
+  .prod-remove {
+    width:28px;height:28px;border:none;background:none;cursor:pointer;
+    color:var(--ink-faint);font-size:16px;display:flex;align-items:center;justify-content:center;border-radius:5px;
+  }
+  .prod-remove:hover { background:var(--red-pale);color:var(--red); }
+  .add-prod-btn {
+    display:inline-flex;align-items:center;gap:6px;
+    font-size:12.5px;color:var(--green);font-weight:600;
+    border:1.5px dashed rgba(45,106,53,.35);border-radius:8px;
+    background:var(--green-pale);cursor:pointer;
+    padding:8px 14px;margin-top:4px;transition:background .12s;
+  }
+  .add-prod-btn:hover { background:rgba(45,106,53,.12); }
+
+  /* Product search dropdown */
+  .prod-search-wrap { position:relative;flex:1; }
+  .prod-search {
+    width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;
+    font-family:var(--font-body);font-size:13px;color:var(--ink);
+    background:var(--white);outline:none;box-sizing:border-box;
+  }
+  .prod-search:focus { border-color:var(--green); }
+  .prod-dropdown {
+    position:absolute;top:calc(100% + 3px);left:0;right:0;
+    background:var(--white);border:1.5px solid var(--border);
+    border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.1);
+    max-height:180px;overflow-y:auto;z-index:300;display:none;
+  }
+  .prod-dropdown.open { display:block; }
+  .prod-opt {
+    padding:8px 12px;cursor:pointer;font-size:13px;
+    display:flex;align-items:center;justify-content:space-between;
+    transition:background .1s;
+  }
+  .prod-opt:hover { background:var(--green-pale); }
+  .prod-opt-cat { font-size:11px;color:var(--ink-faint); }
+  .prod-opt-empty { padding:12px;text-align:center;color:var(--ink-faint);font-size:13px; }
+
+  /* Section label */
+  .form-section {
+    grid-column:1/-1;font-size:11px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--ink-faint);padding:12px 0 4px;
+    border-top:1px solid var(--border);margin-top:4px;
+  }
+  .form-section:first-child { border-top:none;margin-top:0; }
+
+  /* Size badge */
+  .size-badge {
+    display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;
+  }
+  .size-small  { background:#E8F5E9;color:#2E7D32; }
+  .size-medium { background:#FFF8E1;color:#F57F17; }
+  .size-large  { background:#E3F2FD;color:#1565C0; }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('essential-baskets');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active:  'essential-baskets',
+  title:   'Essential Baskets',
+  sub:     'Daily essential product bundles — Small, Medium and Large sizes',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add Basket</button>`,
+});
+
+let cache = [];
+
+const UNITS = ['g', 'kg', 'ml', 'pieces'];
+
+content.innerHTML = `
+  <div class="panel">
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr>
+          <th style="width:56px">Image</th>
+          <th>Size</th>
+          <th>Products</th>
+          <th>Price</th>
+          <th>Status</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="body">
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="modal-root"></div>
+`;
+
+document.getElementById('add-btn').addEventListener('click', () => openModal(null));
+
+function sizeBadge(size) {
+  const cls = size === 'Small' ? 'size-small' : size === 'Medium' ? 'size-medium' : 'size-large';
+  return `<span class="size-badge ${cls}">${escapeHtml(size || '—')}</span>`;
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+async function load() {
+  document.getElementById('body').innerHTML =
+    `<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const { baskets } = await adminApi.getEssentialBaskets();
+    cache = baskets;
+    document.getElementById('body').innerHTML = baskets.length
+      ? baskets.map(b => `
+        <tr>
+          <td>
+            ${b.hasImage && b.imageUrl
+              ? `<img src="${escapeHtml(b.imageUrl)}" class="eb-thumb" alt="" loading="lazy" />`
+              : `<div class="eb-thumb-empty">🛒</div>`}
+          </td>
+          <td>${sizeBadge(b.size)}</td>
+          <td style="font-size:12.5px;max-width:220px">
+            ${(b.products||[]).length
+              ? b.products.map(p => `<div>${escapeHtml(p.name)} — <b>${p.quantity} ${escapeHtml(p.unit)}</b></div>`).join('')
+              : '<span class="muted">No products</span>'}
+          </td>
+          <td class="num"><b>₹${Number(b.price).toLocaleString('en-IN')}</b></td>
+          <td>
+            <span class="pill ${b.isActive===false?'pill-cancelled':'pill-delivered'}">
+              ${b.isActive===false?'Inactive':'Active'}
+            </span>
+          </td>
+          <td style="white-space:nowrap">
+            <button class="btn btn-ghost btn-sm" onclick="openModal('${b._id}')">Edit</button>
+            <button class="btn btn-ghost btn-sm" style="color:var(--red)"
+              onclick="toggleActive('${b._id}',${b.isActive===false})">
+              ${b.isActive===false?'Activate':'Deactivate'}
+            </button>
+            <button class="btn btn-ghost btn-sm" style="color:#8B0000;font-weight:700"
+              onclick="hardDelete('${b._id}','${escapeHtml(b.size)}')">Delete</button>
+          </td>
+        </tr>
+      `).join('')
+      : `<tr><td colspan="6"><div class="empty"><div class="icon">🛒</div>No essential baskets yet. Add one above.</div></td></tr>`;
+  } catch(e) {
+    document.getElementById('body').innerHTML =
+      `<tr><td colspan="6"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function toggleActive(id, isInactive) {
+  if (!confirm((isInactive?'Activate':'Deactivate') + ' this basket?')) return;
+  try {
+    if (isInactive) await adminApi.updateEssentialBasket(id, { isActive: true });
+    else            await adminApi.deleteEssentialBasket(id);
+    showToast('Basket ' + (isInactive?'activated':'deactivated'), 'success');
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function hardDelete(id, size) {
+  if (!confirm(`Permanently delete the ${size} basket? Cannot be undone.`)) return;
+  try { await adminApi.hardDeleteEssentialBasket(id); showToast('Basket deleted','success'); load(); }
+  catch(e) { showToast(e.message,'error'); }
+}
+
+// ── Product rows builder ──────────────────────────────────────────────────────
+function initProductRows(containerId, initial=[]) {
+  const wrap = document.getElementById(containerId);
+  let rows   = initial.length ? initial.map(r=>({...r})) : [];
+
+  function makeSearchInput(row, i) {
+    const searchWrap = document.createElement('div');
+    searchWrap.className = 'prod-search-wrap';
+
+    const inp = document.createElement('input');
+    inp.type        = 'text';
+    inp.className   = 'prod-search';
+    inp.placeholder = 'Search product…';
+    inp.value       = row.name || '';
+    inp.autocomplete = 'off';
+
+    const drop = document.createElement('div');
+    drop.className = 'prod-dropdown';
+    searchWrap.append(inp, drop);
+
+    let timer = null;
+
+    async function doSearch(q) {
+      try {
+        const { ingredients } = await adminApi.getIngredients({ search: q, limit: 30 });
+        drop.innerHTML = ingredients.length
+          ? ingredients.map(ing => `
+              <div class="prod-opt" data-name="${escapeHtml(ing.name)}">
+                <span>${escapeHtml(ing.name)}</span>
+                <span class="prod-opt-cat">${escapeHtml(ing.category||'')}</span>
+              </div>`).join('')
+          : `<div class="prod-opt-empty">No products found</div>`;
+        drop.classList.add('open');
+        drop.querySelectorAll('.prod-opt').forEach(opt => {
+          opt.addEventListener('mousedown', e => {
+            e.preventDefault();
+            rows[i].name = opt.dataset.name;
+            inp.value    = opt.dataset.name;
+            drop.classList.remove('open');
+          });
+        });
+      } catch(e) {
+        drop.innerHTML = `<div class="prod-opt-empty">Search failed</div>`;
+        drop.classList.add('open');
+      }
+    }
+
+    inp.addEventListener('input', () => {
+      rows[i].name = inp.value;
+      clearTimeout(timer);
+      const q = inp.value.trim();
+      if (!q) { drop.classList.remove('open'); return; }
+      timer = setTimeout(() => doSearch(q), 220);
+    });
+    inp.addEventListener('focus', () => { if (!inp.value.trim()) doSearch(''); });
+    inp.addEventListener('blur',  () => setTimeout(() => drop.classList.remove('open'), 180));
+
+    return searchWrap;
+  }
+
+  function render() {
+    wrap.innerHTML = '';
+
+    if (rows.length) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:grid;grid-template-columns:1fr 90px 80px 32px;gap:8px;margin-bottom:4px';
+      hdr.innerHTML = ['Product','Qty','Unit',''].map(t =>
+        `<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint)">${t}</div>`
+      ).join('');
+      wrap.appendChild(hdr);
+
+      rows.forEach((row, i) => {
+        const div = document.createElement('div');
+        div.className = 'prod-row';
+
+        const searchWrap = makeSearchInput(row, i);
+
+        const qtyInp = document.createElement('input');
+        qtyInp.type        = 'number';
+        qtyInp.min         = '0';
+        qtyInp.step        = '0.1';
+        qtyInp.placeholder = '0';
+        qtyInp.value       = row.quantity || '';
+        qtyInp.addEventListener('input', () => { rows[i].quantity = qtyInp.value; });
+
+        const unitSel = document.createElement('select');
+        UNITS.forEach(u => {
+          const o = document.createElement('option');
+          o.value = u; o.textContent = u;
+          if (u === row.unit) o.selected = true;
+          unitSel.appendChild(o);
+        });
+        unitSel.addEventListener('change', () => { rows[i].unit = unitSel.value; });
+
+        const rem = document.createElement('button');
+        rem.type      = 'button';
+        rem.className = 'prod-remove';
+        rem.title     = 'Remove';
+        rem.textContent = '✕';
+        rem.addEventListener('click', () => { rows.splice(i,1); render(); });
+
+        div.append(searchWrap, qtyInp, unitSel, rem);
+        wrap.appendChild(div);
+      });
+    }
+
+    const addBtn = document.createElement('button');
+    addBtn.type      = 'button';
+    addBtn.className = 'add-prod-btn';
+    addBtn.textContent = '+ Add Product';
+    addBtn.addEventListener('click', () => {
+      rows.push({ name:'', quantity:'', unit:'g' });
+      render();
+      setTimeout(() => {
+        const inputs = wrap.querySelectorAll('.prod-search');
+        if (inputs.length) inputs[inputs.length-1].focus();
+      }, 30);
+    });
+    wrap.appendChild(addBtn);
+  }
+
+  render();
+  wrap._getRows = () => rows
+    .filter(r => r.name && r.name.trim() && r.quantity !== '')
+    .map(r => ({ name: r.name.trim(), quantity: Number(r.quantity), unit: r.unit || 'g' }));
+}
+
+// ── Image upload ──────────────────────────────────────────────────────────────
+function initImageUpload(b) {
+  const fileInput  = document.getElementById('img-file-input');
+  const uploadBtn  = document.getElementById('img-upload-btn');
+  const statusEl   = document.getElementById('img-status');
+  const filenameEl = document.getElementById('img-filename');
+  const deleteBtn  = document.getElementById('img-delete-btn');
+  let pendingFile  = null;
+
+  if (!fileInput) return;
+
+  fileInput.addEventListener('change', function() {
+    const file = fileInput.files[0];
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+      showToast('Only JPEG, PNG, or WebP allowed','error'); fileInput.value=''; return;
+    }
+    pendingFile = file;
+    filenameEl.textContent = file.name;
+    statusEl.className = 'img-info-status'; statusEl.textContent = '📎 Ready to upload — click Upload';
+    uploadBtn.disabled = false;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const preview = document.getElementById('img-preview');
+      const noThumb = document.getElementById('img-no-thumb');
+      if (preview) { preview.src = ev.target.result; preview.style.display='block'; }
+      else {
+        if (noThumb) noThumb.style.display='none';
+        const img = document.createElement('img');
+        img.id='img-preview'; img.className='img-thumb-large';
+        img.src=ev.target.result; img.alt='Preview';
+        document.getElementById('img-thumb-wrap').prepend(img);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+
+  uploadBtn.addEventListener('click', async function() {
+    if (!pendingFile) return;
+    uploadBtn.disabled=true; uploadBtn.textContent='⏳ Uploading…';
+    statusEl.className='img-info-status busy'; statusEl.textContent='Uploading to S3…';
+    try {
+      await uploadEssentialBasketImageToS3(b._id, pendingFile);
+      pendingFile=null;
+      statusEl.className='img-info-status ok'; statusEl.textContent='✅ Uploaded successfully';
+      uploadBtn.textContent='⬆ Upload'; uploadBtn.disabled=true;
+      if (!document.getElementById('img-delete-btn')) {
+        const btn = document.createElement('button');
+        btn.type='button'; btn.id='img-delete-btn';
+        btn.className='btn btn-ghost btn-sm'; btn.style.color='var(--red)';
+        btn.textContent='Remove';
+        btn.addEventListener('click', handleRemove);
+        uploadBtn.insertAdjacentElement('afterend', btn);
+      }
+      showToast('Image uploaded ✅','success'); load();
+    } catch(e) {
+      statusEl.className='img-info-status error'; statusEl.textContent='❌ '+e.message;
+      uploadBtn.disabled=false; uploadBtn.textContent='⬆ Retry';
+      showToast(e.message,'error');
+    }
+  });
+
+  async function handleRemove() {
+    if (!confirm('Remove image for this basket?')) return;
+    const btn = document.getElementById('img-delete-btn');
+    btn.disabled=true; btn.textContent='Removing…';
+    try {
+      await adminApi.deleteEssentialBasketImage(b._id);
+      const preview=document.getElementById('img-preview');
+      const noThumb=document.getElementById('img-no-thumb');
+      if (preview) preview.style.display='none';
+      if (noThumb) noThumb.style.display='flex';
+      filenameEl.textContent='No image yet';
+      statusEl.className='img-info-status'; statusEl.textContent='';
+      uploadBtn.disabled=true; uploadBtn.textContent='⬆ Upload';
+      btn.remove(); fileInput.value=''; pendingFile=null;
+      showToast('Image removed','success'); load();
+    } catch(e) { showToast(e.message,'error'); btn.disabled=false; btn.textContent='Remove'; }
+  }
+
+  if (deleteBtn) deleteBtn.addEventListener('click', handleRemove);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const b      = id ? cache.find(x => x._id === id) : null;
+  const isEdit = !!b;
+  const root   = document.getElementById('modal-root');
+
+  const imageSection = isEdit ? `
+    <div class="form-section">🖼 Basket Image <span style="font-weight:400;color:var(--ink-faint)">(optional)</span></div>
+    <div class="field full">
+      <div style="display:flex;align-items:flex-start;gap:14px;margin-bottom:6px">
+        <div id="img-thumb-wrap" style="flex-shrink:0">
+          ${b.hasImage && b.imageUrl
+            ? `<img id="img-preview" class="img-thumb-large" src="${escapeHtml(b.imageUrl)}" alt="Current"
+                 onerror="this.style.display='none';document.getElementById('img-no-thumb').style.display='flex'" />`
+            : ''}
+          <div id="img-no-thumb" class="img-thumb-placeholder" style="display:${b.hasImage&&b.imageUrl?'none':'flex'}">🛒</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="img-info-name" id="img-filename">${b.imageUrl?'Image saved':'No image yet'}</div>
+          <div class="img-info-status ok" id="img-status">${b.imageUrl?'✅ Saved to S3':''}</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+            <input type="file" id="img-file-input" accept="image/jpeg,image/png,image/webp" />
+            <button type="button" class="btn btn-primary btn-sm" id="img-upload-btn" disabled>⬆ Upload</button>
+            ${b.imageUrl?`<button type="button" class="btn btn-ghost btn-sm" style="color:var(--red)" id="img-delete-btn">Remove</button>`:''}
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-faint);margin-top:5px">💡 Choose a file → click Upload. Saves independently.</div>
+        </div>
+      </div>
+    </div>
+  ` : `
+    <div class="form-section">🖼 Basket Image</div>
+    <div class="field full">
+      <div style="background:var(--surface);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-faint);border:1px solid var(--border)">
+        💡 <b>Save the basket first</b>, then re-open to upload an image.
+      </div>
+    </div>
+  `;
+
+  root.innerHTML = `
+    <div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+      <div class="modal" style="max-width:560px">
+        <div class="modal-head">
+          <h3>${isEdit ? 'Edit Essential Basket' : 'Add Essential Basket'}</h3>
+          <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
+        </div>
+        <form id="eb-form" class="form-grid">
+
+          <div class="form-section">📋 Basic Info</div>
+
+          <div class="field">
+            <label>Size *</label>
+            <select name="size" ${isEdit?'disabled':''}>
+              <option value="">Select size</option>
+              <option value="Small"  ${b?.size==='Small' ?'selected':''}>Small</option>
+              <option value="Medium" ${b?.size==='Medium'?'selected':''}>Medium</option>
+              <option value="Large"  ${b?.size==='Large' ?'selected':''}>Large</option>
+            </select>
+            ${isEdit?`<input type="hidden" name="size" value="${escapeHtml(b.size)}" />`:''}
+          </div>
+
+          <div class="field">
+            <label>Price (₹) *</label>
+            <input name="price" type="number" min="0" step="1"
+              value="${b?.price??''}" placeholder="e.g. 299" required />
+          </div>
+
+          ${isEdit ? `
+          <div class="field">
+            <label>Status</label>
+            <select name="isActive">
+              <option value="true"  ${b.isActive!==false?'selected':''}>Active</option>
+              <option value="false" ${b.isActive===false?'selected':''}>Inactive</option>
+            </select>
+          </div>` : ''}
+
+          <div class="form-section">🥦 Products</div>
+          <div class="field full">
+            <label>Add products with quantity and unit</label>
+            <div id="prod-rows"></div>
+          </div>
+
+          ${imageSection}
+
+        </form>
+        <div class="modal-foot">
+          <button class="btn btn-outline" onclick="document.getElementById('modal-root').innerHTML=''">Cancel</button>
+          <button class="btn btn-primary" id="eb-save">${isEdit?'Save Changes':'Create Basket'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  initProductRows('prod-rows', b?.products||[]);
+  if (isEdit) initImageUpload(b);
+
+  document.getElementById('eb-save').addEventListener('click', async () => {
+    const fd    = new FormData(document.getElementById('eb-form'));
+    const size  = fd.get('size');
+    const price = fd.get('price');
+    const prodWrap = document.getElementById('prod-rows');
+
+    if (!size)  { showToast('Size is required','error'); return; }
+    if (!price) { showToast('Price is required','error'); return; }
+
+    const body = {
+      size,
+      price:    Number(price),
+      products: prodWrap?._getRows ? prodWrap._getRows() : [],
+    };
+    if (isEdit) body.isActive = fd.get('isActive') === 'true';
+
+    const btn = document.getElementById('eb-save');
+    btn.disabled=true; btn.textContent='Saving…';
+    try {
+      if (isEdit) await adminApi.updateEssentialBasket(b._id, body);
+      else        await adminApi.createEssentialBasket(body);
+      showToast('Basket saved','success');
+      document.getElementById('modal-root').innerHTML='';
+      load();
+    } catch(e) {
+      showToast(e.message,'error');
+      btn.disabled=false; btn.textContent=isEdit?'Save Changes':'Create Basket';
+    }
+  });
+}
+
+load();
+</script>
+</body>
+</html>

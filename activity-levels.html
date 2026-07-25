@@ -1,0 +1,77 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Activity Levels · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('activity-levels');</script><script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'activity-levels',title:'Activity Levels',sub:'PAL-based activity classifications used in calorie and nutrition calculations',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
+let items=[],editId=null;
+content.innerHTML=`<div class="panel">
+<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
+<div class="table-wrap"><table class="data"><thead><tr><th>Code</th><th>Level</th><th>Display Name</th><th>PAL Value</th><th>MET Range</th><th>Cal Adjustment</th><th>Exercise Duration</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Activity Level</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
+  <div class="field"><label>Activity Code</label><input id="fCode" placeholder="ACT001"/></div>
+  <div class="field"><label>Activity Level *</label><input id="fLevel" placeholder="Sedentary"/></div>
+  <div class="field"><label>Display Name</label><input id="fDisplay" placeholder="Sedentary Lifestyle"/></div>
+  <div class="field"><label>PAL Value</label><input id="fPAL" type="number" step="0.01" placeholder="1.2"/></div>
+  <div class="field"><label>MET Range</label><input id="fMET" placeholder="1.0–1.5"/></div>
+  <div class="field"><label>Calories Adjustment</label><input id="fCal" placeholder="0%"/></div>
+  <div class="field"><label>Exercise Duration</label><input id="fExercise" placeholder="0–30 min/day"/></div>
+  <div class="field"><label>Typical Activities</label><input id="fTypical" placeholder="Desk work, TV, driving"/></div>
+  <div class="field full"><label>Description</label><textarea id="fDesc" rows="2"></textarea></div>
+  <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field"><label>Reference Guideline</label><input id="fRef" placeholder="ICMR/NIN"/></div>
+  <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
+</div></div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getActivityLevels();items=d.activityLevels||[];render();}catch(e){showToast(e.message,'error');}
+}
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} records`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.activityCode||'')}</td><td><b>${escapeHtml(i.activityLevel||'')}</b></td>
+    <td>${escapeHtml(i.displayName||'')}</td><td class="num">${i.palValue||'–'}</td>
+    <td class="mono">${escapeHtml(i.metRange||'')}</td><td>${escapeHtml(i.caloriesAdjustment||'')}</td>
+    <td>${escapeHtml(i.exerciseDuration||'')}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${escapeHtml(i.ruleStatus||'')}</span></td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="9" class="empty">No records</td></tr>';
+}
+function openModal(i){
+  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Activity Level':'Add Activity Level';
+  document.getElementById('fCode').value=i?.activityCode||'';document.getElementById('fLevel').value=i?.activityLevel||'';
+  document.getElementById('fDisplay').value=i?.displayName||'';document.getElementById('fPAL').value=i?.palValue||'';
+  document.getElementById('fMET').value=i?.metRange||'';document.getElementById('fCal').value=i?.caloriesAdjustment||'';
+  document.getElementById('fExercise').value=i?.exerciseDuration||'';document.getElementById('fTypical').value=i?.typicalActivities||'';
+  document.getElementById('fDesc').value=i?.description||'';document.getElementById('fAuto').value=i?.autoApply||'Yes';
+  document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
+  document.getElementById('fRef').value=i?.referenceGuideline||'';document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
+async function save(){
+  const body={activityCode:g('fCode'),activityLevel:g('fLevel'),displayName:g('fDisplay'),
+    palValue:parseFloat(document.getElementById('fPAL').value)||null,metRange:g('fMET'),
+    caloriesAdjustment:g('fCal'),exerciseDuration:g('fExercise'),typicalActivities:g('fTypical'),
+    description:g('fDesc'),autoApply:g('fAuto'),clinicalReviewRequired:g('fClin'),
+    ruleStatus:g('fStatus'),referenceGuideline:g('fRef'),nutritionistComments:g('fComments')};
+  if(!body.activityLevel){showToast('Activity level required','error');return;}
+  try{if(editId)await adminApi.updateActivityLevel(editId,body);else await adminApi.createActivityLevel(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+}
+async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteActivityLevel(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
+load();
+</script></body></html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Basket → Goal Mapping · KRISHA PURE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('basket-goal-mapping');</script><script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'basket-goal-mapping',title:'Basket → Goal Mapping',sub:'Maps curated baskets to wellness goals with priority and eligibility criteria',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
+let items=[],editId=null;
+content.innerHTML=`<div class="panel">
+<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
+<div class="table-wrap"><table class="data"><thead><tr><th>Code</th><th>Basket Code</th><th>Basket Name</th><th>Goal Code</th><th>Wellness Goal</th><th>Priority</th><th>Primary</th><th>Auto Rec.</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Mapping</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0">
+  <div class="field"><label>Mapping Code</label><input id="fCode" placeholder="BGM001"/></div>
+  <div class="field"><label>Basket Code *</label><input id="fBasket" placeholder="CB001"/></div>
+  <div class="field"><label>Basket Name</label><input id="fBName" placeholder="General Healthy Vegetarian"/></div>
+  <div class="field"><label>Goal Code *</label><input id="fGoal" placeholder="WG001"/></div>
+  <div class="field"><label>Wellness Goal</label><input id="fGName" placeholder="General Wellness"/></div>
+  <div class="field"><label>Priority (number)</label><input id="fPri" type="number" placeholder="1"/></div>
+  <div class="field"><label>Primary Basket</label><select id="fPrimary"><option>Yes</option><option>No</option></select></div>
+  <div class="field"><label>Auto Recommend</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field full"><label>Eligibility Criteria</label><input id="fElig" placeholder="Healthy adults (BMI 18.5-24.9)"/></div>
+  <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getBasketGoalMappings();items=d.mappings||[];render();}catch(e){showToast(e.message,'error');}
+}
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} mappings`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.mappingCode||'')}</td><td class="mono">${escapeHtml(i.basketCode||'')}</td>
+    <td>${escapeHtml(i.basketName||'')}</td><td class="mono">${escapeHtml(i.goalCode||'')}</td>
+    <td>${escapeHtml(i.wellnessGoal||'')}</td><td class="num">${i.priority??'–'}</td>
+    <td>${escapeHtml(i.primaryBasket||'')}</td><td>${escapeHtml(i.autoRecommend||'')}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${escapeHtml(i.ruleStatus||'')}</span></td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No records</td></tr>';
+}
+function openModal(i){
+  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Mapping':'Add Mapping';
+  document.getElementById('fCode').value=i?.mappingCode||'';document.getElementById('fBasket').value=i?.basketCode||'';
+  document.getElementById('fBName').value=i?.basketName||'';document.getElementById('fGoal').value=i?.goalCode||'';
+  document.getElementById('fGName').value=i?.wellnessGoal||'';document.getElementById('fPri').value=i?.priority||'';
+  document.getElementById('fPrimary').value=i?.primaryBasket||'Yes';document.getElementById('fAuto').value=i?.autoRecommend||'Yes';
+  document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
+  document.getElementById('fElig').value=i?.eligibilityCriteria||'';document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
+async function save(){
+  const body={mappingCode:g('fCode'),basketCode:g('fBasket'),basketName:g('fBName'),goalCode:g('fGoal'),
+    wellnessGoal:g('fGName'),priority:parseInt(document.getElementById('fPri').value)||null,
+    primaryBasket:g('fPrimary'),autoRecommend:g('fAuto'),clinicalReviewRequired:g('fClin'),
+    ruleStatus:g('fStatus'),eligibilityCriteria:g('fElig'),nutritionistComments:g('fComments')};
+  if(!body.basketCode||!body.goalCode){showToast('Basket Code and Goal Code required','error');return;}
+  try{if(editId)await adminApi.updateBasketGoalMapping(editId,body);else await adminApi.createBasketGoalMapping(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+}
+async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteBasketGoalMapping(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
+load();
+</script></body></html>

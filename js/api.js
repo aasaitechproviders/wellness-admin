@@ -1,13 +1,16 @@
-// admin/js/api.js — shared API client + auth helpers for the KRISHA PURE admin console
+// admin/js/api.js — KRISHA PURE Admin Console shared API client + auth helpers
 
 const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws';
 
-// Role definitions — which sidebar menus each default role can access
-// Admin can override per-user via allowedMenus[]
 const ROLE_DEFAULTS = {
-  admin:     ['dashboard','orders','customers','ingredients','baskets','essential-baskets','subscription-plans','goals','health-challenges','coupons','apartments','team','wellness-partners'],
-  nutrition: ['ingredients','baskets','goals','health-challenges'],
-  team:      ['ingredients','apartments'],
+  admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team',
+              'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
+              'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
+              'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
+  nutrition: ['products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
+              'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
+              'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
+  team:      ['apartments'],
 };
 
 const Auth = {
@@ -24,12 +27,9 @@ const Auth = {
   getRole()        { return localStorage.getItem(this.ROLE_KEY) || 'admin'; },
   isMaster()       { return localStorage.getItem(this.MASTER_KEY) === 'true'; },
 
-  // Returns the set of menu keys this session can see
   getAllowedMenus() {
     const stored = localStorage.getItem(this.MENUS_KEY);
     const role   = this.getRole();
-    // If server sent a custom allowedMenus list and it has items, use that
-    // Otherwise fall back to role defaults
     if (stored) {
       try {
         const arr = JSON.parse(stored);
@@ -40,15 +40,14 @@ const Auth = {
   },
 
   canAccess(menuKey) {
-    // master admin always has full access
     if (this.isMaster()) return true;
     return this.getAllowedMenus().includes(menuKey);
   },
 
   setSession(token, username, role, allowedMenus, displayName, isMaster) {
     localStorage.setItem(this.TOKEN_KEY,   token);
-    localStorage.setItem(this.USER_KEY,    username || 'admin');
-    localStorage.setItem(this.ROLE_KEY,    role     || 'admin');
+    localStorage.setItem(this.USER_KEY,    username    || 'admin');
+    localStorage.setItem(this.ROLE_KEY,    role        || 'admin');
     localStorage.setItem(this.MENUS_KEY,   JSON.stringify(allowedMenus || []));
     localStorage.setItem(this.DISPLAY_KEY, displayName || username || 'admin');
     localStorage.setItem(this.MASTER_KEY,  isMaster ? 'true' : 'false');
@@ -61,22 +60,15 @@ const Auth = {
 
   isLoggedIn() { return !!this.getToken(); },
 
-  // Redirect to login if not authenticated
   guard() {
-    if (!this.isLoggedIn()) { window.location.href = 'index.html'; return; }
+    if (!this.isLoggedIn()) { window.location.href = 'index.html'; }
   },
 
-  // Redirect to login if not authenticated OR if menuKey is not allowed
   guardMenu(menuKey) {
     this.guard();
     if (!this.canAccess(menuKey)) {
-      // Redirect to first allowed page instead of showing 403
       const allowed = this.getAllowedMenus();
-      if (allowed.length) {
-        window.location.href = allowed[0] === 'dashboard' ? 'dashboard.html' : allowed[0] + '.html';
-      } else {
-        window.location.href = 'index.html';
-      }
+      window.location.href = allowed.length ? allowed[0] + '.html' : 'index.html';
     }
   },
 };
@@ -123,121 +115,138 @@ const qs = (params = {}) => {
 const adminApi = {
   login: (username, password) => req('POST', '/admin/login', { username, password }),
 
-  // Dashboard / reports (Statistics)
+  // Dashboard / Reports
   dashboard:          () => req('GET', '/admin/dashboard'),
-  salesReport:        (params) => req('GET', `/admin/reports/sales${qs(params)}`),
+  salesReport:        (p) => req('GET', `/admin/reports/sales${qs(p)}`),
   subscriptionReport: () => req('GET', '/admin/reports/subscriptions'),
 
   // Orders
-  getOrders:    (params) => req('GET', `/admin/orders${qs(params)}`),
-  getOrder:     (id) => req('GET', `/admin/orders/${id}`),
-  updateStatus: (id, status) => req('PUT', `/admin/orders/${id}/status`, { status }),
+  getOrders:    (p)         => req('GET', `/admin/orders${qs(p)}`),
+  getOrder:     (id)        => req('GET', `/admin/orders/${id}`),
+  updateStatus: (id, status)=> req('PUT', `/admin/orders/${id}/status`, { status }),
 
-  // Customers (families)
-  getCustomers:   (params) => req('GET', `/admin/customers${qs(params)}`),
-  getCustomer:    (id) => req('GET', `/admin/customers/${id}`),
-  updateCustomer: (id, body) => req('PUT', `/admin/customers/${id}`, body),
-  addMember:      (id, body) => req('POST', `/admin/customers/${id}/members`, body),
-  updateMember:   (id, memberId, body) => req('PUT', `/admin/customers/${id}/members/${memberId}`, body),
-  deleteMember:   (id, memberId) => req('DELETE', `/admin/customers/${id}/members/${memberId}`),
-
-  // Products (Ingredients) + Images (S3 presign flow)
-  getIngredients:           (params) => req('GET', `/admin/ingredients${qs(params)}`),
-  createIngredient:         (body)   => req('POST', '/admin/ingredients', body),
-  updateIngredient:         (id, body) => req('PUT', `/admin/ingredients/${id}`, body),
-  deleteIngredient:         (id)     => req('DELETE', `/admin/ingredients/${id}`),
-  hardDeleteIngredient:     (id)     => req('DELETE', `/admin/ingredients/${id}/hard`),
-  presignIngredientImage:   (id, mimeType) => req('GET', `/admin/ingredients/${id}/image/presign${qs({ mimeType })}`),
-  confirmIngredientImage:   (id, imageKey, imageUrl) => req('POST', `/admin/ingredients/${id}/image/confirm`, { imageKey, imageUrl }),
-  deleteIngredientImage:    (id) => req('DELETE', `/admin/ingredients/${id}/image`),
-
-  // Subscription Packages
-  getPlans:         () => req('GET', '/admin/subscription-plans'),
-  createPlan:       (body) => req('POST', '/admin/subscription-plans', body),
-  updatePlan:       (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
-  deletePlan:       (id) => req('DELETE', `/admin/subscription-plans/${id}`),
-  hardDeletePlan:   (id) => req('DELETE', `/admin/subscription-plans/${id}/hard`),
-
-  // Wellness Goals
-  getGoals:         () => req('GET', '/admin/goals'),
-  createGoal:       (body) => req('POST', '/admin/goals', body),
-  updateGoal:       (id, body) => req('PUT', `/admin/goals/${id}`, body),
-  deleteGoal:       (id) => req('DELETE', `/admin/goals/${id}`),
-  hardDeleteGoal:   (id) => req('DELETE', `/admin/goals/${id}/hard`),
-  presignGoalImage:  (id, mimeType) => req('GET', `/admin/goals/${id}/image/presign${qs({ mimeType })}`),
-  confirmGoalImage:  (id, imageKey, imageUrl) => req('POST', `/admin/goals/${id}/image/confirm`, { imageKey, imageUrl }),
-  deleteGoalImage:   (id) => req('DELETE', `/admin/goals/${id}/image`),
+  // Customers
+  getCustomers:   (p)              => req('GET', `/admin/customers${qs(p)}`),
+  getCustomer:    (id)             => req('GET', `/admin/customers/${id}`),
+  updateCustomer: (id, body)       => req('PUT', `/admin/customers/${id}`, body),
+  addMember:      (id, body)       => req('POST', `/admin/customers/${id}/members`, body),
+  updateMember:   (id, mid, body)  => req('PUT', `/admin/customers/${id}/members/${mid}`, body),
+  deleteMember:   (id, mid)        => req('DELETE', `/admin/customers/${id}/members/${mid}`),
 
   // Coupons
-  getCoupons:       () => req('GET', '/admin/coupons'),
-  createCoupon:     (body) => req('POST', '/admin/coupons', body),
+  getCoupons:       ()         => req('GET', '/admin/coupons'),
+  createCoupon:     (body)     => req('POST', '/admin/coupons', body),
   updateCoupon:     (id, body) => req('PUT', `/admin/coupons/${id}`, body),
-  deleteCoupon:     (id) => req('DELETE', `/admin/coupons/${id}`),
-  hardDeleteCoupon: (id) => req('DELETE', `/admin/coupons/${id}/hard`),
-
-  // Essential Baskets
-  getEssentialBaskets:         () => req('GET', '/admin/essential-baskets'),
-  createEssentialBasket:       (body) => req('POST', '/admin/essential-baskets', body),
-  updateEssentialBasket:       (id, body) => req('PUT', `/admin/essential-baskets/${id}`, body),
-  deleteEssentialBasket:       (id) => req('DELETE', `/admin/essential-baskets/${id}`),
-  hardDeleteEssentialBasket:   (id) => req('DELETE', `/admin/essential-baskets/${id}/hard`),
-  presignEssentialBasketImage: (id, mimeType) => req('GET', `/admin/essential-baskets/${id}/image/presign${qs({ mimeType })}`),
-  confirmEssentialBasketImage: (id, imageKey, imageUrl) => req('POST', `/admin/essential-baskets/${id}/image/confirm`, { imageKey, imageUrl }),
-  deleteEssentialBasketImage:  (id) => req('DELETE', `/admin/essential-baskets/${id}/image`),
-
-  // Curated Baskets
-  getBaskets:              () => req('GET', '/admin/baskets'),
-  createBasket:            (body) => req('POST', '/admin/baskets', body),
-  updateBasket:            (id, body) => req('PUT', `/admin/baskets/${id}`, body),
-  deleteBasket:            (id) => req('DELETE', `/admin/baskets/${id}`),
-  hardDeleteBasket:        (id) => req('DELETE', `/admin/baskets/${id}/hard`),
-  presignBasketImage:      (id, mimeType) => req('GET', `/admin/baskets/${id}/image/presign${qs({ mimeType })}`),
-  confirmBasketImage:      (id, imageKey, imageUrl) => req('POST', `/admin/baskets/${id}/image/confirm`, { imageKey, imageUrl }),
-  deleteBasketImage:       (id) => req('DELETE', `/admin/baskets/${id}/image`),
+  deleteCoupon:     (id)       => req('DELETE', `/admin/coupons/${id}`),
+  hardDeleteCoupon: (id)       => req('DELETE', `/admin/coupons/${id}/hard`),
 
   // Apartments
-  getApartments:       () => req('GET', '/admin/apartments'),
-  createApartment:     (body) => req('POST', '/admin/apartments', body),
+  getApartments:       ()         => req('GET', '/admin/apartments'),
+  createApartment:     (body)     => req('POST', '/admin/apartments', body),
   updateApartment:     (id, body) => req('PUT', `/admin/apartments/${id}`, body),
-  deleteApartment:     (id) => req('DELETE', `/admin/apartments/${id}`),
-  hardDeleteApartment: (id) => req('DELETE', `/admin/apartments/${id}/hard`),
-
-  // Cities
-  getCities:       () => req('GET', '/admin/cities'),
-  createCity:      (body) => req('POST', '/admin/cities', body),
-  updateCity:      (id, body) => req('PUT', `/admin/cities/${id}`, body),
-  deleteCity:      (id) => req('DELETE', `/admin/cities/${id}`),
-  hardDeleteCity:  (id) => req('DELETE', `/admin/cities/${id}/hard`),
-
-  // Health Challenges
-  getHealthChallenges:        () => req('GET', '/admin/health-challenges'),
-  createHealthChallenge:      (body) => req('POST', '/admin/health-challenges', body),
-  updateHealthChallenge:      (id, body) => req('PUT', `/admin/health-challenges/${id}`, body),
-  deleteHealthChallenge:      (id) => req('DELETE', `/admin/health-challenges/${id}`),
-  hardDeleteHealthChallenge:  (id) => req('DELETE', `/admin/health-challenges/${id}/hard`),
-  presignHealthChallengeImage: (id, mimeType) => req('GET', `/admin/health-challenges/${id}/image/presign${qs({ mimeType })}`),
-  confirmHealthChallengeImage: (id, imageKey, imageUrl) => req('POST', `/admin/health-challenges/${id}/image/confirm`, { imageKey, imageUrl }),
-  deleteHealthChallengeImage:  (id) => req('DELETE', `/admin/health-challenges/${id}/image`),
-
-  getPreferences:             (params) => req('GET', `/admin/preferences${params?'?'+new URLSearchParams(params):''}`),
-  createPreference:           (body) => req('POST', '/admin/preferences', body),
-  updatePreference:           (id, body) => req('PUT', `/admin/preferences/${id}`, body),
-  deletePreference:           (id) => req('DELETE', `/admin/preferences/${id}`),
-  hardDeletePreference:       (id) => req('DELETE', `/admin/preferences/${id}/hard`),
-
-  // Team Users (master admin only)
-  getTeamUsers:    () => req('GET', '/admin/team'),
-  createTeamUser:  (body) => req('POST', '/admin/team', body),
-  updateTeamUser:  (id, body) => req('PUT', `/admin/team/${id}`, body),
-  deleteTeamUser:  (id) => req('DELETE', `/admin/team/${id}`),
+  deleteApartment:     (id)       => req('DELETE', `/admin/apartments/${id}`),
 
   // Wellness Partners
-  getPartners:         () => req('GET', '/admin/wellness-partners'),
-  createPartner:       (body) => req('POST', '/admin/wellness-partners', body),
-  updatePartner:       (id, body) => req('PUT', `/admin/wellness-partners/${id}`, body),
-  deletePartner:       (id) => req('DELETE', `/admin/wellness-partners/${id}`),
-  hardDeletePartner:   (id) => req('DELETE', `/admin/wellness-partners/${id}/hard`),
+  getPartners:       ()         => req('GET', '/admin/wellness-partners'),
+  createPartner:     (body)     => req('POST', '/admin/wellness-partners', body),
+  updatePartner:     (id, body) => req('PUT', `/admin/wellness-partners/${id}`, body),
+  deletePartner:     (id)       => req('DELETE', `/admin/wellness-partners/${id}`),
+
+  // Team Users
+  getTeamUsers:   ()         => req('GET', '/admin/team'),
+  createTeamUser: (body)     => req('POST', '/admin/team', body),
+  updateTeamUser: (id, body) => req('PUT', `/admin/team/${id}`, body),
+  deleteTeamUser: (id)       => req('DELETE', `/admin/team/${id}`),
+
+  // ── Nutrition Engine ──────────────────────────────────────────────
+
+  // Products (kp_products)
+  getProducts:    (p)         => req('GET', `/admin/nutrition/products${qs(p)}`),
+  getProduct:     (id)        => req('GET', `/admin/nutrition/products/${id}`),
+  createProduct:  (body)      => req('POST', '/admin/nutrition/products', body),
+  updateProduct:  (id, body)  => req('PUT', `/admin/nutrition/products/${id}`, body),
+  deleteProduct:  (id)        => req('DELETE', `/admin/nutrition/products/${id}`),
+
+  // Wellness Goals (kp_wellnessGoals)
+  getWellnessGoals:   (p)         => req('GET', `/admin/nutrition/wellness-goals${qs(p)}`),
+  createWellnessGoal: (body)      => req('POST', '/admin/nutrition/wellness-goals', body),
+  updateWellnessGoal: (id, body)  => req('PUT', `/admin/nutrition/wellness-goals/${id}`, body),
+  deleteWellnessGoal: (id)        => req('DELETE', `/admin/nutrition/wellness-goals/${id}`),
+
+  // Health Conditions (kp_healthConditions)
+  getHealthConditions:   (p)         => req('GET', `/admin/nutrition/health-conditions${qs(p)}`),
+  createHealthCondition: (body)      => req('POST', '/admin/nutrition/health-conditions', body),
+  updateHealthCondition: (id, body)  => req('PUT', `/admin/nutrition/health-conditions/${id}`, body),
+  deleteHealthCondition: (id)        => req('DELETE', `/admin/nutrition/health-conditions/${id}`),
+
+  // Activity Levels (kp_activityLevels)
+  getActivityLevels:   (p)         => req('GET', `/admin/nutrition/activity-levels${qs(p)}`),
+  createActivityLevel: (body)      => req('POST', '/admin/nutrition/activity-levels', body),
+  updateActivityLevel: (id, body)  => req('PUT', `/admin/nutrition/activity-levels/${id}`, body),
+  deleteActivityLevel: (id)        => req('DELETE', `/admin/nutrition/activity-levels/${id}`),
+
+  // Lifestyle Codes (kp_lifestyleCodes)
+  getLifestyleCodes:   (p)         => req('GET', `/admin/nutrition/lifestyle-codes${qs(p)}`),
+  createLifestyleCode: (body)      => req('POST', '/admin/nutrition/lifestyle-codes', body),
+  updateLifestyleCode: (id, body)  => req('PUT', `/admin/nutrition/lifestyle-codes/${id}`, body),
+  deleteLifestyleCode: (id)        => req('DELETE', `/admin/nutrition/lifestyle-codes/${id}`),
+
+  // BMI Rules (kp_bmiRules)
+  getBmiRules:   (p)         => req('GET', `/admin/nutrition/bmi-rules${qs(p)}`),
+  createBmiRule: (body)      => req('POST', '/admin/nutrition/bmi-rules', body),
+  updateBmiRule: (id, body)  => req('PUT', `/admin/nutrition/bmi-rules/${id}`, body),
+  deleteBmiRule: (id)        => req('DELETE', `/admin/nutrition/bmi-rules/${id}`),
+
+  // Curated Baskets (kp_curatedBaskets)
+  getCuratedBaskets:   (p)         => req('GET', `/admin/nutrition/curated-baskets${qs(p)}`),
+  createCuratedBasket: (body)      => req('POST', '/admin/nutrition/curated-baskets', body),
+  updateCuratedBasket: (id, body)  => req('PUT', `/admin/nutrition/curated-baskets/${id}`, body),
+  deleteCuratedBasket: (id)        => req('DELETE', `/admin/nutrition/curated-baskets/${id}`),
+
+  // Basket → Goal Mapping (kp_basketGoalMappings)
+  getBasketGoalMappings:   (p)         => req('GET', `/admin/nutrition/basket-goal-mappings${qs(p)}`),
+  createBasketGoalMapping: (body)      => req('POST', '/admin/nutrition/basket-goal-mappings', body),
+  updateBasketGoalMapping: (id, body)  => req('PUT', `/admin/nutrition/basket-goal-mappings/${id}`, body),
+  deleteBasketGoalMapping: (id)        => req('DELETE', `/admin/nutrition/basket-goal-mappings/${id}`),
+
+  // Condition → Basket Mapping (kp_conditionBasketMappings)
+  getConditionBasketMappings:   (p)         => req('GET', `/admin/nutrition/condition-basket-mappings${qs(p)}`),
+  createConditionBasketMapping: (body)      => req('POST', '/admin/nutrition/condition-basket-mappings', body),
+  updateConditionBasketMapping: (id, body)  => req('PUT', `/admin/nutrition/condition-basket-mappings/${id}`, body),
+  deleteConditionBasketMapping: (id)        => req('DELETE', `/admin/nutrition/condition-basket-mappings/${id}`),
+
+  // Goal Macro Rules (kp_goalMacroRules)
+  getGoalMacroRules:   (p)         => req('GET', `/admin/nutrition/goal-macro-rules${qs(p)}`),
+  createGoalMacroRule: (body)      => req('POST', '/admin/nutrition/goal-macro-rules', body),
+  updateGoalMacroRule: (id, body)  => req('PUT', `/admin/nutrition/goal-macro-rules/${id}`, body),
+  deleteGoalMacroRule: (id)        => req('DELETE', `/admin/nutrition/goal-macro-rules/${id}`),
+
+  // Condition Modifier Rules (kp_conditionModifierRules)
+  getConditionModifierRules:   (p)         => req('GET', `/admin/nutrition/condition-modifier-rules${qs(p)}`),
+  createConditionModifierRule: (body)      => req('POST', '/admin/nutrition/condition-modifier-rules', body),
+  updateConditionModifierRule: (id, body)  => req('PUT', `/admin/nutrition/condition-modifier-rules/${id}`, body),
+  deleteConditionModifierRule: (id)        => req('DELETE', `/admin/nutrition/condition-modifier-rules/${id}`),
+
+  // Rule Conflict Priority (kp_ruleConflictPriority)
+  getRuleConflictPriorities:   (p)         => req('GET', `/admin/nutrition/rule-conflict-priority${qs(p)}`),
+  createRuleConflictPriority:  (body)      => req('POST', '/admin/nutrition/rule-conflict-priority', body),
+  updateRuleConflictPriority:  (id, body)  => req('PUT', `/admin/nutrition/rule-conflict-priority/${id}`, body),
+  deleteRuleConflictPriority:  (id)        => req('DELETE', `/admin/nutrition/rule-conflict-priority/${id}`),
+
+  // Nutrient Coverage Targets (kp_nutrientCoverageTargets)
+  getNutrientCoverageTargets:   (p)         => req('GET', `/admin/nutrition/nutrient-coverage-targets${qs(p)}`),
+  createNutrientCoverageTarget: (body)      => req('POST', '/admin/nutrition/nutrient-coverage-targets', body),
+  updateNutrientCoverageTarget: (id, body)  => req('PUT', `/admin/nutrition/nutrient-coverage-targets/${id}`, body),
+  deleteNutrientCoverageTarget: (id)        => req('DELETE', `/admin/nutrition/nutrient-coverage-targets/${id}`),
+
+  // Basket Nutrient Shares (kp_basketNutrientShares)
+  getBasketNutrientShares:   (p)         => req('GET', `/admin/nutrition/basket-nutrient-shares${qs(p)}`),
+  createBasketNutrientShare: (body)      => req('POST', '/admin/nutrition/basket-nutrient-shares', body),
+  updateBasketNutrientShare: (id, body)  => req('PUT', `/admin/nutrition/basket-nutrient-shares/${id}`, body),
+  deleteBasketNutrientShare: (id)        => req('DELETE', `/admin/nutrition/basket-nutrient-shares/${id}`),
 };
+
+// ── Shared utilities ──────────────────────────────────────────────────────────
 
 function showToast(msg, type = 'default') {
   const el = document.createElement('div');
@@ -259,12 +268,12 @@ function fmtDate(d, opts) {
 
 function escapeHtml(str) {
   if (str === undefined || str === null) return '';
-  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  return String(str).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 
 function compressImageToBlob(file, maxDim = 1200, quality = 0.88) {
   return new Promise((resolve, reject) => {
-    const img    = new Image();
+    const img = new Image();
     const reader = new FileReader();
     reader.onerror = () => reject(new Error('Could not read file'));
     reader.onload = () => {
@@ -287,61 +296,4 @@ function compressImageToBlob(file, maxDim = 1200, quality = 0.88) {
     };
     reader.readAsDataURL(file);
   });
-}
-
-async function uploadIngredientImageToS3(ingredientId, file) {
-  const { blob, mimeType } = await compressImageToBlob(file);
-  const { signedUrl, imageKey, imageUrl } = await adminApi.presignIngredientImage(ingredientId, mimeType);
-  const s3Res = await fetch(signedUrl, {
-    method:  'PUT',
-    headers: { 'Content-Type': mimeType },
-    body:    blob,
-  });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
-  await adminApi.confirmIngredientImage(ingredientId, imageKey, imageUrl);
-  return { imageUrl };
-}
-
-async function uploadGoalImageToS3(goalId, file) {
-  const { blob, mimeType } = await compressImageToBlob(file);
-  const { signedUrl, imageKey, imageUrl } = await adminApi.presignGoalImage(goalId, mimeType);
-  const s3Res = await fetch(signedUrl, {
-    method:  'PUT',
-    headers: { 'Content-Type': mimeType },
-    body:    blob,
-  });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
-  await adminApi.confirmGoalImage(goalId, imageKey, imageUrl);
-  return { imageUrl };
-}
-
-async function uploadHealthChallengeImageToS3(challengeId, file) {
-  const { blob, mimeType } = await compressImageToBlob(file);
-  const { signedUrl, imageKey, imageUrl } = await adminApi.presignHealthChallengeImage(challengeId, mimeType);
-  const s3Res = await fetch(signedUrl, {
-    method:  'PUT',
-    headers: { 'Content-Type': mimeType },
-    body:    blob,
-  });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status}) — check bucket CORS and policy`);
-  await adminApi.confirmHealthChallengeImage(challengeId, imageKey, imageUrl);
-  return { imageUrl };
-}
-
-async function uploadBasketImageToS3(basketId, file) {
-  const { blob, mimeType } = await compressImageToBlob(file);
-  const { signedUrl, imageKey, imageUrl } = await adminApi.presignBasketImage(basketId, mimeType);
-  const s3Res = await fetch(signedUrl, { method:'PUT', headers:{'Content-Type':mimeType}, body:blob });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status})`);
-  await adminApi.confirmBasketImage(basketId, imageKey, imageUrl);
-  return { imageUrl };
-}
-
-async function uploadEssentialBasketImageToS3(basketId, file) {
-  const { blob, mimeType } = await compressImageToBlob(file);
-  const { signedUrl, imageKey, imageUrl } = await adminApi.presignEssentialBasketImage(basketId, mimeType);
-  const s3Res = await fetch(signedUrl, { method:'PUT', headers:{'Content-Type':mimeType}, body:blob });
-  if (!s3Res.ok) throw new Error(`S3 upload failed (HTTP ${s3Res.status})`);
-  await adminApi.confirmEssentialBasketImage(basketId, imageKey, imageUrl);
-  return { imageUrl };
 }

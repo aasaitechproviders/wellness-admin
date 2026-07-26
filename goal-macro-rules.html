@@ -6,7 +6,8 @@
 <script>
 const content=renderShell({active:'goal-macro-rules',title:'Goal Macro Rules',sub:'Macronutrient percentage targets per wellness goal',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
 let items=[],editId=null;
-content.innerHTML=`<div class="panel">
+content.innerHTML=`<div id="statsBar"></div>
+<div class="panel">
 <div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
 <div class="table-wrap"><table class="data"><thead><tr><th>Rule Code</th><th>Goal Code</th><th>Goal Name</th><th>Protein %</th><th>Carbs %</th><th>Fat %</th><th>Protein g/kg</th><th>Meal Freq.</th><th>Fibre g</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
 <div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
@@ -29,9 +30,52 @@ content.innerHTML=`<div class="panel">
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
+
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
+  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
+  const totalFields = allKeys.length;
+  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
+  const emptyFields = totalFields - filledFields;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">\${items.length}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">\${totalFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">\${filledFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
+    </div>
+    \${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">\${emptyFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
+    </div>` : ''}
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">\${nestedCount}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
+      <div style="font-size:11px;line-height:1.9">\${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">\${k}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
 async function load(){
   document.getElementById('tbody').innerHTML='<tr><td colspan="11" class="loading-row"><span class="spinner"></span></td></tr>';
-  try{const d=await adminApi.getGoalMacroRules();items=d.rules||[];render();}catch(e){showToast(e.message,'error');}
+  try{const d=await adminApi.getGoalMacroRules();items=d.rules||[];renderStats(items);render();}catch(e){showToast(e.message,'error');}
 }
 function render(){
   const q=(document.getElementById('srch').value||'').toLowerCase();

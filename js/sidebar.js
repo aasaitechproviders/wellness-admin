@@ -31,6 +31,7 @@ const NAV_SECTIONS = [
       { key: 'rule-conflict-priority',    href: 'rule-conflict-priority.html',    label: 'Rule Priority',              icon: 'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5' },
       { key: 'nutrient-coverage-targets', href: 'nutrient-coverage-targets.html', label: 'Nutrient Coverage',          icon: 'M22 12h-4l-3 9L9 3l-3 9H2' },
       { key: 'basket-nutrient-shares',    href: 'basket-nutrient-shares.html',    label: 'Basket Nutrient Shares',     icon: 'M18 20V10 M12 20V4 M6 20v-6' },
+      { key: 'allergies',                 href: 'allergies.html',                 label: 'Allergies',                  icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4' },
     ],
   },
 ];

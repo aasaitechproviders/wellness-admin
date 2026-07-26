@@ -244,6 +244,12 @@ const adminApi = {
   createBasketNutrientShare: (body)      => req('POST', '/admin/nutrition/basket-nutrient-shares', body),
   updateBasketNutrientShare: (id, body)  => req('PUT', `/admin/nutrition/basket-nutrient-shares/${id}`, body),
   deleteBasketNutrientShare: (id)        => req('DELETE', `/admin/nutrition/basket-nutrient-shares/${id}`),
+
+  // Allergies (kp_allergies)
+  getAllergies:    (p)         => req('GET', `/admin/nutrition/allergies${qs(p)}`),
+  createAllergen: (body)      => req('POST', '/admin/nutrition/allergies', body),
+  updateAllergen: (id, body)  => req('PUT', `/admin/nutrition/allergies/${id}`, body),
+  deleteAllergen: (id)        => req('DELETE', `/admin/nutrition/allergies/${id}`),
 };
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

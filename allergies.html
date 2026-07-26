@@ -22,11 +22,7 @@ content.innerHTML = `
 <div class="panel">
   <div class="toolbar">
     <input type="search" id="srch" placeholder="Search allergens…" oninput="render()"/>
-    <select id="catFilter" onchange="render()">
-      <option value="">All Categories</option>
-      ${CATEGORIES.map(c => `<option>${c}</option>`).join('')}
-    </select>
-    <div class="spacer"></div>
+<div class="spacer"></div>
     <span id="cnt" class="muted" style="font-size:12px"></span>
   </div>
   <div class="table-wrap"><table class="data">
@@ -50,7 +46,9 @@ content.innerHTML = `
   </div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
-</div></div>`;
+</div></div>
+
+`;
 
 function renderStats(items) {
   if (!items || !items.length) return;
@@ -81,12 +79,7 @@ async function load() {
 
 function render() {
   const q = (document.getElementById('srch').value || '').toLowerCase();
-  const cat = document.getElementById('catFilter').value;
-  const f = items.filter(i => {
-    if (cat && i.category !== cat) return false;
-    if (q && !JSON.stringify(i).toLowerCase().includes(q)) return false;
-    return true;
-  });
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
   document.getElementById('cnt').textContent = `${f.length} allergens`;
   document.getElementById('tbody').innerHTML = f.map(i => `<tr>
     <td><b>${escapeHtml(i.name || '')}</b></td>

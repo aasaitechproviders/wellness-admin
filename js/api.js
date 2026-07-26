@@ -146,6 +146,12 @@ const adminApi = {
   updateApartment:     (id, body) => req('PUT', `/admin/apartments/${id}`, body),
   deleteApartment:     (id)       => req('DELETE', `/admin/apartments/${id}`),
 
+  // Cities
+  getCities:           ()         => req('GET', '/admin/cities'),
+  createCity:          (body)     => req('POST', '/admin/cities', body),
+  updateCity:          (id, body) => req('PUT', `/admin/cities/${id}`, body),
+  deleteCity:          (id)       => req('DELETE', `/admin/cities/${id}`),
+
   // Wellness Partners
   getPartners:       ()         => req('GET', '/admin/wellness-partners'),
   createPartner:     (body)     => req('POST', '/admin/wellness-partners', body),

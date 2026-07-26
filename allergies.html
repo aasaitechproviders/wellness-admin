@@ -15,8 +15,7 @@ const content = renderShell({
 
 let items = [], editId = null;
 
-const CATEGORIES = ['Nuts', 'Dairy', 'Gluten', 'Seafood', 'Eggs', 'Soy', 'Fruits', 'Vegetables', 'Spices', 'Other'];
-const SEVERITIES = ['Mild', 'Moderate', 'Severe', 'Life-threatening'];
+
 
 content.innerHTML = `
 <div id="statsBar"></div>
@@ -42,13 +41,13 @@ content.innerHTML = `
 <div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
 <div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Allergen</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
 <div class="form-grid" style="padding:4px 0 12px">
-  <div class="field"><label>Allergen Name *</label><input id="fName" placeholder="Peanuts"/></div>
-  <div class="field"><label>Category</label><select id="fCat">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div>
-  <div class="field"><label>Severity</label><select id="fSev">${SEVERITIES.map(s=>`<option>${s}</option>`).join('')}</select></div>
-  <div class="field"><label>Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
-  <div class="field full"><label>Common Names / Aliases</label><input id="fAliases" placeholder="Groundnuts, Monkey nuts (comma separated)"/></div>
-  <div class="field full"><label>Description</label><textarea id="fDesc" rows="2" placeholder="Brief description shown to customer during setup"></textarea></div>
-  <div class="field full"><label>Nutritionist Notes</label><textarea id="fNotes" rows="2" placeholder="Internal notes for nutritionist review"></textarea></div>
+  <div class="field full"><label>Allergy Name *</label><input id="fName" placeholder="e.g. Peanut Allergy"/></div>
+  <div class="field full"><label>Description <span class="opt">(shown to customer)</span></label>
+    <textarea id="fDesc" rows="3" placeholder="e.g. Avoid all foods containing peanuts or groundnuts including peanut butter, mixed nuts, etc."></textarea>
+  </div>
+  <div class="field full"><label>Products to Avoid <span class="opt">(comma separated product names)</span></label>
+    <textarea id="fProducts" rows="3" placeholder="e.g. Peanuts, Groundnuts, Peanut oil, Mixed nuts"></textarea>
+  </div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
@@ -57,22 +56,15 @@ function renderStats(items) {
   if (!items || !items.length) return;
   const el = document.getElementById('statsBar');
   if (!el) return;
-  const byCat = {};
-  items.forEach(i => { byCat[i.category] = (byCat[i.category] || 0) + 1; });
-  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
     <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
       <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Total</span>
     </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="width:1px;background:var(--border);align-self:stretch;min-height:32px"></div>
     <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
       <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${items.filter(i=>i.isActive).length}</span>
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Active</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="flex:1;min-width:180px">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">By Category</div>
-      <div style="font-size:11px;line-height:1.9">${Object.entries(byCat).map(([k,v])=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}: ${v}</span>`).join('')}</div>
     </div>
   </div>`;
 }
@@ -98,10 +90,8 @@ function render() {
   document.getElementById('cnt').textContent = `${f.length} allergens`;
   document.getElementById('tbody').innerHTML = f.map(i => `<tr>
     <td><b>${escapeHtml(i.name || '')}</b></td>
-    <td>${escapeHtml(i.category || '')}</td>
-    <td style="font-size:11px;color:var(--ink-soft)">${escapeHtml((i.aliases || []).join(', '))}</td>
-    <td><span class="pill ${i.severity === 'Life-threatening' ? 'pill-placed' : i.severity === 'Severe' ? 'pill-confirmed' : 'pill-active'}">${escapeHtml(i.severity || '')}</span></td>
-    <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(i.description || '')}</td>
+    <td style="font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(i.description || '')}</td>
+    <td style="font-size:11px;color:var(--ink-soft);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml((i.productsToAvoid || []).join(', '))}</td>
     <td><span class="pill ${i.isActive ? 'pill-active' : 'pill-inactive'}">${i.isActive ? 'Yes' : 'No'}</span></td>
     <td>
       <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
@@ -113,13 +103,9 @@ function render() {
 function openModal(i) {
   editId = i ? i._id : null;
   document.getElementById('mTitle').textContent = i ? 'Edit Allergen' : 'Add Allergen';
-  document.getElementById('fName').value    = i?.name || '';
-  document.getElementById('fCat').value     = i?.category || CATEGORIES[0];
-  document.getElementById('fSev').value     = i?.severity || 'Moderate';
-  document.getElementById('fActive').value  = i?.isActive === false ? 'false' : 'true';
-  document.getElementById('fAliases').value = (i?.aliases || []).join(', ');
-  document.getElementById('fDesc').value    = i?.description || '';
-  document.getElementById('fNotes').value   = i?.nutritionistNotes || '';
+  document.getElementById('fName').value     = i?.name || '';
+  document.getElementById('fDesc').value     = i?.description || '';
+  document.getElementById('fProducts').value = (i?.productsToAvoid || []).join(', ');
   document.getElementById('modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
@@ -130,12 +116,9 @@ async function save() {
   if (!name) { showToast('Allergen name required', 'error'); return; }
   const body = {
     name,
-    category:         g('fCat'),
-    severity:         g('fSev'),
-    isActive:         document.getElementById('fActive').value === 'true',
-    aliases:          (g('fAliases') || '').split(',').map(s => s.trim()).filter(Boolean),
     description:      g('fDesc'),
-    nutritionistNotes: g('fNotes'),
+    productsToAvoid:  (g('fProducts') || '').split(',').map(s => s.trim()).filter(Boolean),
+    isActive:         true,
   };
   try {
     if (editId) await adminApi.updateAllergen(editId, body);

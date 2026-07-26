@@ -251,6 +251,12 @@ const adminApi = {
   updateBasketNutrientShare: (id, body)  => req('PUT', `/admin/nutrition/basket-nutrient-shares/${id}`, body),
   deleteBasketNutrientShare: (id)        => req('DELETE', `/admin/nutrition/basket-nutrient-shares/${id}`),
 
+  // MET Ranges (kp_metRanges)
+  getMetRanges:    (p)         => req('GET', `/admin/nutrition/met-ranges${qs(p)}`),
+  createMetRange:  (body)      => req('POST', '/admin/nutrition/met-ranges', body),
+  updateMetRange:  (id, body)  => req('PUT', `/admin/nutrition/met-ranges/${id}`, body),
+  deleteMetRange:  (id)        => req('DELETE', `/admin/nutrition/met-ranges/${id}`),
+
   // Allergies (kp_allergies)
   getAllergies:    (p)         => req('GET', `/admin/nutrition/allergies${qs(p)}`),
   createAllergen: (body)      => req('POST', '/admin/nutrition/allergies', body),

@@ -12,6 +12,7 @@ const NAV_SECTIONS = [
       { key: 'apartments',        href: 'apartments.html',        label: 'Apartments',         icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6' },
       { key: 'wellness-partners', href: 'wellness-partners.html', label: 'Wellness Partners',  icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M9 11a4 4 0 100-8 4 4 0 000 8z' },
       { key: 'team',              href: 'team.html',              label: 'Team & Access',      icon: 'M12 15a4 4 0 100-8 4 4 0 000 8z M2 21a10 10 0 0120 0 M8.5 8.5a4 4 0 015.2-.3' },
+      { key: 'appointments',      href: 'appointments.html',      label: 'Appointments',       icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
     ],
   },
   {

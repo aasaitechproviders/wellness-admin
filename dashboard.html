@@ -93,19 +93,22 @@ function loadChartJs() {
 
 async function load() {
   try {
-    // Fetch data + Chart.js in parallel
-    const [chartResult, apiResults] = await Promise.all([
-      loadChartJs().catch(e => { throw new Error('Chart library failed to load — check your internet connection'); }),
-      Promise.all([
-        adminApi.dashboard(),
-        adminApi.salesReport(),
-        adminApi.subscriptionReport(),
-      ]),
-    ]);
+    // Fetch dashboard stats first — always show regardless of chart/report errors
+    const { dashboard: d } = await adminApi.dashboard();
 
-    const [{ dashboard: d }, { report: sales }, { report: subs }] = apiResults;
+    // Fetch reports separately — optional, only for charts
+    let sales = { salesByCity:[], salesByDay:[], topItems:[] };
+    let subs  = { byPlan:[], byStatus:[], trend:[] };
+    try {
+      const [sr, subr] = await Promise.all([
+        adminApi.salesReport().catch(() => ({ report: sales })),
+        adminApi.subscriptionReport().catch(() => ({ report: subs })),
+      ]);
+      sales = sr.report || sales;
+      subs  = subr.report || subs;
+    } catch {}
 
-    // ── Stat cards ────────────────────────────────────────
+    // ── Stat cards — render immediately ───────────────────
     document.getElementById('stat-grid').innerHTML = [
       statCard('Active Families',        d.totalFamilies,          GREEN),
       statCard('Total Orders',           d.totalOrders,            GREEN_LIGHT),
@@ -118,6 +121,15 @@ async function load() {
       statCard('Pending Appointments',   d.pendingAppointments||0, '#C0392B'),
       statCard('Active Coupons',         d.totalCoupons,           GOLD),
     ].join('');
+
+    // Load Chart.js separately — charts are optional, stats are not
+    try { await loadChartJs(); } catch {
+      ['chart-trend-wrap','chart-city-wrap','chart-plan-wrap','chart-status-wrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.innerHTML = '<div style="color:var(--ink-faint);font-size:12px;text-align:center">Charts unavailable</div>';
+      });
+      return;
+    }
 
     // Set Chart.js defaults after we know it loaded
     Chart.defaults.font.family = "'DM Sans', sans-serif";

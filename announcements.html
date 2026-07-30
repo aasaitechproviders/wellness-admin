@@ -53,8 +53,8 @@ async function sendAnnouncement() {
   btn.disabled = true; btn.textContent = 'Sending…';
 
   try {
-    await req('POST', '/admin/announcements', { title, body, city: city || undefined });
-    showToast('Announcement sent ✓', 'success');
+    const r = await req('POST', '/admin/announcements', { title, body, city: city || undefined });
+    showToast('Sent to ' + (r.sentTo || 'all') + ' families ✓', 'success');
     document.getElementById('aTitle').value = '';
     document.getElementById('aBody').value  = '';
     loadList();

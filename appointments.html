@@ -89,6 +89,7 @@ function setTab(key) { activeTab = key; renderTabs(); renderList(); }
 
 // ── Load ──
 async function load() {
+  loadNutritionists();
   document.getElementById('listView').innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
   try {
     const [aptRes, prodRes] = await Promise.all([
@@ -151,7 +152,16 @@ async function viewDetail(id) {
 
     let actionHtml = '';
     if (viewApt.status === 'requested') {
-      actionHtml = `<button class="btn btn-primary" onclick="assignToMe()">👩‍⚕️ Assign to Me</button>`;
+      const nutriOptions = (window._nutritionists || [Auth.getDisplayName()]).map(n =>
+        `<option value="${n}" ${n===Auth.getDisplayName()?'selected':''}>${n}</option>`
+      ).join('');
+      actionHtml = `
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="assignTo" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;flex:1">
+            ${nutriOptions}
+          </select>
+          <button class="btn btn-primary" onclick="assignTo()">👩‍⚕️ Assign</button>
+        </div>`;
     } else if (viewApt.status === 'assigned') {
       actionHtml = `<button class="call-btn call-btn-ring" onclick="startCall()">📞 Call ${escapeHtml(viewApt.memberName||'Customer')}</button>`;
     }
@@ -302,10 +312,22 @@ function backToList() {
 }
 
 // ── Actions ──
-async function assignToMe() {
+async function loadNutritionists() {
   try {
-    await req('PUT', `/admin/appointments/${viewApt._id}/assign`, { assignedTo: Auth.getDisplayName() });
-    showToast('Assigned ✓', 'success');
+    const d = await req('GET', '/admin/team');
+    const nutris = (d.users || []).filter(u => u.role === 'nutrition').map(u => u.displayName || u.username);
+    if (!nutris.includes(Auth.getDisplayName())) nutris.unshift(Auth.getDisplayName());
+    window._nutritionists = nutris;
+  } catch {
+    window._nutritionists = [Auth.getDisplayName()];
+  }
+}
+
+async function assignTo() {
+  const assignedTo = document.getElementById('assignTo')?.value || Auth.getDisplayName();
+  try {
+    await req('PUT', `/admin/appointments/${viewApt._id}/assign`, { assignedTo });
+    showToast('Assigned to ' + assignedTo + ' ✓', 'success');
     viewDetail(viewApt._id);
   } catch (e) { showToast(e.message, 'error'); }
 }

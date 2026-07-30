@@ -69,22 +69,40 @@ if (!Auth.isMaster()) {
 let cache = [];
 
 const ALL_MENUS = [
-  { key: 'dashboard',          label: 'Dashboard',             icon: '🏠' },
-  { key: 'orders',             label: 'Orders',                icon: '📋' },
-  { key: 'customers',          label: 'Customers',             icon: '👨‍👩‍👧‍👦' },
-  { key: 'ingredients',        label: 'Products',              icon: '🌿' },
-  { key: 'baskets',            label: 'Curated Baskets',       icon: '🧺' },
-  { key: 'subscription-plans', label: 'Subscription Packages', icon: '📅' },
-  { key: 'goals',              label: 'Wellness Goals',        icon: '🎯' },
-  { key: 'coupons',            label: 'Coupons',               icon: '🎟️' },
-  { key: 'apartments',         label: 'Apartments',            icon: '🏢' },
-  { key: 'wellness-partners',  label: 'Wellness Partners',     icon: '🤝' },
+  { key: 'dashboard',                 label: 'Dashboard',                icon: '🏠' },
+  { key: 'orders',                    label: 'Orders',                   icon: '📋' },
+  { key: 'customers',                 label: 'Customers',                icon: '👨‍👩‍👧‍👦' },
+  { key: 'coupons',                   label: 'Coupons',                  icon: '🎟️' },
+  { key: 'apartments',                label: 'Apartments',               icon: '🏢' },
+  { key: 'wellness-partners',         label: 'Wellness Partners',        icon: '🤝' },
+  { key: 'team',                      label: 'Team & Access',            icon: '👥' },
+  { key: 'appointments',              label: 'Appointments',             icon: '📅' },
+  { key: 'products',                  label: 'Products',                 icon: '🌿' },
+  { key: 'wellness-goals',            label: 'Wellness Goals',           icon: '🎯' },
+  { key: 'health-conditions',         label: 'Health Conditions',        icon: '🛡️' },
+  { key: 'activity-levels',           label: 'Activity Levels',          icon: '⚡' },
+  { key: 'lifestyle-codes',           label: 'Lifestyle Codes',          icon: '💚' },
+  { key: 'bmi-rules',                 label: 'BMI Rules',                icon: '📊' },
+  { key: 'curated-baskets',           label: 'Curated Baskets',          icon: '🧺' },
+  { key: 'basket-goal-mapping',       label: 'Basket → Goal Mapping',    icon: '🔗' },
+  { key: 'condition-basket-mapping',  label: 'Condition → Basket',       icon: '🔗' },
+  { key: 'goal-macro-rules',          label: 'Goal Macro Rules',         icon: '📝' },
+  { key: 'condition-modifier-rules',  label: 'Condition Modifiers',      icon: '✏️' },
+  { key: 'rule-conflict-priority',    label: 'Rule Priority',            icon: '🏆' },
+  { key: 'nutrient-coverage-targets', label: 'Nutrient Coverage',        icon: '📈' },
+  { key: 'basket-nutrient-shares',    label: 'Basket Nutrient Shares',   icon: '📉' },
+  { key: 'allergies',                 label: 'Allergies',                icon: '⚠️' },
+  { key: 'met-ranges',                label: 'MET Ranges',               icon: '⚡' },
 ];
 
 const ROLE_DEFAULTS = {
   admin:     ALL_MENUS.map(m => m.key),
-  nutrition: ['ingredients','baskets','goals'],
-  team:      ['ingredients','apartments'],
+  nutrition: ['appointments','products','wellness-goals','health-conditions','activity-levels',
+              'lifestyle-codes','bmi-rules','curated-baskets','basket-goal-mapping',
+              'condition-basket-mapping','goal-macro-rules','condition-modifier-rules',
+              'rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares',
+              'allergies','met-ranges'],
+  team:      ['apartments','orders','customers'],
 };
 
 content.innerHTML = `

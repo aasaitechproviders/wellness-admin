@@ -87,8 +87,8 @@ async function load() {
   document.getElementById('listView').innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
   try {
     const [aptRes, prodRes] = await Promise.all([
-      adminApi.getAppointments ? req('GET', '/admin/appointments') : Promise.resolve({ appointments: [] }),
-      adminApi.getProducts ? req('GET', '/admin/nutrition/products') : Promise.resolve({ products: [] }),
+      req('GET', '/admin/appointments'),
+      req('GET', '/admin/nutrition/products'),
     ]);
     items = aptRes.appointments || [];
     products = (prodRes.products || []).map(p => p.name).filter(Boolean);

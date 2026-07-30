@@ -251,6 +251,16 @@ const adminApi = {
   updateBasketNutrientShare: (id, body)  => req('PUT', `/admin/nutrition/basket-nutrient-shares/${id}`, body),
   deleteBasketNutrientShare: (id)        => req('DELETE', `/admin/nutrition/basket-nutrient-shares/${id}`),
 
+  // Appointments
+  getAppointments:      (p)         => req('GET', `/admin/appointments${qs(p)}`),
+  getAppointment:       (id)        => req('GET', `/admin/appointments/${id}`),
+  assignAppointment:    (id, body)  => req('PUT', `/admin/appointments/${id}/assign`, body),
+  completeAppointment:  (id, body)  => req('PUT', `/admin/appointments/${id}/complete`, body),
+  cancelAppointment:    (id)        => req('PUT', `/admin/appointments/${id}/cancel`),
+  startCall:            (id)        => req('PUT', `/admin/appointments/${id}/call`),
+  endCall:              (id)        => req('PUT', `/admin/appointments/${id}/end-call`),
+  getCallStatus:        (id)        => req('GET', `/admin/appointments/${id}/call-status`),
+
   // MET Ranges (kp_metRanges)
   getMetRanges:    (p)         => req('GET', `/admin/nutrition/met-ranges${qs(p)}`),
   createMetRange:  (body)      => req('POST', '/admin/nutrition/met-ranges', body),

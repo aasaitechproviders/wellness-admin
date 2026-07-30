@@ -22,7 +22,7 @@ const content = renderShell({
 
 content.innerHTML = `
   <div class="stat-grid" id="stat-grid">
-    ${[...Array(8)].map(() => `<div class="stat-card" style="--accent:var(--border)"><div class="label">Loading…</div><div class="value" style="color:var(--border)">—</div></div>`).join('')}
+    ${[...Array(10)].map(() => `<div class="stat-card" style="--accent:var(--border)"><div class="label">Loading…</div><div class="value" style="color:var(--border)">—</div></div>`).join('')}
   </div>
 
   <div class="panel">
@@ -107,14 +107,16 @@ async function load() {
 
     // ── Stat cards ────────────────────────────────────────
     document.getElementById('stat-grid').innerHTML = [
-      statCard('Active Families',       d.totalFamilies,       GREEN),
-      statCard('Total Orders',          d.totalOrders,         GREEN_LIGHT),
-      statCard('Revenue',               fmtMoney(d.totalRevenue), GOLD),
-      statCard('Active Subscriptions',  d.activeSubscriptions, GREEN),
-      statCard("Today's Orders",        d.todayOrders,         GREEN_LIGHT),
-      statCard('Pending Orders',        d.pendingOrders,       '#C0392B'),
-      statCard('Active Coupons',        d.totalCoupons,        GOLD),
-      statCard('Active Products',       d.totalProducts,       GREEN),
+      statCard('Active Families',        d.totalFamilies,          GREEN),
+      statCard('Total Orders',           d.totalOrders,            GREEN_LIGHT),
+      statCard('Revenue',                fmtMoney(d.totalRevenue), GOLD),
+      statCard('Active Subscriptions',   d.activeSubscriptions,    GREEN),
+      statCard("Today's Orders",         d.todayOrders,            GREEN_LIGHT),
+      statCard('Pending Orders',         d.pendingOrders,          '#C0392B'),
+      statCard('Active Products',        d.totalProducts,          GREEN),
+      statCard('Total Appointments',     d.totalAppointments||0,   GOLD),
+      statCard('Pending Appointments',   d.pendingAppointments||0, '#C0392B'),
+      statCard('Active Coupons',         d.totalCoupons,           GOLD),
     ].join('');
 
     // Set Chart.js defaults after we know it loaded

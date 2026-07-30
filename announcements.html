@@ -1,0 +1,101 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Announcements · KRISHA PURE Admin</title>
+<link rel="stylesheet" href="css/shell.css"/>
+<style>
+.compose-panel { background:#fff; border-radius:14px; border:1.5px solid var(--border); padding:24px; margin-bottom:20px; }
+.compose-panel textarea { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:12px 14px; font-size:14px; font-family:inherit; resize:vertical; min-height:100px; box-sizing:border-box; }
+.compose-panel input[type=text] { width:100%; border:1.5px solid var(--border); border-radius:10px; padding:10px 14px; font-size:14px; font-family:inherit; box-sizing:border-box; margin-bottom:12px; }
+.compose-panel select { border:1.5px solid var(--border); border-radius:10px; padding:10px 14px; font-size:13px; font-family:inherit; background:#fff; }
+.anmt-row { background:#fff; border:1.5px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; }
+.anmt-title { font-weight:700; font-size:14px; margin-bottom:4px; }
+.anmt-body { font-size:13px; color:var(--ink-soft); line-height:1.5; margin-bottom:8px; }
+.anmt-meta { font-size:11px; color:var(--ink-faint); display:flex; gap:12px; }
+</style>
+</head><body>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'announcements',
+  title:  'Announcements',
+  sub:    'Send push notifications to all customers or a specific city',
+  actions: '',
+});
+
+content.innerHTML = `
+  <div class="compose-panel">
+    <div style="font-weight:700;font-size:15px;margin-bottom:14px;color:var(--green-dark)">📢 New Announcement</div>
+    <input type="text" id="aTitle" placeholder="Title (e.g. Weekend Offer 🎉)" />
+    <textarea id="aBody" placeholder="Message to send to customers…"></textarea>
+    <div style="display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap">
+      <select id="aCity">
+        <option value="">All Cities</option>
+        <option value="Coimbatore">Coimbatore</option>
+        <option value="Chennai">Chennai</option>
+      </select>
+      <button class="btn btn-primary" onclick="sendAnnouncement()" id="sendBtn">📤 Send to Customers</button>
+    </div>
+  </div>
+
+  <div style="font-weight:700;font-size:14px;margin-bottom:12px">Recent Announcements</div>
+  <div id="list"><div class="empty"><div class="icon">📢</div>Loading…</div></div>
+`;
+
+async function sendAnnouncement() {
+  const title = document.getElementById('aTitle').value.trim();
+  const body  = document.getElementById('aBody').value.trim();
+  const city  = document.getElementById('aCity').value;
+  if (!title) return showToast('Title is required', 'error');
+  if (!body)  return showToast('Message body is required', 'error');
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try {
+    await req('POST', '/admin/announcements', { title, body, city: city || undefined });
+    showToast('Announcement sent ✓', 'success');
+    document.getElementById('aTitle').value = '';
+    document.getElementById('aBody').value  = '';
+    loadList();
+  } catch (e) {
+    showToast(e.message || 'Failed to send', 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '📤 Send to Customers';
+  }
+}
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now() - new Date(d)) / 1000);
+  if (s < 60)    return 'just now';
+  if (s < 3600)  return Math.floor(s/60)   + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+async function loadList() {
+  try {
+    const d = await req('GET', '/admin/announcements');
+    const list = d.announcements || [];
+    if (!list.length) {
+      document.getElementById('list').innerHTML = '<div class="empty"><div class="icon">📢</div>No announcements sent yet</div>';
+      return;
+    }
+    document.getElementById('list').innerHTML = list.map(a => `
+      <div class="anmt-row">
+        <div class="anmt-title">📢 ${escapeHtml(a.title)}</div>
+        <div class="anmt-body">${escapeHtml(a.body)}</div>
+        <div class="anmt-meta">
+          <span>🕐 ${timeAgo(a.createdAt)}</span>
+          ${a.city ? `<span>📍 ${escapeHtml(a.city)}</span>` : '<span>🌐 All cities</span>'}
+        </div>
+      </div>
+    `).join('');
+  } catch {
+    document.getElementById('list').innerHTML = '<div class="empty"><div class="icon">⚠️</div>Failed to load</div>';
+  }
+}
+
+loadList();
+</script>
+</body></html>

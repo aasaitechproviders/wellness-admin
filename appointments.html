@@ -40,8 +40,13 @@ const content = renderShell({
   sub: 'Nutritionist consultation management — view, assign, call & complete',
 });
 
-let items = [], products = [], viewApt = null, callPollTimer = null, callDuration = 0, callTimer = null;
-let pc = null, localStream = null;
+let items = [], products = [], viewApt = null, callDuration = 0, callTimer = null;
+let pc = null, localStream = null, callWs = null, iceBuf = [];
+const WS_URL = 'ws://13.207.147.69:3001';
+const ICE_SERVERS = [
+  { urls: 'stun:13.207.147.69:3478' },
+  { urls: 'turn:13.207.147.69:3478', username: 'krishapure', credential: 'kp_turn_2026' },
+];
 
 content.innerHTML = `
 <div class="tab-bar" id="tabs"></div>
@@ -329,29 +334,20 @@ async function completeConsultation() {
 async function startCall() {
   if (!viewApt) return;
   try {
-    // Set status to ringing
     await req('PUT', `/admin/appointments/${viewApt._id}/call`);
 
-    // Show call overlay
     document.getElementById('callName').textContent = viewApt.memberName || 'Customer';
     document.getElementById('callSub').textContent = '+91 ' + (viewApt.phone || '');
     document.getElementById('callStatusText').textContent = '📞 Ringing…';
     document.getElementById('callDurationText').textContent = '00:00';
     document.getElementById('callOverlay').classList.add('show');
     callDuration = 0;
+    iceBuf = [];
 
-    // Get microphone
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     document.getElementById('localAudio').srcObject = localStream;
 
-    // Create peer connection
-    pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-      ]
-    });
-
+    pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
     pc.ontrack = (e) => {
@@ -359,10 +355,8 @@ async function startCall() {
     };
 
     pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        req('POST', '/admin/rtc/signal', {
-          appointmentId: viewApt._id, type: 'ice-candidate', data: JSON.stringify(e.candidate),
-        }).catch(() => {});
+      if (e.candidate && callWs && callWs.readyState === WebSocket.OPEN) {
+        callWs.send(JSON.stringify({ type: 'ice-candidate', appointmentId: viewApt._id, data: JSON.stringify(e.candidate) }));
       }
     };
 
@@ -376,42 +370,51 @@ async function startCall() {
           document.getElementById('callDurationText').textContent = `${m}:${s}`;
         }, 1000);
       }
-      if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      if (['disconnected','failed','closed'].includes(pc.connectionState)) endCall();
+    };
+
+    // Connect WebSocket signaling
+    callWs = new WebSocket(WS_URL);
+
+    callWs.onopen = () => {
+      callWs.send(JSON.stringify({ type: 'join', appointmentId: viewApt._id, role: 'admin' }));
+    };
+
+    callWs.onmessage = async (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'customer-ready') {
+        document.getElementById('callStatusText').textContent = '🔄 Connecting…';
+        // Create and send offer now that customer is connected
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        callWs.send(JSON.stringify({ type: 'offer', appointmentId: viewApt._id, data: JSON.stringify(offer) }));
+      }
+
+      if (msg.type === 'answer' && pc && pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(JSON.parse(msg.data));
+        // Flush buffered ICE candidates
+        for (const c of iceBuf) {
+          try { await pc.addIceCandidate(c); } catch {}
+        }
+        iceBuf = [];
+      }
+
+      if (msg.type === 'ice-candidate' && pc) {
+        const candidate = JSON.parse(msg.data);
+        if (pc.remoteDescription) {
+          try { await pc.addIceCandidate(candidate); } catch {}
+        } else {
+          iceBuf.push(candidate);
+        }
+      }
+
+      if (msg.type === 'end-call' || msg.type === 'peer-disconnected') {
         endCall();
       }
     };
 
-    // Create offer
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await req('POST', '/admin/rtc/signal', {
-      appointmentId: viewApt._id, type: 'offer', data: JSON.stringify(offer),
-    });
-
-    // Poll for customer's answer and ICE candidates
-    callPollTimer = setInterval(async () => {
-      try {
-        // Check call status
-        const cs = await req('GET', `/admin/appointments/${viewApt._id}/call-status`);
-        if (cs.callStatus === 'declined' || cs.callStatus === 'ended') {
-          endCall();
-          return;
-        }
-        if (cs.callStatus === 'accepted') {
-          document.getElementById('callStatusText').textContent = '🔄 Connecting…';
-        }
-
-        // Get signals from customer
-        const sd = await req('GET', `/admin/rtc/signal/${viewApt._id}`);
-        for (const sig of (sd.signals || [])) {
-          if (sig.type === 'answer' && pc && pc.signalingState === 'have-local-offer') {
-            await pc.setRemoteDescription(JSON.parse(sig.data));
-          } else if (sig.type === 'ice-candidate' && pc) {
-            try { await pc.addIceCandidate(JSON.parse(sig.data)); } catch {}
-          }
-        }
-      } catch {}
-    }, 1500);
+    callWs.onerror = () => showToast('WebSocket error', 'error');
 
   } catch (e) {
     showToast('Could not start call: ' + e.message, 'error');
@@ -420,19 +423,19 @@ async function startCall() {
 }
 
 async function endCall() {
-  if (callPollTimer) { clearInterval(callPollTimer); callPollTimer = null; }
   if (callTimer) { clearInterval(callTimer); callTimer = null; }
   if (pc) { pc.close(); pc = null; }
   if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (callWs) {
+    if (callWs.readyState === WebSocket.OPEN) {
+      callWs.send(JSON.stringify({ type: 'end-call', appointmentId: viewApt?._id }));
+    }
+    callWs.close();
+    callWs = null;
+  }
   document.getElementById('callOverlay').classList.remove('show');
-
   if (viewApt) {
-    try {
-      await req('PUT', `/admin/appointments/${viewApt._id}/end-call`);
-      await req('POST', '/admin/rtc/signal', {
-        appointmentId: viewApt._id, type: 'end-call', data: '{}',
-      });
-    } catch {}
+    try { await req('PUT', `/admin/appointments/${viewApt._id}/end-call`); } catch {}
   }
 }
 

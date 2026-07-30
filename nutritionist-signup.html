@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Join as Wellness Partner · KRISHA PURE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+body { background: linear-gradient(160deg,#1E4D26 0%,#173A1D 100%); min-height:100vh; padding:24px 16px; }
+.page-wrap { max-width:780px; margin:0 auto; }
+.page-head { text-align:center; margin-bottom:28px; color:#fff; }
+.page-head img { width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);padding:8px;margin-bottom:12px; }
+.page-head h1 { font-family:var(--font-head);font-size:26px;font-weight:700;margin:0 0 6px; }
+.page-head p  { font-size:13px;opacity:.75;margin:0; }
+.form-card { background:#fff;border-radius:18px;padding:28px 28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.25); }
+.form-section-head { grid-column:1/-1;display:flex;align-items:center;gap:10px;margin:20px 0 8px;padding-bottom:8px;border-bottom:2px solid var(--green-pale); }
+.form-section-head:first-child { margin-top:0; }
+.form-section-head .sec-num { width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+.form-section-head .sec-title { font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--ink); }
+.form-section-head .sec-sub { font-size:11.5px;color:var(--ink-faint);font-weight:400;margin-left:2px; }
+.option-group { grid-column:1/-1;margin-bottom:6px; }
+.option-group-label { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:7px;padding:4px 0; }
+.option-chips { display:flex;flex-wrap:wrap;gap:7px; }
+.opt-chip { display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--border);background:#fff;font-size:12.5px;font-weight:500;color:var(--ink-soft);transition:all .12s;user-select:none; }
+.opt-chip:hover { border-color:var(--green);color:var(--green);background:var(--green-pale); }
+.opt-chip.on { border-color:var(--green);background:var(--green);color:#fff; }
+.opt-chip input { display:none; }
+.sub-section-label { grid-column:1/-1;font-size:12px;font-weight:700;color:var(--green);margin:10px 0 5px;display:flex;align-items:center;gap:8px; }
+.sub-section-label::after { content:'';flex:1;height:1px;background:var(--border); }
+.cert-list,.product-list { grid-column:1/-1;display:flex;flex-direction:column;gap:10px; }
+.cert-card,.product-card { border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--cream);position:relative; }
+.cert-remove { position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--ink-faint);font-size:16px;line-height:1; }
+.cert-remove:hover { color:var(--red); }
+.add-more-btn { grid-column:1/-1;padding:8px 16px;border:1.5px dashed var(--border);background:none;border-radius:8px;font-size:13px;color:var(--green);cursor:pointer;font-weight:600;margin-top:4px; }
+.add-more-btn:hover { background:var(--green-pale); }
+.msg { font-size:12.5px;padding:10px 14px;border-radius:8px;margin-bottom:16px;display:none; }
+.msg.error   { background:var(--red-pale);color:var(--red); }
+.msg.success { background:var(--green-pale);color:var(--green-dark); }
+.submit-row { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;flex-wrap:wrap; }
+.back-link { font-size:13px;color:var(--ink-soft);text-decoration:none;display:flex;align-items:center;gap:4px; }
+.back-link:hover { color:var(--green-dark); }
+@media(max-width:560px){ .form-card{padding:20px 16px;} }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+  <div class="page-head">
+    <img src="Krisha_Pure_transparent.png" alt="Krisha Pure"/>
+    <h1>Join as a Wellness Partner</h1>
+    <p>Register your practice with KRISHA PURE. Our team will review your application and get back to you shortly.</p>
+  </div>
+
+  <div class="form-card">
+    <div class="msg error"   id="form-error"></div>
+    <div class="msg success" id="form-success"></div>
+
+    <form class="form-grid" id="signup-form" style="gap:0 16px">
+
+      <!-- §1 Basic Information -->
+      <div class="form-section-head"><div class="sec-num">1</div><span class="sec-title">Basic Information</span></div>
+      <div class="field"><label>Full Name / Business Name *</label><input name="businessName" placeholder="Your name or practice name" required/></div>
+      <div class="field"><label>Brand / Display Name</label><input name="brandName" placeholder="Customer-facing name (if different)"/></div>
+      <div class="field"><label>Contact Person *</label><input name="contactPerson" placeholder="Primary coordinator" required/></div>
+      <div class="field"><label>Mobile Number *</label><input name="mobile" type="tel" placeholder="10-digit mobile" required/></div>
+      <div class="field"><label>Email Address</label><input name="email" type="email" placeholder="official@example.com"/></div>
+      <div class="field"><label>Website / Social</label><input name="website" placeholder="https:// or instagram link"/></div>
+      <div class="field full"><label>Business Address</label><textarea name="businessAddress" rows="2" placeholder="Street, area, city…"></textarea></div>
+      <div class="field"><label>Year Established</label><input name="yearEstablished" type="number" placeholder="e.g. 2015"/></div>
+      <div class="field"><label>Number of Employees</label><input name="numEmployees" type="number" placeholder="e.g. 5"/></div>
+
+      <!-- §2 Wellness Category -->
+      <div class="form-section-head"><div class="sec-num">2</div><span class="sec-title">Wellness Category</span><span class="sec-sub">— select all that apply</span></div>
+      <div class="option-group"><div class="sub-section-label">Health &amp; Nutrition</div><div class="option-chips" id="cat-Health_Nutrition"></div></div>
+      <div class="option-group"><div class="sub-section-label">Fitness</div><div class="option-chips" id="cat-Fitness"></div></div>
+      <div class="option-group"><div class="sub-section-label">Medical &amp; Preventive Care</div><div class="option-chips" id="cat-Medical_Preventive"></div></div>
+      <div class="option-group"><div class="sub-section-label">Natural Wellness</div><div class="option-chips" id="cat-Natural_Wellness"></div></div>
+      <div class="option-group"><div class="sub-section-label">Lifestyle Wellness</div><div class="option-chips" id="cat-Lifestyle_Wellness"></div></div>
+
+      <!-- §3 Service Information -->
+      <div class="form-section-head"><div class="sec-num">3</div><span class="sec-title">Service Information</span></div>
+      <div class="field full"><label>Services Offered</label><input name="servicesOffered" placeholder="e.g. Diet Consultation, Meal Planning"/></div>
+      <div class="field full"><label>Service Description</label><textarea name="serviceDescription" rows="2" placeholder="Brief description of your services…"></textarea></div>
+      <div class="field full"><label>Service Mode</label><div class="option-chips" id="chips-serviceMode"></div></div>
+      <div class="field full"><label>Delivery Mode</label><div class="option-chips" id="chips-deliveryMode"></div></div>
+      <div class="field"><label>Service Area / City</label><input name="serviceArea" placeholder="e.g. Coimbatore"/></div>
+      <div class="field"><label>Languages Supported</label><input name="languages" placeholder="e.g. Tamil, English"/></div>
+      <div class="field"><label>Consultation Duration</label><input name="consultationDuration" placeholder="e.g. 30 minutes"/></div>
+      <div class="field"><label>Pricing Range</label><input name="pricingRange" placeholder="e.g. ₹500 – ₹1500"/></div>
+
+      <!-- §4 Qualifications & Certifications -->
+      <div class="form-section-head"><div class="sec-num">4</div><span class="sec-title">Qualifications &amp; Certifications</span><span class="sec-sub">— for trust-building</span></div>
+      <div class="cert-list" id="cert-list"></div>
+      <button type="button" class="add-more-btn" id="add-cert-btn">+ Add Certification</button>
+
+      <!-- §5 Product Information -->
+      <div class="form-section-head"><div class="sec-num">5</div><span class="sec-title">Product Information</span><span class="sec-sub">— if selling products</span></div>
+      <div class="product-list" id="product-list"></div>
+      <button type="button" class="add-more-btn" id="add-prod-btn">+ Add Product</button>
+
+      <!-- §6 Quality & Compliance -->
+      <div class="form-section-head"><div class="sec-num">6</div><span class="sec-title">Quality &amp; Compliance</span></div>
+      <div class="field full"><label>Registered Under</label><div class="option-chips" id="chips-compliance"></div></div>
+      <div class="field full"><label>Certificates / Licenses</label><textarea name="complianceDocs" rows="2" placeholder="Paste links or describe documents…"></textarea></div>
+
+      <!-- §7 Customer Experience -->
+      <div class="form-section-head"><div class="sec-num">7</div><span class="sec-title">Customer Experience</span></div>
+      <div class="field"><label>Number of Customers Served</label><input name="numCustomers" placeholder="e.g. 200+"/></div>
+      <div class="field"><label>Google Reviews Link</label><input name="googleReviews" placeholder="https://g.page/..."/></div>
+      <div class="field full"><label>Testimonials / Social Proof</label><textarea name="testimonials" rows="2" placeholder="Key testimonials or social proof…"></textarea></div>
+      <div class="field"><label>Apartment Communities Served</label><input name="communitiesServed" placeholder="e.g. Green Meadows, Prestige Park"/></div>
+      <div class="field"><label>Corporate Clients</label><input name="corporateClients" placeholder="e.g. TCS, Infosys"/></div>
+
+      <!-- §8 Partnership Model -->
+      <div class="form-section-head"><div class="sec-num">8</div><span class="sec-title">Partnership Model</span><span class="sec-sub">— how you'd like to work with KRISHA PURE</span></div>
+      <div class="field full"><label>Interested In</label><div class="option-chips" id="chips-partnership"></div></div>
+
+      <!-- §9 Wellness Basket Contribution -->
+      <div class="form-section-head"><div class="sec-num">9</div><span class="sec-title">Wellness Basket Contribution</span></div>
+      <div class="field"><label>Products / Services for Basket</label><input name="basketContrib" placeholder="e.g. Herbal Tea, Moringa Powder"/></div>
+      <div class="field"><label>Recommended Customer Segment</label><input name="basketSegment" placeholder="e.g. Seniors, Diabetic Customers"/></div>
+      <div class="field"><label>Shelf Life</label><input name="shelfLifeBasket" placeholder="e.g. 12 Months"/></div>
+      <div class="field">
+        <label>Sample Availability</label>
+        <select name="sampleAvailable"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+      </div>
+      <div class="field"><label>MOQ</label><input name="moq" placeholder="e.g. 100 Units"/></div>
+      <div class="field"><label>Bulk Pricing</label><input name="bulkPricing" placeholder="e.g. ₹45/unit"/></div>
+      <div class="field">
+        <label>Custom Branding Available</label>
+        <select name="customBranding"><option value="">Select</option><option value="Yes">Yes</option><option value="No">No</option></select>
+      </div>
+
+      <!-- §10 Apartment Engagement -->
+      <div class="form-section-head"><div class="sec-num">10</div><span class="sec-title">Apartment Engagement Readiness</span></div>
+      <div class="field full"><label>Can Conduct</label><div class="option-chips" id="chips-apartment"></div></div>
+
+      <!-- §11 Customer Segments -->
+      <div class="form-section-head"><div class="sec-num">11</div><span class="sec-title">Customer Segments Served</span></div>
+      <div class="field full"><div class="option-chips" id="chips-segments"></div></div>
+
+      <!-- Account -->
+      <div class="form-section-head"><div class="sec-num">✦</div><span class="sec-title">Login Credentials</span><span class="sec-sub">— used after approval</span></div>
+      <div class="field"><label>Password *</label><input name="password" type="password" placeholder="Choose a strong password (min 6 chars)" required/></div>
+      <div class="field"><label>Confirm Password *</label><input name="confirmPassword" type="password" placeholder="Re-enter password" required/></div>
+
+    </form>
+
+    <div class="submit-row">
+      <a href="index.html" class="back-link">← Back to Sign In</a>
+      <button class="btn btn-primary" id="submit-btn" onclick="doSubmit()" style="padding:12px 32px;font-size:14px">
+        Submit Application →
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+const WELLNESS_CATEGORIES = {
+  'Health & Nutrition':        ['Nutritionist','Dietitian','Health Coach','Wellness Consultant'],
+  'Fitness':                   ['Yoga Instructor','Fitness Trainer','Pilates Trainer','Zumba Trainer'],
+  'Medical & Preventive Care': ['General Physician','Physiotherapist','Mental Wellness Counselor','Health Screening Provider'],
+  'Natural Wellness':          ['Organic Food Supplier','Herbal Products','Essential Oils','Ayurveda'],
+  'Lifestyle Wellness':        ['Meditation Coach','Stress Management Coach','Sleep Coach','Corporate Wellness Trainer'],
+};
+const PARTNERSHIP_MODELS   = ['Product Sales','Consultation Services','Apartment Events','Wellness Camps','Workshops','Monthly Wellness Basket','Seasonal Wellness Programs','Subscription Programs'];
+const APARTMENT_ACTIVITIES = ['Health Talks','Yoga Sessions','Nutrition Workshops','Kids Wellness Programs','Senior Citizen Programs',"Women's Wellness Programs",'Corporate Wellness Sessions'];
+const CUSTOMER_SEGMENTS    = ['Young Professionals','Families with Children','Senior Citizens','Pregnant Women','Fitness Enthusiasts','Diabetic Customers','Weight Loss Customers','Corporate Employees'];
+const COMPLIANCE_OPTIONS   = ['FSSAI','GST','MSME','ISO Certification','Organic Certification','GMP Certification'];
+const SERVICE_MODES        = ['Individual','Family','Corporate'];
+const DELIVERY_MODES       = ['Online','Offline','Both'];
+
+function chips(id) { return [...(document.getElementById(id)?.querySelectorAll('.opt-chip.on')||[])].map(c=>c.dataset.v); }
+
+function renderChips(id, options) {
+  const wrap = document.getElementById(id);
+  if (!wrap) return;
+  wrap.innerHTML = options.map(o =>
+    `<label class="opt-chip" data-v="${escapeHtml(o)}"><input type="checkbox"/>${escapeHtml(o)}</label>`
+  ).join('');
+  wrap.querySelectorAll('.opt-chip').forEach(c =>
+    c.addEventListener('click', e => { e.preventDefault(); c.classList.toggle('on'); })
+  );
+}
+
+// Init all chip groups
+const CAT_MAP = {
+  'Health_Nutrition':   'Health & Nutrition',
+  'Fitness':            'Fitness',
+  'Medical_Preventive': 'Medical & Preventive Care',
+  'Natural_Wellness':   'Natural Wellness',
+  'Lifestyle_Wellness': 'Lifestyle Wellness',
+};
+Object.entries(CAT_MAP).forEach(([id, cat]) => renderChips('cat-'+id, WELLNESS_CATEGORIES[cat]||[]));
+renderChips('chips-serviceMode',  SERVICE_MODES);
+renderChips('chips-deliveryMode', DELIVERY_MODES);
+renderChips('chips-compliance',   COMPLIANCE_OPTIONS);
+renderChips('chips-partnership',  PARTNERSHIP_MODELS);
+renderChips('chips-apartment',    APARTMENT_ACTIVITIES);
+renderChips('chips-segments',     CUSTOMER_SEGMENTS);
+
+// Cert repeater
+let certs = [];
+function renderCerts() {
+  const listEl = document.getElementById('cert-list');
+  listEl.innerHTML = certs.map((c,i) => `
+    <div class="cert-card">
+      <button type="button" class="cert-remove" data-i="${i}">✕</button>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0 12px">
+        <div class="field"><label>Qualification</label><input name="cert_qual_${i}" value="${escapeHtml(c.qualification||'')}"/></div>
+        <div class="field"><label>University / Institution</label><input name="cert_uni_${i}" value="${escapeHtml(c.university||'')}"/></div>
+        <div class="field"><label>Certification Name</label><input name="cert_name_${i}" value="${escapeHtml(c.certName||'')}"/></div>
+        <div class="field"><label>Certification Number</label><input name="cert_num_${i}" value="${escapeHtml(c.certNumber||'')}"/></div>
+        <div class="field"><label>Validity Date</label><input name="cert_valid_${i}" type="date" value="${escapeHtml(c.validityDate||'')}"/></div>
+        <div class="field"><label>Registration Number</label><input name="cert_reg_${i}" value="${escapeHtml(c.registrationNo||'')}"/></div>
+      </div>
+    </div>`).join('');
+  listEl.querySelectorAll('.cert-remove').forEach(btn =>
+    btn.addEventListener('click', () => { certs.splice(+btn.dataset.i,1); renderCerts(); })
+  );
+}
+document.getElementById('add-cert-btn').addEventListener('click', () => { certs.push({}); renderCerts(); });
+renderCerts();
+
+// Product repeater
+let prods = [];
+function renderProds() {
+  const listEl = document.getElementById('product-list');
+  listEl.innerHTML = prods.map((p,i) => `
+    <div class="product-card">
+      <button type="button" class="cert-remove" data-i="${i}">✕</button>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0 12px">
+        <div class="field"><label>Product Name</label><input name="prod_name_${i}" value="${escapeHtml(p.productName||'')}"/></div>
+        <div class="field"><label>Category</label><input name="prod_cat_${i}" value="${escapeHtml(p.category||'')}"/></div>
+        <div class="field full"><label>Ingredients</label><input name="prod_ing_${i}" value="${escapeHtml(p.ingredients||'')}" placeholder="comma-separated"/></div>
+        <div class="field"><label>Shelf Life</label><input name="prod_shelf_${i}" value="${escapeHtml(p.shelfLife||'')}"/></div>
+        <div class="field"><label>Packaging Type</label><input name="prod_pack_${i}" value="${escapeHtml(p.packagingType||'')}"/></div>
+      </div>
+    </div>`).join('');
+  listEl.querySelectorAll('.cert-remove').forEach(btn =>
+    btn.addEventListener('click', () => { prods.splice(+btn.dataset.i,1); renderProds(); })
+  );
+}
+document.getElementById('add-prod-btn').addEventListener('click', () => { prods.push({}); renderProds(); });
+renderProds();
+
+function getCerts() {
+  return certs.map((_,i) => ({
+    qualification:  (document.querySelector(`[name=cert_qual_${i}]`)?.value||'').trim(),
+    university:     (document.querySelector(`[name=cert_uni_${i}]`)?.value||'').trim(),
+    certName:       (document.querySelector(`[name=cert_name_${i}]`)?.value||'').trim(),
+    certNumber:     (document.querySelector(`[name=cert_num_${i}]`)?.value||'').trim(),
+    validityDate:   (document.querySelector(`[name=cert_valid_${i}]`)?.value||'').trim(),
+    registrationNo: (document.querySelector(`[name=cert_reg_${i}]`)?.value||'').trim(),
+  })).filter(c => c.qualification || c.certName);
+}
+function getProds() {
+  return prods.map((_,i) => ({
+    productName:  (document.querySelector(`[name=prod_name_${i}]`)?.value||'').trim(),
+    category:     (document.querySelector(`[name=prod_cat_${i}]`)?.value||'').trim(),
+    ingredients:  (document.querySelector(`[name=prod_ing_${i}]`)?.value||'').trim(),
+    shelfLife:    (document.querySelector(`[name=prod_shelf_${i}]`)?.value||'').trim(),
+    packagingType:(document.querySelector(`[name=prod_pack_${i}]`)?.value||'').trim(),
+  })).filter(p => p.productName);
+}
+
+async function doSubmit() {
+  const errEl = document.getElementById('form-error');
+  const okEl  = document.getElementById('form-success');
+  errEl.style.display = 'none'; okEl.style.display = 'none';
+
+  const fd = new FormData(document.getElementById('signup-form'));
+  const g  = n => (fd.get(n)||'').trim();
+
+  if (!g('businessName'))  { errEl.textContent='Full name / business name is required'; errEl.style.display='block'; window.scrollTo(0,0); return; }
+  if (!g('contactPerson')) { errEl.textContent='Contact person is required'; errEl.style.display='block'; return; }
+  if (!g('mobile')||g('mobile').length<10) { errEl.textContent='Valid mobile number is required'; errEl.style.display='block'; return; }
+  if (!g('password')||g('password').length<6) { errEl.textContent='Password must be at least 6 characters'; errEl.style.display='block'; return; }
+  if (g('password') !== g('confirmPassword')) { errEl.textContent='Passwords do not match'; errEl.style.display='block'; return; }
+
+  // Collect categories
+  const subCategories = [], categories = [];
+  Object.entries(CAT_MAP).forEach(([id, cat]) => {
+    const picked = chips('cat-'+id);
+    if (picked.length) { categories.push(cat); subCategories.push(...picked); }
+  });
+
+  const body = {
+    fullName:            g('businessName'),
+    businessName:        g('businessName'),
+    brandName:           g('brandName')           || undefined,
+    contactPerson:       g('contactPerson'),
+    phone:               g('mobile'),
+    mobile:              g('mobile'),
+    email:               g('email')               || undefined,
+    website:             g('website')             || undefined,
+    businessAddress:     g('businessAddress')     || undefined,
+    yearEstablished:     g('yearEstablished')     || undefined,
+    numEmployees:        g('numEmployees')        || undefined,
+    categories,
+    subCategories,
+    servicesOffered:     g('servicesOffered')     || undefined,
+    serviceDescription:  g('serviceDescription')  || undefined,
+    serviceMode:         chips('chips-serviceMode'),
+    deliveryMode:        chips('chips-deliveryMode'),
+    serviceArea:         g('serviceArea')         || undefined,
+    languages:           g('languages')           || undefined,
+    consultationDuration:g('consultationDuration')|| undefined,
+    pricingRange:        g('pricingRange')        || undefined,
+    certifications:      getCerts(),
+    products:            getProds(),
+    compliance:          chips('chips-compliance'),
+    complianceDocs:      g('complianceDocs')      || undefined,
+    numCustomers:        g('numCustomers')        || undefined,
+    testimonials:        g('testimonials')        || undefined,
+    googleReviews:       g('googleReviews')       || undefined,
+    communitiesServed:   g('communitiesServed')   || undefined,
+    corporateClients:    g('corporateClients')    || undefined,
+    partnershipModels:   chips('chips-partnership'),
+    basketContrib:       g('basketContrib')       || undefined,
+    basketSegment:       g('basketSegment')       || undefined,
+    shelfLifeBasket:     g('shelfLifeBasket')     || undefined,
+    sampleAvailable:     g('sampleAvailable')     || undefined,
+    moq:                 g('moq')                 || undefined,
+    bulkPricing:         g('bulkPricing')         || undefined,
+    customBranding:      g('customBranding')      || undefined,
+    apartmentActivities: chips('chips-apartment'),
+    customerSegments:    chips('chips-segments'),
+    password:            g('password'),
+    type:                'nutritionist',
+  };
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+
+  try {
+    await req('POST', '/admin/nutritionist-signup', body);
+    okEl.innerHTML = '✅ <b>Application submitted successfully!</b><br>Our team will review your profile and notify you. Once approved, you can log in at <a href="index.html">index.html</a> using your mobile number as username.';
+    okEl.style.display = 'block';
+    document.getElementById('signup-form').reset();
+    certs=[]; renderCerts(); prods=[]; renderProds();
+    window.scrollTo(0,0);
+  } catch(e) {
+    errEl.textContent = e.message || 'Submission failed. Please try again.';
+    errEl.style.display = 'block';
+    window.scrollTo(0,0);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Submit Application →';
+  }
+}
+</script>
+</body>
+</html>

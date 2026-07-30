@@ -44,7 +44,7 @@
       <!-- Tabs -->
       <div class="tab-row">
         <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
-        <button class="tab-btn" onclick="switchTab('signup')">Join as Nutritionist</button>
+        <a class="tab-btn" href="nutritionist-signup.html" style="text-decoration:none;display:flex;align-items:center;justify-content:center">Join as Nutritionist</a>
       </div>
 
       <!-- LOGIN TAB -->
@@ -62,40 +62,7 @@
         <div class="login-foot">Operations access only · KRISHA PURE</div>
       </div>
 
-      <!-- SIGNUP TAB -->
-      <div class="tab-pane" id="tab-signup">
-        <div class="msg error"   id="signup-error"></div>
-        <div class="msg success" id="signup-success"></div>
-        <div style="background:var(--green-pale);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--green-dark);line-height:1.5">
-          🩺 Register as a nutritionist partner with Krisha Pure. Your application will be reviewed and approved by our admin team.
-        </div>
-        <div class="field">
-          <label>Full Name *</label>
-          <input type="text" id="s-name" placeholder="Dr. / Your full name" />
-        </div>
-        <div class="field">
-          <label>Phone Number *</label>
-          <input type="tel" id="s-phone" placeholder="10-digit mobile number" />
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="s-email" placeholder="your@email.com" />
-        </div>
-        <div class="field">
-          <label>Specialization</label>
-          <input type="text" id="s-spec" placeholder="e.g. Clinical Nutrition, Sports Dietetics" />
-        </div>
-        <div class="field">
-          <label>Years of Experience</label>
-          <input type="text" id="s-exp" placeholder="e.g. 5 years" />
-        </div>
-        <div class="field">
-          <label>Password * <span style="font-size:10px;font-weight:400">(used to log in after approval)</span></label>
-          <input type="password" id="s-pass" placeholder="Choose a strong password" />
-        </div>
-        <button class="btn btn-primary login-btn" id="signup-btn" onclick="doSignup()">Submit Application</button>
-        <div class="login-foot">After approval you can log in with your phone number · KRISHA PURE</div>
-      </div>
+
     </div>
   </div>
 
@@ -105,12 +72,6 @@
     if (Auth.isLoggedIn()) {
       const allowed = Auth.getAllowedMenus();
       window.location.href = allowed.includes('dashboard') ? 'dashboard.html' : (allowed[0] || 'dashboard') + '.html';
-    }
-
-    function switchTab(tab) {
-      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='signup')));
-      document.getElementById('tab-login').classList.toggle('active', tab==='login');
-      document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
     }
 
     async function doLogin() {
@@ -133,36 +94,7 @@
       }
     }
 
-    async function doSignup() {
-      const errEl = document.getElementById('signup-error');
-      const okEl  = document.getElementById('signup-success');
-      errEl.style.display = 'none'; okEl.style.display = 'none';
 
-      const fullName       = document.getElementById('s-name').value.trim();
-      const phone          = document.getElementById('s-phone').value.trim();
-      const email          = document.getElementById('s-email').value.trim();
-      const specialization = document.getElementById('s-spec').value.trim();
-      const experience     = document.getElementById('s-exp').value.trim();
-      const password       = document.getElementById('s-pass').value;
-
-      if (!fullName)           { errEl.textContent='Full name is required'; errEl.style.display='block'; return; }
-      if (!phone||phone.length<10) { errEl.textContent='Valid phone number is required'; errEl.style.display='block'; return; }
-      if (!password||password.length<6) { errEl.textContent='Password must be at least 6 characters'; errEl.style.display='block'; return; }
-
-      const btn = document.getElementById('signup-btn');
-      btn.disabled = true; btn.textContent = 'Submitting…';
-      try {
-        await req('POST', '/admin/nutritionist-signup', { fullName, phone, email, specialization, experience, password });
-        okEl.textContent = '✅ Application submitted! Admin will review and notify you after approval. You can log in with your phone number once approved.';
-        okEl.style.display = 'block';
-        ['s-name','s-phone','s-email','s-spec','s-exp','s-pass'].forEach(id => document.getElementById(id).value='');
-      } catch (e) {
-        errEl.textContent = e.message || 'Signup failed';
-        errEl.style.display = 'block';
-      } finally {
-        btn.disabled = false; btn.textContent = 'Submit Application';
-      }
-    }
 
     // Allow Enter key on login
     document.addEventListener('keydown', e => {

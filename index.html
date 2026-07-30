@@ -11,81 +11,162 @@
 <style>
   body { background: linear-gradient(160deg, #1E4D26 0%, #173A1D 100%); min-height: 100vh; }
   .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
-  .login-card { width: 100%; max-width: 380px; background: var(--white); border-radius: 18px; padding: 32px 30px 28px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
-  .login-mark { width: 56px; height: 56px; border-radius: 16px; background: var(--green-pale); display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; }
-  .login-head { text-align: center; margin-bottom: 26px; }
-  .login-head b { display: block; font-family: var(--font-head); font-size: 22px; font-weight: 700; color: var(--ink); }
-  .login-head small { display: block; font-size: 11.5px; color: var(--ink-soft); letter-spacing: 3px; text-transform: uppercase; margin-top: 0; font-weight: 600; }
-  .login-error { background: var(--red-pale); color: var(--red); font-size: 12.5px; padding: 9px 12px; border-radius: 8px; margin-bottom: 14px; display: none; }
+  .login-card { width: 100%; max-width: 420px; background: var(--white); border-radius: 18px; padding: 32px 30px 28px; box-shadow: 0 24px 60px rgba(0,0,0,0.25); }
+  .login-mark { width: 56px; height: 56px; border-radius: 16px; background: var(--green-pale); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+  .login-mark img { width:100%;height:100%;object-fit:contain; }
+  .login-head { text-align: center; margin-bottom: 22px; }
+  .login-head b { display: block; font-family: var(--font-head); font-size: 20px; font-weight: 700; color: var(--ink); }
+  .login-head small { display: block; font-size: 11px; color: var(--ink-soft); letter-spacing: 3px; text-transform: uppercase; margin-top: 2px; font-weight: 600; }
+  .tab-row { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 22px; }
+  .tab-btn { flex: 1; padding: 10px 0; font-size: 13px; font-weight: 600; background: none; border: none; cursor: pointer; color: var(--ink-soft); border-bottom: 2.5px solid transparent; margin-bottom: -2px; transition: all .15s; }
+  .tab-btn.active { color: var(--green-dark); border-bottom-color: var(--green-dark); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .msg { font-size: 12.5px; padding: 9px 12px; border-radius: 8px; margin-bottom: 14px; display: none; }
+  .msg.error   { background: var(--red-pale);   color: var(--red); }
+  .msg.success { background: var(--green-pale);  color: var(--green-dark); }
   .login-btn { width: 100%; padding: 12px; margin-top: 6px; }
-  .login-foot { text-align: center; font-size: 11.5px; color: var(--ink-faint); margin-top: 20px; }
+  .login-foot { text-align: center; font-size: 11px; color: var(--ink-faint); margin-top: 18px; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); display: block; margin-bottom: 5px; }
+  .field { margin-bottom: 14px; }
+  .field input, .field select, .field textarea { width: 100%; box-sizing: border-box; }
 </style>
 </head>
 <body>
   <div class="login-wrap">
-    <form class="login-card" id="login-form">
-      <div class="login-mark"><img src="Krisha_Pure_transparent.png" alt="Krisha Pure" style="width:100%;height:100%;object-fit:contain;" /></div>
+    <div class="login-card">
+      <div class="login-mark"><img src="Krisha_Pure_transparent.png" alt="Krisha Pure" /></div>
       <div class="login-head">
+        <b>KRISHA PURE</b>
         <small>Admin Console</small>
       </div>
 
-      <div class="login-error" id="login-error"></div>
-
-      <div class="field">
-        <label>Username</label>
-        <input type="text" id="username" autocomplete="username" required />
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="password" autocomplete="current-password" required />
+      <!-- Tabs -->
+      <div class="tab-row">
+        <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn" onclick="switchTab('signup')">Join as Nutritionist</button>
       </div>
 
-      <button type="submit" class="btn btn-primary login-btn" id="login-btn">Sign In</button>
-      <div class="login-foot">Operations access only · KRISHA PURE</div>
-    </form>
+      <!-- LOGIN TAB -->
+      <div class="tab-pane active" id="tab-login">
+        <div class="msg error" id="login-error"></div>
+        <div class="field">
+          <label>Username</label>
+          <input type="text" id="username" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="password" autocomplete="current-password" />
+        </div>
+        <button class="btn btn-primary login-btn" id="login-btn" onclick="doLogin()">Sign In</button>
+        <div class="login-foot">Operations access only · KRISHA PURE</div>
+      </div>
+
+      <!-- SIGNUP TAB -->
+      <div class="tab-pane" id="tab-signup">
+        <div class="msg error"   id="signup-error"></div>
+        <div class="msg success" id="signup-success"></div>
+        <div style="background:var(--green-pale);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--green-dark);line-height:1.5">
+          🩺 Register as a nutritionist partner with Krisha Pure. Your application will be reviewed and approved by our admin team.
+        </div>
+        <div class="field">
+          <label>Full Name *</label>
+          <input type="text" id="s-name" placeholder="Dr. / Your full name" />
+        </div>
+        <div class="field">
+          <label>Phone Number *</label>
+          <input type="tel" id="s-phone" placeholder="10-digit mobile number" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="s-email" placeholder="your@email.com" />
+        </div>
+        <div class="field">
+          <label>Specialization</label>
+          <input type="text" id="s-spec" placeholder="e.g. Clinical Nutrition, Sports Dietetics" />
+        </div>
+        <div class="field">
+          <label>Years of Experience</label>
+          <input type="text" id="s-exp" placeholder="e.g. 5 years" />
+        </div>
+        <div class="field">
+          <label>Password * <span style="font-size:10px;font-weight:400">(used to log in after approval)</span></label>
+          <input type="password" id="s-pass" placeholder="Choose a strong password" />
+        </div>
+        <button class="btn btn-primary login-btn" id="signup-btn" onclick="doSignup()">Submit Application</button>
+        <div class="login-foot">After approval you can log in with your phone number · KRISHA PURE</div>
+      </div>
+    </div>
   </div>
 
   <script src="js/api.js"></script>
   <script>
+    // Redirect if already logged in
     if (Auth.isLoggedIn()) {
-      // Redirect to first allowed page
       const allowed = Auth.getAllowedMenus();
-      if (allowed.length && allowed[0] !== 'dashboard') {
-        window.location.href = allowed[0] + '.html';
-      } else {
-        window.location.href = 'dashboard.html';
-      }
+      window.location.href = allowed.includes('dashboard') ? 'dashboard.html' : (allowed[0] || 'dashboard') + '.html';
     }
 
-    const form  = document.getElementById('login-form');
-    const errEl = document.getElementById('login-error');
-    const btn   = document.getElementById('login-btn');
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='login')||(i===1&&tab==='signup')));
+      document.getElementById('tab-login').classList.toggle('active', tab==='login');
+      document.getElementById('tab-signup').classList.toggle('active', tab==='signup');
+    }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    async function doLogin() {
+      const errEl = document.getElementById('login-error');
       errEl.style.display = 'none';
       const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
-      btn.disabled = true;
-      btn.textContent = 'Signing in…';
+      if (!username || !password) { errEl.textContent='Enter username and password'; errEl.style.display='block'; return; }
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true; btn.textContent = 'Signing in…';
       try {
         const d = await adminApi.login(username, password);
         Auth.setSession(d.token, d.username, d.role, d.allowedMenus, d.displayName, d.isMaster);
-        // Redirect to first allowed page
         const allowed = Auth.getAllowedMenus();
-        if (allowed.includes('dashboard')) {
-          window.location.href = 'dashboard.html';
-        } else if (allowed.length) {
-          window.location.href = allowed[0] + '.html';
-        } else {
-          window.location.href = 'dashboard.html';
-        }
+        window.location.href = allowed.includes('dashboard') ? 'dashboard.html' : (allowed[0]||'dashboard')+'.html';
       } catch (e) {
         errEl.textContent = e.message || 'Login failed';
         errEl.style.display = 'block';
-        btn.disabled = false;
-        btn.textContent = 'Sign In';
+        btn.disabled = false; btn.textContent = 'Sign In';
       }
+    }
+
+    async function doSignup() {
+      const errEl = document.getElementById('signup-error');
+      const okEl  = document.getElementById('signup-success');
+      errEl.style.display = 'none'; okEl.style.display = 'none';
+
+      const fullName       = document.getElementById('s-name').value.trim();
+      const phone          = document.getElementById('s-phone').value.trim();
+      const email          = document.getElementById('s-email').value.trim();
+      const specialization = document.getElementById('s-spec').value.trim();
+      const experience     = document.getElementById('s-exp').value.trim();
+      const password       = document.getElementById('s-pass').value;
+
+      if (!fullName)           { errEl.textContent='Full name is required'; errEl.style.display='block'; return; }
+      if (!phone||phone.length<10) { errEl.textContent='Valid phone number is required'; errEl.style.display='block'; return; }
+      if (!password||password.length<6) { errEl.textContent='Password must be at least 6 characters'; errEl.style.display='block'; return; }
+
+      const btn = document.getElementById('signup-btn');
+      btn.disabled = true; btn.textContent = 'Submitting…';
+      try {
+        await req('POST', '/admin/nutritionist-signup', { fullName, phone, email, specialization, experience, password });
+        okEl.textContent = '✅ Application submitted! Admin will review and notify you after approval. You can log in with your phone number once approved.';
+        okEl.style.display = 'block';
+        ['s-name','s-phone','s-email','s-spec','s-exp','s-pass'].forEach(id => document.getElementById(id).value='');
+      } catch (e) {
+        errEl.textContent = e.message || 'Signup failed';
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Submit Application';
+      }
+    }
+
+    // Allow Enter key on login
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('tab-login').classList.contains('active')) doLogin();
     });
   </script>
 </body>

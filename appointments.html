@@ -42,7 +42,7 @@ const content = renderShell({
 
 let items = [], products = [], viewApt = null, callDuration = 0, callTimer = null;
 let pc = null, localStream = null, callWs = null, iceBuf = [];
-const WS_URL = 'ws://13.207.147.69:3001';
+const WS_URL = 'wss://13.207.147.69.nip.io/ws';
 const ICE_SERVERS = [
   { urls: 'stun:13.207.147.69:3478' },
   { urls: 'turn:13.207.147.69:3478', username: 'krishapure', credential: 'kp_turn_2026' },

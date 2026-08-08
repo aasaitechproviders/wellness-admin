@@ -245,6 +245,12 @@ const adminApi = {
   updateNutrientCoverageTarget: (id, body)  => req('PUT', `/admin/nutrition/nutrient-coverage-targets/${id}`, body),
   deleteNutrientCoverageTarget: (id)        => req('DELETE', `/admin/nutrition/nutrient-coverage-targets/${id}`),
 
+  // Plan Types (T20 / T30 / T40)
+  getPlanTypes:    ()          => req('GET',    '/admin/nutrition/plan-types'),
+  createPlanType:  (body)      => req('POST',   '/admin/nutrition/plan-types', body),
+  updatePlanType:  (id, body)  => req('PUT',    `/admin/nutrition/plan-types/${id}`, body),
+  deletePlanType:  (id)        => req('DELETE', `/admin/nutrition/plan-types/${id}`),
+
   // Basket Nutrient Shares (kp_basketNutrientShares)
   getBasketNutrientShares:   (p)         => req('GET', `/admin/nutrition/basket-nutrient-shares${qs(p)}`),
   createBasketNutrientShare: (body)      => req('POST', '/admin/nutrition/basket-nutrient-shares', body),

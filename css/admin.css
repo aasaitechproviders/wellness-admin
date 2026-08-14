@@ -216,6 +216,8 @@ table.data .num { font-family: var(--font-mono); font-weight: 600; }
 .pill-cancelled        { background: #F8D7DA; color: #721C24; }
 .pill-active           { background: var(--green-pale); color: var(--green-dark); }
 .pill-inactive         { background: #F1F1ED; color: var(--ink-faint); }
+.pill-warn             { background: #FFF8E1; color: #E65100; }
+.pill-info             { background: #E3F2FD; color: #1565C0; }
 
 /* ── Toolbar / filters ── */
 .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }

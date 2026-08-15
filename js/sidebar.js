@@ -21,6 +21,7 @@ const NAV_SECTIONS = [
     label: 'Nutrition Engine',
     items: [
       { key: 'products',                  href: 'products.html',                  label: 'Products',                   icon: 'M12 2C7 6 4 10 4 14a8 8 0 0016 0c0-4-3-8-8-12z' },
+      { key: 'product-categories',        href: 'product-categories.html',        label: 'Product Categories',         icon: 'M4 6h16M4 10h16M4 14h8' },
       { key: 'wellness-goals',            href: 'wellness-goals.html',            label: 'Wellness Goals',             icon: 'M12 2a10 10 0 1010 10A10 10 0 0012 2z M12 6a6 6 0 106 6 6 6 0 00-6-6z M12 10a2 2 0 102 2 2 2 0 00-2-2z' },
       { key: 'health-conditions',         href: 'health-conditions.html',         label: 'Health Conditions',          icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4' },
       { key: 'activity-levels',           href: 'activity-levels.html',           label: 'Activity Levels',            icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },

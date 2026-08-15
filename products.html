@@ -27,8 +27,20 @@
 <script>
 const content = renderShell({ active:'products', title:'Products', sub:'Nutrition master data — full produce catalogue with nutrient profiles', actions:`<button class="btn btn-primary" onclick="openModal()">+ Add Product</button>` });
 
-let allProducts=[], filtered=[], page=1, perPage=25, editId=null, curationTagsList=[];
-const CATEGORIES=['Leafy Vegetables','Fruits','Microgreens','Roots & Tubers','Gourds','Beans & Legumes','Herbs & Spices','Other'];
+let allProducts=[], filtered=[], page=1, perPage=25, editId=null, curationTagsList=[], CATEGORIES=[];
+
+async function loadCategories() {
+  try {
+    const d = await req('GET', '/admin/product-categories/public');
+    CATEGORIES = (d.categories||[]).map(c => c.name);
+  } catch {
+    CATEGORIES = ['Leafy Vegetables','Fruits','Microgreens','Roots & Tubers','Gourds','Beans & Legumes','Herbs & Spices','Other'];
+  }
+  // Populate category dropdowns and filter
+  const catFilter = document.getElementById('catFilter');
+  catFilter.innerHTML = '<option value="">All Categories</option>' + CATEGORIES.map(c=>`<option>${c}</option>`).join('');
+}
+
 const APPROVAL_STATUSES=['Pending','Reviewed','Approved','Rejected'];
 const YMN=['Yes','Moderate','No'];
 const EGM=['Excellent','Good','Moderate','No'];
@@ -84,7 +96,7 @@ content.innerHTML=`
         <div class="form-grid">
           <div class="field"><label>Product ID</label><input id="fProductId" placeholder="Prod_001"/></div>
           <div class="field"><label>Name *</label><input id="fName" placeholder="Spinach"/></div>
-          <div class="field"><label>Category</label><select id="fCategory">${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select></div>
+          <div class="field"><label>Category</label><select id="fCategory"></select></div>
           <div class="field"><label>Seasonal</label><select id="fSeasonal">${SEASON.map(s=>`<option>${s}</option>`).join('')}</select></div>
           <div class="field"><label>Price per 100g (₹)</label><input id="fPrice" type="number" step="0.01" placeholder="10"/></div>
           <div class="field"><label>Current Price per 100g (₹)</label><input id="fCurrentPrice" type="number" step="0.01" placeholder="10"/></div>
@@ -340,6 +352,10 @@ function changePage(d) { page += d; render(); }
 function openModal(p) {
   editId = p ? p._id : null;
   document.getElementById('modalTitle').textContent = p ? 'Edit Product' : 'Add Product';
+  // Populate category select from DB
+  const catSel = document.getElementById('fCategory');
+  catSel.innerHTML = CATEGORIES.map(c=>`<option>${c}</option>`).join('');
+
   // Reset to first tab
   switchTab('basics', document.querySelector('.tab-btn'));
 
@@ -495,7 +511,7 @@ async function del(id) {
   catch(e) { showToast(e.message, 'error'); }
 }
 
-load();
+loadCategories().then(() => load());
 </script>
 </body>
 </html>

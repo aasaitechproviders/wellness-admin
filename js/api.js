@@ -3,7 +3,7 @@
 const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws';
 
 const ROLE_DEFAULTS = {
-  admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments',
+  admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments','subscription-plans',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
@@ -266,6 +266,13 @@ const adminApi = {
   startCall:            (id)        => req('PUT', `/admin/appointments/${id}/call`),
   endCall:              (id)        => req('PUT', `/admin/appointments/${id}/end-call`),
   getCallStatus:        (id)        => req('GET', `/admin/appointments/${id}/call-status`),
+
+  // Subscription Plans (subscriptionPlans)
+  getSubscriptionPlans:    ()         => req('GET', '/admin/subscription-plans'),
+  createSubscriptionPlan:  (body)     => req('POST', '/admin/subscription-plans', body),
+  updateSubscriptionPlan:  (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
+  deleteSubscriptionPlan:  (id)       => req('DELETE', `/admin/subscription-plans/${id}`),
+  hardDeleteSubscriptionPlan: (id)    => req('DELETE', `/admin/subscription-plans/${id}/hard`),
 
   // MET Ranges (kp_metRanges)
   getMetRanges:    (p)         => req('GET', `/admin/nutrition/met-ranges${qs(p)}`),

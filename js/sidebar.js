@@ -13,6 +13,7 @@ const NAV_SECTIONS = [
       { key: 'wellness-partners', href: 'wellness-partners.html', label: 'Wellness Partners',  icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M9 11a4 4 0 100-8 4 4 0 000 8z' },
       { key: 'approvals',          href: 'approvals.html',          label: 'Approvals',           icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
       { key: 'team',              href: 'team.html',              label: 'Team & Access',      icon: 'M12 15a4 4 0 100-8 4 4 0 000 8z M2 21a10 10 0 0120 0 M8.5 8.5a4 4 0 015.2-.3' },
+      { key: 'subscription-plans', href: 'subscription-plans.html', label: 'Delivery Frequency', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2zM9 12h6M9 16h4' },
       { key: 'appointments',      href: 'appointments.html',      label: 'Appointments',       icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
       { key: 'announcements',     href: 'announcements.html',     label: 'Announcements',      icon: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9' },
     ],

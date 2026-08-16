@@ -3,14 +3,15 @@
 const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws';
 
 const ROLE_DEFAULTS = {
-  admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments','subscription-plans',
+  admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments',
+              'approvals','subscription-plans','plan-types',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
   nutrition: ['products','wellness-goals','health-conditions','activity-levels','lifestyle-codes','appointments',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
-  team:      ['apartments'],
+  team:      ['apartments','orders','customers'],
 };
 
 const Auth = {

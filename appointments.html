@@ -313,6 +313,10 @@ function backToList() {
 
 // ── Actions ──
 async function loadNutritionists() {
+  if (!Auth.canAccess('team')) {
+    window._nutritionists = [Auth.getDisplayName()];
+    return;
+  }
   try {
     const d = await req('GET', '/admin/team');
     const nutris = (d.users || []).filter(u => u.role === 'nutrition').map(u => u.displayName || u.username);

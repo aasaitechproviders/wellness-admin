@@ -86,7 +86,14 @@
         const d = await adminApi.login(username, password);
         Auth.setSession(d.token, d.username, d.role, d.allowedMenus, d.displayName, d.isMaster);
         const allowed = Auth.getAllowedMenus();
-        window.location.href = allowed.includes('dashboard') ? 'dashboard.html' : (allowed[0]||'dashboard')+'.html';
+        // Nutritionists go to appointments first; admins go to dashboard
+        let landingPage;
+        if (d.role === 'nutrition') {
+          landingPage = allowed.includes('appointments') ? 'appointments' : (allowed[0] || 'products');
+        } else {
+          landingPage = allowed.includes('dashboard') ? 'dashboard' : (allowed[0] || 'dashboard');
+        }
+        window.location.href = landingPage + '.html';
       } catch (e) {
         errEl.textContent = e.message || 'Login failed';
         errEl.style.display = 'block';

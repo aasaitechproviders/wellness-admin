@@ -68,10 +68,6 @@ content.innerHTML = `
         <input id="fDesc" placeholder="30% of weekly nutrition needs covered by basket"/>
       </div>
       <div class="field">
-        <label>Price (₹) <span style="font-size:11px;color:var(--ink-faint)">(optional base price)</span></label>
-        <input id="fPrice" type="number" min="0" placeholder="699"/>
-      </div>
-      <div class="field">
         <label>Status</label>
         <select id="fStatus">
           <option value="Active">Active</option>
@@ -168,7 +164,6 @@ function openModal(i) {
   document.getElementById('fDuration').value = i?.durationDays || '';
   document.getElementById('fCoverage').value = i?.coveragePct  || '';
   document.getElementById('fDesc').value     = i?.description  || '';
-  document.getElementById('fPrice').value    = i?.price        || '';
   document.getElementById('fStatus').value   = i?.status       || 'Active';
   document.getElementById('fActive').value   = String(i?.isActive !== false);
   document.getElementById('fNotes').value    = i?.notes        || '';
@@ -198,7 +193,6 @@ async function save() {
   const body = {
     planCode, planName, durationDays, coveragePct,
     description: g('fDesc'),
-    price:       gn('fPrice'),
     status:      g('fStatus'),
     isActive:    document.getElementById('fActive').value === 'true',
     notes:       g('fNotes'),

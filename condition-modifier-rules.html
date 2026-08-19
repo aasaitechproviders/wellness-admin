@@ -20,6 +20,9 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>Modifier Parameter</label><input id="fParam" placeholder="Carbohydrate"/></div>
   <div class="field"><label>Rule Value</label><input id="fValue" placeholder="45"/></div>
   <div class="field"><label>Unit</label><input id="fUnit" placeholder="%"/></div>
+  <div class="field"><label>Rule Value (Numeric)</label><input id="fRuleValNum" type="number" step="0.01" placeholder="e.g. 625"/></div>
+  <div class="field"><label>Adjustment Type</label><select id="fAdjType"><option value="">— None —</option><option value="deficit">deficit</option><option value="surplus">surplus</option></select></div>
+  <div class="field"><label>Fibre Boost (g/day)</label><input id="fFibreBoost" type="number" step="0.5" placeholder="e.g. 5"/></div>
   <div class="field"><label>Priority</label><select id="fPri"><option>High</option><option>Highest</option><option>Medium</option><option>Low</option></select></div>
   <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
   <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
@@ -95,6 +98,8 @@ function openModal(i){
   document.getElementById('fCond').value=i?.conditionName||'';document.getElementById('fType').value=i?.modifierType||'';
   document.getElementById('fParam').value=i?.modifierParameter||'';document.getElementById('fValue').value=i?.ruleValue||'';
   document.getElementById('fUnit').value=i?.unit||'';document.getElementById('fPri').value=i?.priority||'High';
+  document.getElementById('fRuleValNum').value=i?.ruleValueNumeric||'';document.getElementById('fAdjType').value=i?.adjustmentType||'';
+  document.getElementById('fFibreBoost').value=i?.fibreBoostG||'';
   document.getElementById('fAuto').value=i?.autoApply||'Yes';document.getElementById('fClin').value=i?.clinicalReviewRequired||'Yes';
   document.getElementById('fStatus').value=i?.ruleStatus||'Approved';document.getElementById('fComments').value=i?.nutritionistComments||'';
   document.getElementById('modal').style.display='flex';
@@ -103,7 +108,7 @@ function closeModal(){document.getElementById('modal').style.display='none';edit
 function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
 async function save(){
   const body={ruleCode:g('fCode'),conditionCode:g('fCondCode'),conditionName:g('fCond'),modifierType:g('fType'),
-    modifierParameter:g('fParam'),ruleValue:g('fValue'),unit:g('fUnit'),priority:g('fPri'),
+    modifierParameter:g('fParam'),ruleValue:g('fValue'),unit:g('fUnit'),priority:g('fPri'),ruleValueNumeric:parseFloat(document.getElementById('fRuleValNum').value)||null,adjustmentType:document.getElementById('fAdjType').value||null,fibreBoostG:parseFloat(document.getElementById('fFibreBoost').value)||null,
     autoApply:g('fAuto'),clinicalReviewRequired:g('fClin'),ruleStatus:g('fStatus'),nutritionistComments:g('fComments')};
   if(!body.conditionCode){showToast('Condition Code required','error');return;}
   try{if(editId)await adminApi.updateConditionModifierRule(editId,body);else await adminApi.createConditionModifierRule(body);

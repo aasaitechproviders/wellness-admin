@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Approvals · KRISHA PURE Admin</title>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+.filter-tabs { display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+.filter-tab  { padding:6px 16px; border-radius:20px; border:1.5px solid var(--border); background:#fff;
+               font-size:12px; font-weight:600; cursor:pointer; color:var(--ink-soft); transition:all .15s; }
+.filter-tab.active { background:var(--green-dark); color:#fff; border-color:var(--green-dark); }
+.signup-card { background:#fff; border:1.5px solid var(--border); border-radius:14px; padding:18px 20px; margin-bottom:12px; }
+.signup-card.pending  { border-left:4px solid #E65100; }
+.signup-card.active   { border-left:4px solid var(--green-dark); }
+.signup-card.rejected { border-left:4px solid var(--red); }
+.sc-name   { font-weight:700; font-size:15px; margin-bottom:4px; }
+.sc-meta   { font-size:12px; color:var(--ink-soft); display:flex; flex-wrap:wrap; gap:10px; margin-bottom:10px; }
+.sc-spec   { font-size:12px; color:var(--ink); margin-bottom:12px; }
+.sc-actions { display:flex; gap:10px; }
+.badge-pending  { background:#FFF3E0; color:#E65100; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.badge-active   { background:var(--green-pale); color:var(--green-dark); padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.badge-rejected { background:#FFEBEE; color:var(--red); padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+</style>
+</head><body>
+<script src="js/api.js"></script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'approvals',
+  title:  'Nutritionist Approvals',
+  sub:    'Review and approve nutritionist signup applications',
+});
+
+let currentFilter = 'pending';
+
+content.innerHTML = `
+  <div class="filter-tabs">
+    <button class="filter-tab active" onclick="setFilter('pending')"  id="f-pending">⏳ Pending</button>
+    <button class="filter-tab"        onclick="setFilter('active')"   id="f-active">✅ Approved</button>
+    <button class="filter-tab"        onclick="setFilter('rejected')" id="f-rejected">✕ Rejected</button>
+    <button class="filter-tab"        onclick="setFilter('')"         id="f-all">All</button>
+  </div>
+  <div id="list"><div class="empty"><div class="icon">⏳</div>Loading…</div></div>
+`;
+
+function setFilter(f) {
+  currentFilter = f;
+  ['pending','active','rejected','all'].forEach(k => {
+    document.getElementById('f-'+k)?.classList.toggle('active', (f===k)||(f===''&&k==='all'));
+  });
+  load();
+}
+
+function timeAgo(d) {
+  const s = Math.floor((Date.now() - new Date(d)) / 1000);
+  if (s < 60)    return 'just now';
+  if (s < 3600)  return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+async function load() {
+  document.getElementById('list').innerHTML = '<div class="empty"><div class="icon">⏳</div>Loading…</div>';
+  try {
+    const qs  = currentFilter ? `?status=${currentFilter}` : '';
+    const d   = await req('GET', `/admin/nutritionist-signups${qs}`);
+    const list = d.signups || [];
+
+    if (!list.length) {
+      const msgs = { pending:'No pending applications', active:'No approved nutritionists yet', rejected:'No rejected applications', '':'No applications found' };
+      document.getElementById('list').innerHTML = `<div class="empty"><div class="icon">🩺</div>${msgs[currentFilter]||'No records'}</div>`;
+      return;
+    }
+
+    document.getElementById('list').innerHTML = list.map(s => `
+      <div class="signup-card ${s.status||'pending'}">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px">
+          <div class="sc-name">🩺 ${escapeHtml(s.fullName)}</div>
+          <span class="badge-${s.status||'pending'}">${{pending:'Pending',active:'Approved',rejected:'Rejected'}[s.status||'pending']}</span>
+        </div>
+        <div class="sc-meta">
+          <span>📱 ${escapeHtml(s.phone)}</span>
+          ${s.email ? `<span>✉️ ${escapeHtml(s.email)}</span>` : ''}
+          ${s.experience ? `<span>⏱ ${escapeHtml(s.experience)}</span>` : ''}
+          <span>🕐 Applied ${timeAgo(s.createdAt)}</span>
+        </div>
+        ${s.specialization ? `<div class="sc-spec">🎯 <b>Specialization:</b> ${escapeHtml(s.specialization)}</div>` : ''}
+        ${s.status === 'active' ? `<div style="font-size:12px;color:var(--green-dark);margin-bottom:10px">✅ Approved on ${new Date(s.approvedAt).toLocaleDateString('en-IN')} · Login: phone number as username</div>` : ''}
+        ${s.status === 'rejected' ? `<div style="font-size:12px;color:var(--red);margin-bottom:10px">✕ Rejected on ${new Date(s.rejectedAt).toLocaleDateString('en-IN')}</div>` : ''}
+        <div class="sc-actions">
+          ${s.status === 'pending' ? `
+            <button class="btn btn-primary" style="font-size:12px;padding:7px 16px" onclick="approve('${s._id}')">✅ Approve</button>
+            <button class="btn btn-outline" style="font-size:12px;padding:7px 16px;color:var(--red);border-color:var(--red)" onclick="reject('${s._id}')">✕ Reject</button>
+          ` : ''}
+          ${s.status === 'rejected' ? `
+            <button class="btn btn-primary" style="font-size:12px;padding:7px 16px" onclick="approve('${s._id}')">↩ Re-approve</button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    document.getElementById('list').innerHTML = `<div class="empty"><div class="icon">⚠️</div>${e.message||'Failed to load'}</div>`;
+  }
+}
+
+async function approve(id) {
+  if (!confirm('Approve this nutritionist? They will be able to log into the admin panel.')) return;
+  try {
+    await req('PUT', `/admin/nutritionist-signups/${id}/approve`);
+    showToast('Approved ✓ — Nutritionist can now log in with their phone number', 'success');
+    load();
+  } catch (e) { showToast(e.message || 'Approval failed', 'error'); }
+}
+
+async function reject(id) {
+  if (!confirm('Reject this application?')) return;
+  try {
+    await req('PUT', `/admin/nutritionist-signups/${id}/reject`);
+    showToast('Application rejected', 'success');
+    load();
+  } catch (e) { showToast(e.message || 'Rejection failed', 'error'); }
+}
+
+load();
+</script>
+</body></html>

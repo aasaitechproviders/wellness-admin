@@ -1,0 +1,172 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Wellness Goals · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+</head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('wellness-goals');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'wellness-goals',title:'Wellness Goals',sub:'20 goal definitions used for basket recommendations and personalization',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add Goal</button>`});
+
+let items=[],editId=null;
+const CATS=['Wellness','Weight','Fitness','Therapeutic','Clinical','Women','Sports'];
+const PRIORITIES=['Highest','High','Medium','Low'];
+
+content.innerHTML=`
+<div id="statsBar"></div>
+<div class="panel">
+<div class="toolbar">
+  <input type="search" id="srch" placeholder="Search goals…" oninput="render()"/>
+  <div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span>
+</div>
+<div class="table-wrap"><table class="data">
+  <thead><tr><th>Code</th><th>Display Name</th><th>Category</th><th>Age Range</th><th>Gender</th><th>Priority</th><th>Basket</th><th>Status</th><th></th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Wellness Goal</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
+  <div class="field"><label>Goal Code</label><input id="fCode" placeholder="WG001"/></div>
+  <div class="field"><label>Display Name *</label><input id="fDisplay" placeholder="General Wellness"/></div>
+  <div class="field"><label>Internal Name</label><input id="fInternal" placeholder="General_Wellness"/></div>
+  <div class="field"><label>Category</label><select id="fCat">${CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+  <div class="field full"><label>Goal Description</label><textarea id="fDesc" rows="2"></textarea></div>
+  <div class="field"><label>Eligible Age Min</label><input id="fAgeMin" type="number"/></div>
+  <div class="field"><label>Eligible Age Max</label><input id="fAgeMax" type="number"/></div>
+  <div class="field"><label>Gender Applicable</label><select id="fGender"><option>All</option><option>Female</option><option>Male</option></select></div>
+  <div class="field"><label>Priority</label><select id="fPriority">${PRIORITIES.map(p=>`<option>${p}</option>`).join('')}</select></div>
+  <div class="field"><label>Recommended Basket</label><input id="fBasket" placeholder="CB001"/></div>
+  <div class="field"><label>Default Activity Level</label><input id="fActivity" placeholder="ACT003"/></div>
+  <div class="field"><label>Mandatory Review Trigger</label><input id="fTrigger" placeholder="BMI≥30"/></div>
+  <div class="field"><label>Primary Clinical Scope</label><input id="fScope" placeholder="Preventive"/></div>
+  <div class="field"><label>Reference Guideline</label><input id="fRef" placeholder="ICMR"/></div>
+  <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Clinical Review Required</label><select id="fClinical"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Product Score Field</label><select id="fScoreField"><option value="weightLoss">weightLoss</option><option value="diabetes">diabetes</option><option value="immunity">immunity</option><option value="detox">detox</option><option value="satiety">satiety</option><option value="antiInflammatory">antiInflammatory</option><option value="heartHealth">heartHealth</option><option value="boneHealth">boneHealth</option><option value="ironSupport">ironSupport</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
+</div></div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
+  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
+  const totalFields = allKeys.length;
+  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
+  const emptyFields = totalFields - filledFields;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${totalFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${filledFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
+    </div>
+    ${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">${emptyFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
+    </div>` : ''}
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">${nestedCount}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
+      <div style="font-size:11px;line-height:1.9">${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getWellnessGoals();items=d.goals||[];renderStats(items);render();}
+  catch(e){showToast(e.message,'error');}
+}
+
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||(i.displayName||'').toLowerCase().includes(q)||(i.goalCode||'').toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} goals`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.goalCode||'')}</td>
+    <td><b>${escapeHtml(i.displayName||'')}</b></td>
+    <td>${escapeHtml(i.goalCategory||'')}</td>
+    <td class="mono">${i.eligibleAgeMin||0}–${i.eligibleAgeMax||120}</td>
+    <td>${escapeHtml(i.genderApplicable||'')}</td>
+    <td><span class="pill pill-${(i.priority||'').toLowerCase()==='highest'?'placed':(i.priority||'').toLowerCase()==='high'?'confirmed':'active'}">${escapeHtml(i.priority||'')}</span></td>
+    <td class="mono">${escapeHtml(i.recommendedBasket||'–')}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.ruleStatus||'–'}</span></td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="9" class="empty">No goals found</td></tr>';
+}
+
+function openModal(i){
+  editId=i?i._id:null;
+  document.getElementById('mTitle').textContent=i?'Edit Wellness Goal':'Add Wellness Goal';
+  document.getElementById('fCode').value=i?.goalCode||'';
+  document.getElementById('fDisplay').value=i?.displayName||'';
+  document.getElementById('fInternal').value=i?.internalName||'';
+  document.getElementById('fCat').value=i?.goalCategory||CATS[0];
+  document.getElementById('fDesc').value=i?.goalDescription||'';
+  document.getElementById('fAgeMin').value=i?.eligibleAgeMin??18;
+  document.getElementById('fAgeMax').value=i?.eligibleAgeMax??65;
+  document.getElementById('fGender').value=i?.genderApplicable||'All';
+  document.getElementById('fPriority').value=i?.priority||'Medium';
+  document.getElementById('fBasket').value=i?.recommendedBasket||'';
+  document.getElementById('fActivity').value=i?.defaultActivityLevel||'';
+  document.getElementById('fTrigger').value=i?.mandatoryReviewTrigger||'';
+  document.getElementById('fScope').value=i?.primaryClinicalScope||'';
+  document.getElementById('fRef').value=i?.referenceGuideline||'';
+  document.getElementById('fAuto').value=i?.autoApply||'Yes';
+  document.getElementById('fClinical').value=i?.clinicalReviewRequired||'No';
+  document.getElementById('fScoreField').value=i?.productScoreField||'weightLoss';
+  document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
+  document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id).value;return v===''?null:v;}
+
+async function save(){
+  const body={goalCode:g('fCode'),displayName:g('fDisplay'),internalName:g('fInternal'),
+    goalCategory:g('fCat'),goalDescription:g('fDesc'),
+    eligibleAgeMin:parseInt(document.getElementById('fAgeMin').value)||null,
+    eligibleAgeMax:parseInt(document.getElementById('fAgeMax').value)||null,
+    genderApplicable:g('fGender'),priority:g('fPriority'),recommendedBasket:g('fBasket'),
+    defaultActivityLevel:g('fActivity'),mandatoryReviewTrigger:g('fTrigger'),
+    primaryClinicalScope:g('fScope'),referenceGuideline:g('fRef'),
+    autoApply:g('fAuto'),clinicalReviewRequired:g('fClinical'),productScoreField:g('fScoreField'),
+    ruleStatus:g('fStatus'),nutritionistComments:g('fComments')};
+  if(!body.displayName){showToast('Display name required','error');return;}
+  try{
+    if(editId)await adminApi.updateWellnessGoal(editId,body);
+    else await adminApi.createWellnessGoal(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();
+  }catch(e){showToast(e.message,'error');}
+}
+async function del(id){
+  if(!confirm('Delete this goal?'))return;
+  try{await adminApi.deleteWellnessGoal(id);showToast('Deleted','success');load();}
+  catch(e){showToast(e.message,'error');}
+}
+load();
+</script></body></html>

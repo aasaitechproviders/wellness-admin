@@ -45,6 +45,7 @@ content.innerHTML=`
   <div class="field"><label>Reference Guideline</label><input id="fRef" placeholder="ICMR"/></div>
   <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
   <div class="field"><label>Clinical Review Required</label><select id="fClinical"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Product Score Field</label><select id="fScoreField"><option value="weightLoss">weightLoss</option><option value="diabetes">diabetes</option><option value="immunity">immunity</option><option value="detox">detox</option><option value="satiety">satiety</option><option value="antiInflammatory">antiInflammatory</option><option value="heartHealth">heartHealth</option><option value="boneHealth">boneHealth</option><option value="ironSupport">ironSupport</option></select></div>
   <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
   <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
 </div></div>
@@ -137,6 +138,7 @@ function openModal(i){
   document.getElementById('fRef').value=i?.referenceGuideline||'';
   document.getElementById('fAuto').value=i?.autoApply||'Yes';
   document.getElementById('fClinical').value=i?.clinicalReviewRequired||'No';
+  document.getElementById('fScoreField').value=i?.productScoreField||'weightLoss';
   document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
   document.getElementById('fComments').value=i?.nutritionistComments||'';
   document.getElementById('modal').style.display='flex';
@@ -152,7 +154,7 @@ async function save(){
     genderApplicable:g('fGender'),priority:g('fPriority'),recommendedBasket:g('fBasket'),
     defaultActivityLevel:g('fActivity'),mandatoryReviewTrigger:g('fTrigger'),
     primaryClinicalScope:g('fScope'),referenceGuideline:g('fRef'),
-    autoApply:g('fAuto'),clinicalReviewRequired:g('fClinical'),
+    autoApply:g('fAuto'),clinicalReviewRequired:g('fClinical'),productScoreField:g('fScoreField'),
     ruleStatus:g('fStatus'),nutritionistComments:g('fComments')};
   if(!body.displayName){showToast('Display name required','error');return;}
   try{

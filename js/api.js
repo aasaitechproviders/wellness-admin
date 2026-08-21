@@ -4,7 +4,7 @@ const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southea
 
 const ROLE_DEFAULTS = {
   admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments',
-              'approvals','subscription-plans','plan-types',
+              'approvals','subscription-plans','subscription-durations','plan-types',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
@@ -274,6 +274,15 @@ const adminApi = {
   updateSubscriptionPlan:  (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
   deleteSubscriptionPlan:  (id)       => req('DELETE', `/admin/subscription-plans/${id}`),
   hardDeleteSubscriptionPlan: (id)    => req('DELETE', `/admin/subscription-plans/${id}/hard`),
+
+  // Subscription Durations (kp_subscriptionDurations)
+  getSubscriptionDurations:    ()         => req('GET',    '/admin/subscription-durations'),
+  createSubscriptionDuration:  (body)     => req('POST',   '/admin/subscription-durations', body),
+  updateSubscriptionDuration:  (id, body) => req('PUT',    `/admin/subscription-durations/${id}`, body),
+  deleteSubscriptionDuration:  (id)       => req('DELETE', `/admin/subscription-durations/${id}`),
+
+  // Product Categories (kp_productCategories) — used by plan-types for category picker
+  getProductCategories: (p) => req('GET', `/admin/nutrition/product-categories${qs(p)}`),
 
   // MET Ranges (kp_metRanges)
   getMetRanges:    (p)         => req('GET', `/admin/nutrition/met-ranges${qs(p)}`),

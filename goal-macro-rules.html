@@ -23,6 +23,11 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>Meal Frequency</label><input id="fMeal" placeholder="5"/></div>
   <div class="field"><label>Fibre (g/day)</label><input id="fFibre" placeholder="30–35"/></div>
   <div class="field"><label>Water (ml/kg/day)</label><input id="fWater" placeholder="35"/></div>
+  <div class="field"><label>Calorie Multiplier</label><input id="fCalMult" type="number" step="0.01" placeholder="1.0"/></div>
+  <div class="field"><label>Min Kcal/day</label><input id="fMinKcal" type="number" placeholder="1200"/></div>
+  <div class="field"><label>Max Kcal/day</label><input id="fMaxKcal" type="number" placeholder="3500"/></div>
+  <div class="field"><label>Water (L/day)</label><input id="fWaterL" type="number" step="0.1" placeholder="2.5"/></div>
+  <div class="field"><label>TDEE Adj %</label><input id="fTdeeAdj" type="number" placeholder="0"/></div>
   <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option></select></div>
   <div class="field"><label>Nutritionist Review</label><select id="fRev"><option>No</option><option>Yes</option></select></div>
   <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
@@ -100,6 +105,9 @@ function openModal(i){
   document.getElementById('fCarbPct').value=m.carbohydratePct||'';document.getElementById('fFatPct').value=m.fatPct||'';
   document.getElementById('fProtG').value=m.proteinGPerKgPerDay||'';document.getElementById('fMeal').value=m.mealFrequency||'';
   document.getElementById('fFibre').value=m.fibreGPerDay||'';document.getElementById('fWater').value=m.waterMlPerKgPerDay||'';
+  document.getElementById('fCalMult').value=m.calorieMultiplier||'';document.getElementById('fMinKcal').value=m.minKcal||'';
+  document.getElementById('fMaxKcal').value=m.maxKcal||'';document.getElementById('fWaterL').value=m.waterLPerDay||'';
+  document.getElementById('fTdeeAdj').value=i?.tdeeAdjPct??'';
   document.getElementById('fAuto').value=i?.autoApply||'Yes';document.getElementById('fRev').value=i?.nutritionistReview||'No';
   document.getElementById('fStatus').value=i?.ruleStatus||'Approved';document.getElementById('fComments').value=i?.nutritionistComments||'';
   document.getElementById('modal').style.display='flex';
@@ -111,7 +119,7 @@ async function save(){
   const body={ruleCode:g('fCode'),goalCode:g('fGoal'),goalName:g('fGName'),autoApply:g('fAuto'),
     nutritionistReview:g('fRev'),ruleStatus:g('fStatus'),nutritionistComments:g('fComments'),
     macros:{proteinPct:gn('fProtPct'),carbohydratePct:gn('fCarbPct'),fatPct:gn('fFatPct'),
-      proteinGPerKgPerDay:g('fProtG'),mealFrequency:g('fMeal'),fibreGPerDay:g('fFibre'),waterMlPerKgPerDay:g('fWater')}};
+      proteinGPerKgPerDay:g('fProtG'),mealFrequency:g('fMeal'),fibreGPerDay:g('fFibre'),waterMlPerKgPerDay:g('fWater'),calorieMultiplier:parseFloat(document.getElementById('fCalMult').value)||1.0,minKcal:parseInt(document.getElementById('fMinKcal').value)||null,maxKcal:parseInt(document.getElementById('fMaxKcal').value)||null,waterLPerDay:parseFloat(document.getElementById('fWaterL').value)||null}},tdeeAdjPct:parseInt(document.getElementById('fTdeeAdj').value)||0};
   if(!body.goalCode){showToast('Goal Code required','error');return;}
   try{if(editId)await adminApi.updateGoalMacroRule(editId,body);else await adminApi.createGoalMacroRule(body);
     showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}

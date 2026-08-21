@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Subscription Durations · KRISHA PURE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('subscription-durations');</script><script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'subscription-durations',
+  title: 'Subscription Durations',
+  sub: 'Configure billing commitment periods (1 month, 3 months, 6 months) and optional discount %',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Duration</button>`
+});
+
+let items = [], editId = null;
+
+content.innerHTML = `
+<div style="background:#FFF8E1;border:1px solid #FFE082;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#7B5E2A;display:flex;gap:10px;align-items:flex-start">
+  <span style="font-size:16px">💡</span>
+  <span>These are the billing commitment periods customers choose at checkout. Price is calculated dynamically:
+  <strong>per-delivery basket value × number of deliveries in the period</strong>, minus the discount % if set.
+  Basket value comes from the actual products selected — no fixed prices stored here.</span>
+</div>
+
+<div class="panel">
+  <div class="toolbar">
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+    <div class="spacer"></div>
+  </div>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Duration (months)</th>
+          <th>Discount %</th>
+          <th>Sort Order</th>
+          <th>Active</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="mTitle">Add Subscription Duration</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="form-grid" style="padding:4px 0">
+      <div class="field full">
+        <label>Label * <span style="font-size:11px;color:var(--ink-faint)">(shown to customer e.g. "3 Months")</span></label>
+        <input id="fLabel" placeholder="e.g. 3 Months"/>
+      </div>
+      <div class="field">
+        <label>Duration (months) *</label>
+        <input id="fMonths" type="number" min="1" placeholder="3"/>
+      </div>
+      <div class="field">
+        <label>Discount % <span style="font-size:11px;color:var(--ink-faint)">(0 = no discount)</span></label>
+        <input id="fDiscount" type="number" min="0" max="100" placeholder="0" value="0"/>
+      </div>
+      <div class="field">
+        <label>Sort Order</label>
+        <input id="fSort" type="number" min="1" placeholder="1"/>
+      </div>
+      <div class="field">
+        <label>Active</label>
+        <select id="fActive">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="save()">Save Duration</button>
+    </div>
+  </div>
+</div>`;
+
+function render() {
+  document.getElementById('cnt').textContent = `${items.length} duration${items.length !== 1 ? 's' : ''}`;
+  document.getElementById('tbody').innerHTML = items.length === 0
+    ? `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--ink-faint)">No durations configured yet — add 1 month, 3 months, 6 months</td></tr>`
+    : items.map(i => `<tr>
+        <td style="font-weight:600">${escapeHtml(i.label||'')}</td>
+        <td class="mono" style="font-weight:700;color:var(--green-dark)">${i.durationMonths||'–'} mo</td>
+        <td>
+          ${i.discountPct > 0
+            ? `<span style="background:#E8F5E9;color:#2D6A35;padding:2px 10px;border-radius:4px;font-weight:700;font-size:13px">${i.discountPct}% off</span>`
+            : `<span style="color:var(--ink-faint);font-size:12px">No discount</span>`}
+        </td>
+        <td class="mono">${i.sortOrder ?? '–'}</td>
+        <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.isActive!==false?'#E8F5E9':'#FFF3E0'};color:${i.isActive!==false?'#2D6A35':'#E65100'}">${i.isActive!==false?'Active':'Inactive'}</span></td>
+        <td>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+            <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#DC2626;border-color:#DC2626" onclick="del('${i._id}')">Delete</button>
+          </div>
+        </td>
+      </tr>`).join('');
+}
+
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit Subscription Duration' : 'Add Subscription Duration';
+  document.getElementById('fLabel').value    = i?.label          || '';
+  document.getElementById('fMonths').value   = i?.durationMonths || '';
+  document.getElementById('fDiscount').value = i?.discountPct    ?? 0;
+  document.getElementById('fSort').value     = i?.sortOrder      ?? (items.length + 1);
+  document.getElementById('fActive').value   = String(i?.isActive !== false);
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  editId = null;
+}
+
+const g  = id => document.getElementById(id)?.value?.trim() || '';
+const gn = id => { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; };
+
+async function save() {
+  const label          = g('fLabel');
+  const durationMonths = gn('fMonths');
+  const discountPct    = gn('fDiscount') ?? 0;
+  const sortOrder      = gn('fSort') ?? 99;
+
+  if (!label)          return showToast('Label is required', 'error');
+  if (!durationMonths) return showToast('Duration (months) is required', 'error');
+  if (discountPct < 0 || discountPct > 100) return showToast('Discount % must be between 0 and 100', 'error');
+
+  const body = {
+    label, durationMonths, discountPct, sortOrder,
+    isActive: document.getElementById('fActive').value === 'true',
+  };
+
+  try {
+    if (editId) {
+      await adminApi.updateSubscriptionDuration(editId, body);
+      showToast(`${label} updated ✓`, 'success');
+    } else {
+      await adminApi.createSubscriptionDuration(body);
+      showToast(`${label} created ✓`, 'success');
+    }
+    closeModal();
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this subscription duration?')) return;
+  try {
+    await adminApi.deleteSubscriptionDuration(id);
+    showToast('Deleted ✓', 'success');
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getSubscriptionDurations();
+    items = d.subscriptionDurations || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script>
+</body></html>

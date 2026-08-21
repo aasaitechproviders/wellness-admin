@@ -7,11 +7,11 @@
 const content = renderShell({
   active: 'plan-types',
   title: 'Plan Types',
-  sub: 'Configure wellness basket plan codes, names and nutrition coverage percentages',
+  sub: 'Configure wellness basket plan codes, names, nutrition coverage % and included product categories',
   actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Plan Type</button>`
 });
 
-let items = [], editId = null;
+let items = [], editId = null, allCategories = [];
 
 content.innerHTML = `
 <div id="statsBar"></div>
@@ -27,10 +27,9 @@ content.innerHTML = `
         <tr>
           <th>Plan Code</th>
           <th>Plan Name</th>
-          <th>Duration (days)</th>
           <th>Coverage %</th>
+          <th>Included Categories</th>
           <th>Description</th>
-          <th>Status</th>
           <th>Active</th>
           <th></th>
         </tr>
@@ -64,6 +63,14 @@ content.innerHTML = `
         <input id="fCoverage" type="number" min="1" max="100" placeholder="30"/>
       </div>
       <div class="field full">
+        <label>Included Product Categories *
+          <span style="font-size:11px;color:var(--ink-faint)"> — tick which product categories appear in baskets for this plan</span>
+        </label>
+        <div id="catCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;min-height:40px">
+          <span style="color:var(--ink-faint);font-size:12px">Loading categories…</span>
+        </div>
+      </div>
+      <div class="field full">
         <label>Description</label>
         <input id="fDesc" placeholder="30% of weekly nutrition needs covered by basket"/>
       </div>
@@ -94,10 +101,31 @@ content.innerHTML = `
   </div>
 </div>`;
 
+function renderCategoryCheckboxes(selectedCategories) {
+  const wrap = document.getElementById('catCheckboxes');
+  if (!allCategories.length) {
+    wrap.innerHTML = '<span style="color:var(--ink-faint);font-size:12px">No categories found — add them in Product Categories first</span>';
+    return;
+  }
+  wrap.innerHTML = allCategories.map(cat => {
+    const checked = selectedCategories.includes(cat.name) ? 'checked' : '';
+    const id = `cat_${cat.name.replace(/\s+/g,'_')}`;
+    return `<label for="${id}" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;background:#fff">
+      <input type="checkbox" id="${id}" value="${escapeHtml(cat.name)}" ${checked} style="accent-color:var(--green);width:14px;height:14px"/>
+      ${escapeHtml(cat.name)}
+    </label>`;
+  }).join('');
+}
+
+function getSelectedCategories() {
+  const boxes = document.querySelectorAll('#catCheckboxes input[type=checkbox]:checked');
+  return Array.from(boxes).map(b => b.value);
+}
+
 function renderStats(data) {
   if (!data?.length) return;
-  const active   = data.filter(i => i.isActive !== false).length;
-  const avgCov   = Math.round(data.reduce((s,i) => s + (parseFloat(i.coveragePct)||0), 0) / data.length);
+  const active = data.filter(i => i.isActive !== false).length;
+  const avgCov = Math.round(data.reduce((s,i) => s + (parseFloat(i.coveragePct)||0), 0) / data.length);
   const el = document.getElementById('statsBar');
   if (!el) return;
   el.innerHTML = `
@@ -131,29 +159,33 @@ function render() {
   const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
   document.getElementById('cnt').textContent = `${f.length} plan types`;
   document.getElementById('tbody').innerHTML = f.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--ink-faint)">No plan types found</td></tr>`
-    : f.map(i => `<tr>
-      <td class="mono" style="font-weight:700;color:var(--green-dark)">${escapeHtml(i.planCode||'')}</td>
-      <td>${escapeHtml(i.planName||'')}</td>
-      <td class="mono">${i.durationDays||'–'} days</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="flex:1;max-width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-            <div style="height:100%;width:${Math.min(i.coveragePct||0,100)}%;background:var(--green);border-radius:3px"></div>
-          </div>
-          <span class="mono" style="font-weight:700;color:var(--green-dark)">${i.coveragePct||0}%</span>
-        </div>
-      </td>
-      <td style="color:var(--ink-soft);font-size:12px">${escapeHtml(i.description||'–')}</td>
-      <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.status==='Active'?'#E8F5E9':'#F5F5F5'};color:${i.status==='Active'?'#2D6A35':'#757575'}">${escapeHtml(i.status||'')}</span></td>
-      <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.isActive!==false?'#E8F5E9':'#FFF3E0'};color:${i.isActive!==false?'#2D6A35':'#E65100'}">${i.isActive!==false?'Active':'Inactive'}</span></td>
-      <td>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
-          <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#DC2626;border-color:#DC2626" onclick="del('${i._id}')">Delete</button>
-        </div>
-      </td>
-    </tr>`).join('');
+    ? `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--ink-faint)">No plan types found</td></tr>`
+    : f.map(i => {
+        const cats = Array.isArray(i.includedCategories) && i.includedCategories.length
+          ? i.includedCategories.map(c => `<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;font-size:11px;margin:1px 2px">${escapeHtml(c)}</span>`).join('')
+          : `<span style="color:var(--ink-faint);font-size:11px">Not configured</span>`;
+        return `<tr>
+          <td class="mono" style="font-weight:700;color:var(--green-dark)">${escapeHtml(i.planCode||'')}</td>
+          <td>${escapeHtml(i.planName||'')}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;max-width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${Math.min(i.coveragePct||0,100)}%;background:var(--green);border-radius:3px"></div>
+              </div>
+              <span class="mono" style="font-weight:700;color:var(--green-dark)">${i.coveragePct||0}%</span>
+            </div>
+          </td>
+          <td>${cats}</td>
+          <td style="color:var(--ink-soft);font-size:12px">${escapeHtml(i.description||'–')}</td>
+          <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.isActive!==false?'#E8F5E9':'#FFF3E0'};color:${i.isActive!==false?'#2D6A35':'#E65100'}">${i.isActive!==false?'Active':'Inactive'}</span></td>
+          <td>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+              <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#DC2626;border-color:#DC2626" onclick="del('${i._id}')">Delete</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
 }
 
 function openModal(i) {
@@ -167,6 +199,8 @@ function openModal(i) {
   document.getElementById('fStatus').value   = i?.status       || 'Active';
   document.getElementById('fActive').value   = String(i?.isActive !== false);
   document.getElementById('fNotes').value    = i?.notes        || '';
+  const selectedCats = Array.isArray(i?.includedCategories) ? i.includedCategories : [];
+  renderCategoryCheckboxes(selectedCats);
   document.getElementById('modal').style.display = 'flex';
 }
 
@@ -183,15 +217,18 @@ async function save() {
   const planName    = g('fName');
   const coveragePct = gn('fCoverage');
   const durationDays = gn('fDuration');
+  const includedCategories = getSelectedCategories();
 
   if (!planCode)    return showToast('Plan Code is required', 'error');
   if (!planName)    return showToast('Plan Name is required', 'error');
   if (!coveragePct) return showToast('Coverage % is required', 'error');
   if (coveragePct < 1 || coveragePct > 100) return showToast('Coverage % must be between 1 and 100', 'error');
   if (!durationDays) return showToast('Duration (days) is required', 'error');
+  if (!includedCategories.length) return showToast('Select at least one included product category', 'error');
 
   const body = {
     planCode, planName, durationDays, coveragePct,
+    includedCategories,
     description: g('fDesc'),
     status:      g('fStatus'),
     isActive:    document.getElementById('fActive').value === 'true',
@@ -221,10 +258,15 @@ async function del(id) {
 }
 
 async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
-    const d = await adminApi.getPlanTypes();
-    items = d.planTypes || [];
+    // Load categories and plan types in parallel
+    const [planData, catData] = await Promise.all([
+      adminApi.getPlanTypes(),
+      adminApi.getProductCategories().catch(() => ({ categories: [] })),
+    ]);
+    allCategories = (catData.categories || []).filter(c => c.isActive !== false);
+    items = planData.planTypes || [];
     renderStats(items);
     render();
   } catch(e) { showToast(e.message, 'error'); }

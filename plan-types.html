@@ -261,12 +261,13 @@ async function load() {
   document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     // Load categories and plan types in parallel
+    // nutritionCRUD returns data under derived key (hyphens stripped) AND under 'items'
     const [planData, catData] = await Promise.all([
       adminApi.getPlanTypes(),
-      adminApi.getProductCategories().catch(() => ({ categories: [] })),
+      adminApi.getProductCategories().catch(() => ({ items: [] })),
     ]);
-    allCategories = (catData.categories || []).filter(c => c.isActive !== false);
-    items = planData.planTypes || [];
+    allCategories = (catData.items || catData.categories || catData.productcategories || []).filter(c => c.isActive !== false);
+    items = planData.items || planData.planTypes || planData.plantypes || [];
     renderStats(items);
     render();
   } catch(e) { showToast(e.message, 'error'); }

@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Curated Baskets · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('curated-baskets');</script><script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'curated-baskets',title:'Curated Baskets',sub:'Nutrition basket definitions mapped to wellness goals and health conditions',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
+let items=[],editId=null;
+content.innerHTML=`<div id="statsBar"></div>
+<div class="panel">
+<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
+<div class="table-wrap"><table class="data"><thead><tr><th>Code</th><th>Basket Name</th><th>Display Name</th><th>Category</th><th>Wellness Goal</th><th>Calorie Range</th><th>Diet Pref</th><th>Auto Rec.</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Curated Basket</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
+  <div class="field"><label>Basket Code</label><input id="fCode" placeholder="CB001"/></div>
+  <div class="field"><label>Basket Name *</label><input id="fName" placeholder="General Healthy Vegetarian"/></div>
+  <div class="field"><label>Display Name</label><input id="fDisplay" placeholder="Healthy Vegetarian"/></div>
+  <div class="field"><label>Basket Category</label><input id="fCat" placeholder="Wellness"/></div>
+  <div class="field"><label>Wellness Goal</label><input id="fGoal" placeholder="General Wellness"/></div>
+  <div class="field"><label>Health Condition</label><input id="fCond" placeholder="None"/></div>
+  <div class="field"><label>Lifestyle</label><input id="fLife" placeholder="Standard"/></div>
+  <div class="field"><label>Diet Preference</label><select id="fDiet"><option>Vegetarian</option><option>Vegan</option><option>Eggetarian</option><option>Non-Vegetarian</option><option>Any</option></select></div>
+  <div class="field"><label>Calorie Range (kcal)</label><input id="fCal" placeholder="1800-2200"/></div>
+  <div class="field"><label>Protein Range (g)</label><input id="fProt" placeholder="55-70"/></div>
+  <div class="field"><label>Meal Pattern</label><input id="fMeal" placeholder="3 Meals + 2 Snacks"/></div>
+  <div class="field"><label>Auto Recommendation</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Priority</label><select id="fPri"><option>Highest</option><option>High</option><option>Medium</option><option>Low</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field full"><label>Included Food Groups</label><textarea id="fIncluded" rows="2" placeholder="Whole grains, pulses, fruits, vegetables, dairy"></textarea></div>
+  <div class="field full"><label>Restricted Food Groups</label><textarea id="fRestricted" rows="2" placeholder="Ultra-processed foods"></textarea></div>
+  <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
+</div></div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
+  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
+  const totalFields = allKeys.length;
+  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
+  const emptyFields = totalFields - filledFields;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${totalFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${filledFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
+    </div>
+    ${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">${emptyFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
+    </div>` : ''}
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">${nestedCount}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
+      <div style="font-size:11px;line-height:1.9">${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getCuratedBaskets();items=d.baskets||[];renderStats(items);render();}catch(e){showToast(e.message,'error');}
+}
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} baskets`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.basketCode||'')}</td><td><b>${escapeHtml(i.basketName||'')}</b></td>
+    <td>${escapeHtml(i.displayName||'')}</td><td>${escapeHtml(i.basketCategory||'')}</td>
+    <td>${escapeHtml(i.wellnessGoal||'')}</td><td class="mono">${escapeHtml(i.calorieRange||'')}</td>
+    <td>${escapeHtml(i.dietPreference||'')}</td><td>${escapeHtml(i.autoRecommendation||'')}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${escapeHtml(i.ruleStatus||'')}</span></td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No records</td></tr>';
+}
+function openModal(i){
+  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Curated Basket':'Add Curated Basket';
+  document.getElementById('fCode').value=i?.basketCode||'';document.getElementById('fName').value=i?.basketName||'';
+  document.getElementById('fDisplay').value=i?.displayName||'';document.getElementById('fCat').value=i?.basketCategory||'';
+  document.getElementById('fGoal').value=i?.wellnessGoal||'';document.getElementById('fCond').value=i?.healthCondition||'';
+  document.getElementById('fLife').value=i?.lifestyle||'';document.getElementById('fDiet').value=i?.dietPreference||'Vegetarian';
+  document.getElementById('fCal').value=i?.calorieRange||'';document.getElementById('fProt').value=i?.proteinRange||'';
+  document.getElementById('fMeal').value=i?.mealPattern||'';document.getElementById('fAuto').value=i?.autoRecommendation||'Yes';
+  document.getElementById('fPri').value=i?.priority||'Medium';document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
+  document.getElementById('fIncluded').value=i?.includedFoodGroups||'';document.getElementById('fRestricted').value=i?.restrictedFoodGroups||'';
+  document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
+async function save(){
+  const body={basketCode:g('fCode'),basketName:g('fName'),displayName:g('fDisplay'),basketCategory:g('fCat'),
+    wellnessGoal:g('fGoal'),healthCondition:g('fCond'),lifestyle:g('fLife'),dietPreference:g('fDiet'),
+    calorieRange:g('fCal'),proteinRange:g('fProt'),mealPattern:g('fMeal'),autoRecommendation:g('fAuto'),
+    priority:g('fPri'),ruleStatus:g('fStatus'),includedFoodGroups:g('fIncluded'),
+    restrictedFoodGroups:g('fRestricted'),nutritionistComments:g('fComments')};
+  if(!body.basketName){showToast('Basket name required','error');return;}
+  try{if(editId)await adminApi.updateCuratedBasket(editId,body);else await adminApi.createCuratedBasket(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+}
+async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteCuratedBasket(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
+load();
+</script></body></html>

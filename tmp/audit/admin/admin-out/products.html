@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Products · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+.tab-bar{display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px}
+.tab-btn{padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:none;color:var(--ink-soft);border-bottom:2px solid transparent;margin-bottom:-2px;transition:.15s}
+.tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.tab-pane{display:none}.tab-pane.active{display:block}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);margin:14px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.tag-input-wrap{display:flex;flex-wrap:wrap;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:8px;min-height:40px;cursor:text;background:#fff}
+.tag-chip{display:inline-flex;align-items:center;gap:4px;background:var(--green-pale);color:var(--green-dark);padding:2px 8px;border-radius:20px;font-size:12px;font-weight:600}
+.tag-chip button{background:none;border:none;cursor:pointer;color:var(--ink-soft);font-size:13px;line-height:1;padding:0}
+.tag-input-wrap input{border:none;outline:none;flex:1;min-width:80px;font-size:13px}
+.score-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('products');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({ active:'products', title:'Products', sub:'Nutrition master data — full produce catalogue with nutrient profiles', actions:`<button class="btn btn-primary" onclick="openModal()">+ Add Product</button>` });
+
+let allProducts=[], filtered=[], page=1, perPage=25, editId=null, curationTagsList=[], CATEGORIES=[];
+
+async function loadCategories() {
+  try {
+    const d = await req('GET', '/admin/product-categories/public');
+    CATEGORIES = (d.categories||[]).map(c => c.name);
+  } catch {
+    CATEGORIES = ['Leafy Vegetables','Fruits','Microgreens','Roots & Tubers','Gourds','Beans & Legumes','Herbs & Spices','Other'];
+  }
+  // Populate category dropdowns and filter
+  const catFilter = document.getElementById('catFilter');
+  catFilter.innerHTML = '<option value="">All Categories</option>' + CATEGORIES.map(c=>`<option>${c}</option>`).join('');
+}
+
+const APPROVAL_STATUSES=['Pending','Reviewed','Approved','Rejected'];
+const YMN=['Yes','Moderate','No'];
+const EGM=['Excellent','Good','Moderate','No'];
+const SEASON=['Year-round','Summer','Winter','Monsoon','Summer & Monsoon','Winter & Summer'];
+const STORAGE=['Refrigerated','Room Temperature','Cool & Dry'];
+
+content.innerHTML=`
+<div class="toolbar">
+  <input type="search" id="srch" placeholder="Search name, ID, category…" oninput="applyFilter()"/>
+  <select id="catFilter" onchange="applyFilter()"><option value="">All Categories</option>${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+  <select id="statusFilter" onchange="applyFilter()"><option value="">All Status</option><option value="true">Active</option><option value="false">Inactive</option></select>
+  <div class="spacer"></div>
+  <span id="countBadge" class="muted" style="font-size:12px"></span>
+</div>
+<div id="statsBar"></div>
+<div class="panel">
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr>
+        <th>ID</th><th>Name</th><th>Category</th>
+        <th>Cal</th><th>Protein</th><th>Fiber</th><th>GI</th>
+        <th>Min/Typical/Max (g)</th>
+        <th>Diabetes</th><th>Wt.Loss</th><th>Immunity</th>
+        <th>Approval</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="pagination"><span id="pgInfo"></span>
+    <button id="prevBtn" onclick="changePage(-1)">&#8592;</button>
+    <button id="nextBtn" onclick="changePage(1)">&#8594;</button>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="modalTitle">Add Product</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div style="overflow-y:auto;max-height:75vh;padding:0 20px 16px">
+
+      <!-- TABS -->
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab('basics',this)">Basics</button>
+        <button class="tab-btn" onclick="switchTab('nutrition',this)">Nutrition</button>
+        <button class="tab-btn" onclick="switchTab('wellness',this)">Wellness</button>
+        <button class="tab-btn" onclick="switchTab('basket',this)">Basket Config</button>
+        <button class="tab-btn" onclick="switchTab('approval',this)">Approval</button>
+      </div>
+
+      <!-- TAB: BASICS -->
+      <div class="tab-pane active" id="tab-basics">
+        <div class="section-title">Identity</div>
+        <div class="form-grid">
+          <div class="field"><label>Product ID</label><input id="fProductId" placeholder="Prod_001"/></div>
+          <div class="field"><label>Name *</label><input id="fName" placeholder="Spinach"/></div>
+          <div class="field"><label>Category</label><select id="fCategory"></select></div>
+          <div class="field"><label>Seasonal</label><select id="fSeasonal">${SEASON.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>Price per 100g (₹)</label><input id="fPrice" type="number" step="0.01" placeholder="10"/></div>
+          <div class="field"><label>Current Price per 100g (₹)</label><input id="fCurrentPrice" type="number" step="0.01" placeholder="10"/></div>
+          <div class="field"><label>Serving Unit</label><input id="fUnit" placeholder="g" value="g"/></div>
+          <div class="field"><label>Shelf Life</label><input id="fShelf" placeholder="2–5 days"/></div>
+          <div class="field"><label>Storage Type</label><select id="fStorage">${STORAGE.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>Premium Positioning</label><input id="fPremium" placeholder="Functional Wellness Greens"/></div>
+          <div class="field"><label>Nutrition Data Basis</label><input id="fBasis" placeholder="Per 100g edible portion – raw"/></div>
+          <div class="field"><label>Taste Profile</label><input id="fTaste" placeholder="Mild/Earthy"/></div>
+        </div>
+        <div class="section-title">Flags</div>
+        <div class="form-grid">
+          <div class="field"><label>Is Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+          <div class="field"><label>Is Non-Veg</label><select id="fIsNonVeg"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="field"><label>Hard Exclusion</label><select id="fHardExclusion"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="field"><label>Microgreen Compatible</label><select id="fMicro"><option value="true">Yes</option><option value="false">No</option></select></div>
+        </div>
+        <div class="section-title">Suitability</div>
+        <div class="form-grid">
+          <div class="field"><label>Kid Friendly</label><select id="fKid">${YMN.map(v=>`<option>${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Senior Friendly</label><select id="fSenior">${YMN.map(v=>`<option>${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Diabetic Friendly</label><select id="fDiabFr">${EGM.map(v=>`<option>${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Salad Suitability</label><select id="fSalad">${EGM.map(v=>`<option>${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Juice Suitability</label><select id="fJuice">${EGM.map(v=>`<option>${v}</option>`).join('')}</select></div>
+          <div class="field"><label>Cooking Suitability</label><select id="fCook"><option>Both</option><option>Raw</option><option>Cooked</option><option>No</option></select></div>
+        </div>
+        <div class="section-title">Curation</div>
+        <div class="form-grid">
+          <div class="field full"><label>Curation Notes</label><input id="fCurationNotes" placeholder="Immunity, Diabetes, Weight Loss…"/></div>
+          <div class="field full"><label>Curation Tags <span style="font-weight:400;color:var(--ink-faint)">(press Enter to add)</span></label>
+            <div class="tag-input-wrap" id="tagWrap" onclick="document.getElementById('tagInput').focus()">
+              <input id="tagInput" placeholder="Add tag…" onkeydown="handleTagKey(event)"/>
+            </div>
+          </div>
+          <div class="field full"><label>Best For</label><input id="fBestFor" placeholder="Iron, Detox, Blood Sugar"/></div>
+        </div>
+      </div>
+
+      <!-- TAB: NUTRITION -->
+      <div class="tab-pane" id="tab-nutrition">
+        <div class="section-title">Macros (per 100g)</div>
+        <div class="form-grid">
+          <div class="field"><label>Calories (kcal)</label><input id="fCal" type="number"/></div>
+          <div class="field"><label>Carbs (g)</label><input id="fCarbs" type="number" step="0.1"/></div>
+          <div class="field"><label>Fiber (g)</label><input id="fFiber" type="number" step="0.1"/></div>
+          <div class="field"><label>Protein (g)</label><input id="fProtein" type="number" step="0.1"/></div>
+          <div class="field"><label>Fat (g)</label><input id="fFat" type="number" step="0.1"/></div>
+          <div class="field"><label>Sugar (g)</label><input id="fSugar" type="number" step="0.1"/></div>
+          <div class="field"><label>Saturated Fat (g)</label><input id="fSatFat" type="number" step="0.001"/></div>
+          <div class="field"><label>Unsaturated Fat (g)</label><input id="fUnsatFat" type="number" step="0.001"/></div>
+          <div class="field"><label>Added Sugar (g)</label><input id="fAddSugar" type="number" step="0.01"/></div>
+        </div>
+        <div class="section-title">Glycemic</div>
+        <div class="form-grid">
+          <div class="field"><label>GI</label><input id="fGI" type="number"/></div>
+          <div class="field"><label>GL</label><input id="fGL" type="number" step="0.1"/></div>
+        </div>
+        <div class="section-title">Micronutrients (per 100g)</div>
+        <div class="form-grid">
+          <div class="field"><label>Iron (mg)</label><input id="fIron" type="number" step="0.01"/></div>
+          <div class="field"><label>Calcium (mg)</label><input id="fCalcium" type="number"/></div>
+          <div class="field"><label>Magnesium (mg)</label><input id="fMag" type="number"/></div>
+          <div class="field"><label>Potassium (mg)</label><input id="fPot" type="number"/></div>
+          <div class="field"><label>Vitamin C (mg)</label><input id="fVitC" type="number" step="0.1"/></div>
+          <div class="field"><label>Vitamin A (µg RAE)</label><input id="fVitA" type="number" step="0.01"/></div>
+          <div class="field"><label>Zinc (mg)</label><input id="fZinc" type="number" step="0.01"/></div>
+          <div class="field"><label>Sodium (mg)</label><input id="fSodium" type="number" step="0.01"/></div>
+        </div>
+      </div>
+
+      <!-- TAB: WELLNESS -->
+      <div class="tab-pane" id="tab-wellness">
+        <div class="section-title">Wellness Scores (0–100)</div>
+        <div class="score-row">
+          <div class="field"><label>Diabetes</label><input id="sDiab" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Weight Loss</label><input id="sWt" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Immunity</label><input id="sImm" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Detox</label><input id="sDetox" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Satiety</label><input id="sSat" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Anti-Inflammatory</label><input id="sAnti" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Heart Health</label><input id="sHeart" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Bone Health</label><input id="sBone" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Iron Support</label><input id="sIron" type="number" min="0" max="100"/></div>
+        </div>
+        <div class="section-title">System Computed Flags</div>
+        <div class="form-grid">
+          <div class="field"><label>System Diabetes Status</label><input id="fSysDiab" placeholder="Auto-computed"/></div>
+          <div class="field"><label>System Weight Loss Status</label><input id="fSysWt" placeholder="Auto-computed"/></div>
+        </div>
+      </div>
+
+      <!-- TAB: BASKET CONFIG -->
+      <div class="tab-pane" id="tab-basket">
+        <div class="section-title">Weekly Basket Quantity Limits</div>
+        <div class="form-grid">
+          <div class="field"><label>Typical Serving (g)</label><input id="fTypicalServing" type="number" placeholder="100"/></div>
+          <div class="field"><label>Min Basket (g)</label><input id="fMinBasketG" type="number" placeholder="50"/></div>
+          <div class="field"><label>Max Basket (g)</label><input id="fMaxBasketG" type="number" placeholder="500"/></div>
+          <div class="field"><label>Max Servings / Week</label><input id="fMaxServingsWeek" type="number" placeholder="3"/></div>
+        </div>
+        <div style="margin-top:12px;padding:12px 14px;background:var(--green-pale);border-radius:10px;font-size:12px;color:var(--ink-soft);line-height:1.7">
+          💡 <b>Typical Serving</b> is used as the default basket quantity per delivery.<br/>
+          <b>Min/Max Basket</b> are hard clamps — the engine will never go below Min or above Max.<br/>
+          <b>Max Servings/Week</b> caps how many times this product appears across the week.
+        </div>
+      </div>
+
+      <!-- TAB: APPROVAL -->
+      <div class="tab-pane" id="tab-approval">
+        <div class="section-title">Review & Approval</div>
+        <div class="form-grid">
+          <div class="field"><label>Approval Status</label><select id="fApprovalStatus">${APPROVAL_STATUSES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>Reviewed By</label><input id="fReviewedBy" placeholder="Savitha"/></div>
+          <div class="field"><label>Reviewed At</label><input id="fReviewedAt" type="date"/></div>
+          <div class="field"><label>Nutritionist Approved</label><select id="fNutrApproved"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="field"><label>Conditional Review</label><select id="fConditionalReview"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="field full"><label>Approval Comments</label><input id="fApprovalComments" placeholder="Any notes from review…"/></div>
+          <div class="field"><label>Image URL</label><input id="fImageUrl" placeholder="https://…"/></div>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="save()">Save Product</button>
+    </div>
+  </div>
+</div>`;
+
+/* ── Tab switching ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+/* ── Curation Tags ── */
+function handleTagKey(e) {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = e.target.value.trim().replace(/,$/, '');
+    if (val && !curationTagsList.includes(val)) {
+      curationTagsList.push(val);
+      renderTags();
+    }
+    e.target.value = '';
+  }
+}
+function removeTag(tag) {
+  curationTagsList = curationTagsList.filter(t => t !== tag);
+  renderTags();
+}
+function renderTags() {
+  const wrap = document.getElementById('tagWrap');
+  const input = document.getElementById('tagInput');
+  wrap.innerHTML = '';
+  curationTagsList.forEach(t => {
+    const chip = document.createElement('span');
+    chip.className = 'tag-chip';
+    chip.innerHTML = `${escapeHtml(t)}<button onclick="removeTag('${escapeHtml(t)}')" type="button">×</button>`;
+    wrap.appendChild(chip);
+  });
+  wrap.appendChild(input);
+}
+function setTags(arr) {
+  curationTagsList = Array.isArray(arr) ? [...arr] : [];
+  renderTags();
+}
+
+/* ── Stats bar ── */
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const active = items.filter(i => i.isActive).length;
+  const withImg = items.filter(i => i.imageUrl).length;
+  const approved = items.filter(i => i.approvalStatus === 'Approved').length;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  const stat = (val, label, color='var(--green)') =>
+    `<div style="display:flex;flex-direction:column;align-items:center;min-width:52px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:${color};line-height:1">${val}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">${label}</span>
+    </div>`;
+  const div = (h='var(--border)') => `<div style="width:1px;background:${h};align-self:stretch"></div>`;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+    ${stat(items.length,'Total')}${div()}${stat(active,'Active')}${div()}
+    ${stat(items.length-active,'Inactive','#C9A84C')}${div()}
+    ${stat(approved,'Approved')}${div()}
+    ${stat(withImg,'With Image','var(--ink-soft)')}
+  </div>`;
+}
+
+/* ── Load & filter ── */
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getProducts({ limit: 1000 });
+    allProducts = d.products || [];
+    renderStats(allProducts);
+    applyFilter();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function applyFilter() {
+  const q   = (document.getElementById('srch').value || '').toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  const st  = document.getElementById('statusFilter').value;
+  filtered  = allProducts.filter(p => {
+    if (cat && p.category !== cat) return false;
+    if (st  && String(p.isActive) !== st) return false;
+    if (q && !((p.name||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q) || (p.productId||'').toLowerCase().includes(q) || (p.curationNotes||'').toLowerCase().includes(q))) return false;
+    return true;
+  });
+  page = 1; render();
+}
+
+function approvalBadge(s) {
+  const map = { Approved:'pill-active', Pending:'pill-warn', Rejected:'pill-inactive', Reviewed:'pill-info' };
+  return `<span class="pill ${map[s]||''}">${s||'–'}</span>`;
+}
+
+function render() {
+  document.getElementById('countBadge').textContent = `${filtered.length} products`;
+  const start = (page - 1) * perPage, slice = filtered.slice(start, start + perPage);
+  document.getElementById('pgInfo').textContent = `${start+1}–${Math.min(start+perPage,filtered.length)} of ${filtered.length}`;
+  document.getElementById('prevBtn').disabled = page === 1;
+  document.getElementById('nextBtn').disabled = start + perPage >= filtered.length;
+  document.getElementById('tbody').innerHTML = slice.map(p => `
+    <tr>
+      <td class="mono">${escapeHtml(p.productId||'')}</td>
+      <td><b>${escapeHtml(p.name||'')}</b>${p.isNonVeg?'<span style="color:#C62828;font-size:10px;margin-left:4px">🥩NV</span>':''}</td>
+      <td>${escapeHtml(p.category||'')}</td>
+      <td class="num">${p.nutrition?.calories??'–'}</td>
+      <td class="num">${p.nutrition?.protein??'–'}</td>
+      <td class="num">${p.nutrition?.fiber??'–'}</td>
+      <td class="num">${p.nutrition?.gi??'–'}</td>
+      <td class="num" style="font-size:11px">${p.minBasketG??'–'} / ${p.typicalServingG??'–'} / ${p.maxBasketG??'–'}</td>
+      <td class="num">${p.wellnessScores?.diabetes??'–'}</td>
+      <td class="num">${p.wellnessScores?.weightLoss??'–'}</td>
+      <td class="num">${p.wellnessScores?.immunity??'–'}</td>
+      <td>${approvalBadge(p.approvalStatus)}</td>
+      <td><span class="pill ${p.isActive?'pill-active':'pill-inactive'}">${p.isActive?'Active':'Inactive'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(p)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${p._id}')">Del</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="14" class="empty">No products found</td></tr>';
+}
+
+function changePage(d) { page += d; render(); }
+
+/* ── Open modal ── */
+function openModal(p) {
+  editId = p ? p._id : null;
+  document.getElementById('modalTitle').textContent = p ? 'Edit Product' : 'Add Product';
+  // Populate category select from DB
+  const catSel = document.getElementById('fCategory');
+  catSel.innerHTML = CATEGORIES.map(c=>`<option>${c}</option>`).join('');
+
+  // Reset to first tab
+  switchTab('basics', document.querySelector('.tab-btn'));
+
+  const n  = p?.nutrition     || {};
+  const s  = p?.wellnessScores|| {};
+  const su = p?.suitability   || {};
+
+  // Basics
+  sv('fProductId',        p?.productId         || '');
+  sv('fName',             p?.name              || '');
+  sv('fCategory',         p?.category          || CATEGORIES[0]);
+  sv('fSeasonal',         p?.seasonal          || 'Year-round');
+  sv('fPrice',            p?.pricePer100g      ?? '');
+  sv('fCurrentPrice',     p?.currentPricePer100g ?? '');
+  sv('fUnit',             p?.servingUnit       || 'g');
+  sv('fShelf',            p?.shelfLife         || '');
+  sv('fStorage',          p?.storageType       || 'Refrigerated');
+  sv('fPremium',          p?.premiumPositioning|| '');
+  sv('fBasis',            p?.nutritionDataBasis|| 'Per 100g edible portion – raw');
+  sv('fTaste',            p?.tasteProfile      || '');
+  sv('fIsActive',         p?.isActive === false ? 'false' : 'true');
+  sv('fIsNonVeg',         p?.isNonVeg  === true  ? 'true'  : 'false');
+  sv('fHardExclusion',    p?.hardExclusion === true ? 'true' : 'false');
+  sv('fMicro',            p?.microgreenCompatible === false ? 'false' : 'true');
+  sv('fKid',              p?.kidFriendly      || su.kidFriendly      || 'Yes');
+  sv('fSenior',           p?.seniorFriendly   || su.seniorFriendly   || 'Yes');
+  sv('fDiabFr',           p?.diabeticFriendly || su.diabeticFriendly || 'Excellent');
+  sv('fSalad',            su.salad    || 'Excellent');
+  sv('fJuice',            su.juice    || 'Moderate');
+  sv('fCook',             su.cooking  || 'Both');
+  sv('fCurationNotes',    p?.curationNotes || '');
+  sv('fBestFor',          p?.bestFor       || '');
+  setTags(p?.curationTags || []);
+
+  // Nutrition
+  sv('fCal',      n.calories      ?? ''); sv('fCarbs',    n.carbs         ?? '');
+  sv('fFiber',    n.fiber         ?? ''); sv('fProtein',  n.protein       ?? '');
+  sv('fFat',      n.fat           ?? ''); sv('fSugar',    n.sugar         ?? '');
+  sv('fSatFat',   n.saturatedFat_g?? ''); sv('fUnsatFat', n.unsaturatedFat_g??'');
+  sv('fAddSugar', n.addedSugar_g  ?? ''); sv('fGI',       n.gi            ?? '');
+  sv('fGL',       n.gl            ?? ''); sv('fIron',     n.iron_mg       ?? '');
+  sv('fCalcium',  n.calcium_mg    ?? ''); sv('fMag',      n.magnesium_mg  ?? '');
+  sv('fPot',      n.potassium_mg  ?? ''); sv('fVitC',     n.vitaminC_mg   ?? '');
+  sv('fVitA',     n.vitaminA_ug   ?? ''); sv('fZinc',     n.zinc_mg       ?? '');
+  sv('fSodium',   n.sodium_mg     ?? '');
+
+  // Wellness scores
+  sv('sDiab',   s.diabetes          ?? ''); sv('sWt',    s.weightLoss      ?? '');
+  sv('sImm',    s.immunity          ?? ''); sv('sDetox', s.detox           ?? '');
+  sv('sSat',    s.satiety           ?? ''); sv('sAnti',  s.antiInflammatory?? '');
+  sv('sHeart',  s.heartHealth       ?? ''); sv('sBone',  s.boneHealth      ?? '');
+  sv('sIron',   s.ironSupport       ?? '');
+  sv('fSysDiab', p?.systemDiabetesStatus  || '');
+  sv('fSysWt',   p?.systemWeightLossStatus|| '');
+
+  // Basket config
+  sv('fTypicalServing',  p?.typicalServingG  ?? '');
+  sv('fMinBasketG',      p?.minBasketG       ?? '');
+  sv('fMaxBasketG',      p?.maxBasketG       ?? '');
+  sv('fMaxServingsWeek', p?.maxServingsWeek  ?? '');
+
+  // Approval
+  sv('fApprovalStatus',    p?.approvalStatus    || 'Pending');
+  sv('fReviewedBy',        p?.reviewedBy        || '');
+  sv('fReviewedAt',        p?.reviewedAt ? p.reviewedAt.split('T')[0] : '');
+  sv('fNutrApproved',      p?.nutritionistApproved === true ? 'true' : 'false');
+  sv('fConditionalReview', p?.conditionalReview === true    ? 'true' : 'false');
+  sv('fApprovalComments',  p?.approvalComments  || '');
+  sv('fImageUrl',          p?.imageUrl          || '');
+
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; curationTagsList = []; }
+
+function sv(id, val) { const el = document.getElementById(id); if (el) el.value = val ?? ''; }
+function g(id)       { const v = document.getElementById(id)?.value; return v === '' ? null : v; }
+function gn(id)      { const v = document.getElementById(id)?.value; return v === '' ? null : parseFloat(v); }
+function gb(id)      { return document.getElementById(id)?.value === 'true'; }
+
+async function save() {
+  const body = {
+    productId:            g('fProductId'),
+    name:                 g('fName'),
+    category:             g('fCategory'),
+    pricePer100g:         gn('fPrice'),
+    currentPricePer100g:  gn('fCurrentPrice'),
+    servingUnit:          g('fUnit'),
+    seasonal:             g('fSeasonal'),
+    shelfLife:            g('fShelf'),
+    storageType:          g('fStorage'),
+    premiumPositioning:   g('fPremium'),
+    nutritionDataBasis:   g('fBasis'),
+    tasteProfile:         g('fTaste'),
+    bestFor:              g('fBestFor'),
+    curationNotes:        g('fCurationNotes'),
+    curationTags:         [...curationTagsList],
+    isActive:             gb('fIsActive'),
+    isNonVeg:             gb('fIsNonVeg'),
+    hardExclusion:        gb('fHardExclusion'),
+    microgreenCompatible: gb('fMicro'),
+    kidFriendly:          g('fKid'),
+    seniorFriendly:       g('fSenior'),
+    diabeticFriendly:     g('fDiabFr'),
+    typicalServingG:      gn('fTypicalServing'),
+    minBasketG:           gn('fMinBasketG'),
+    maxBasketG:           gn('fMaxBasketG'),
+    maxServingsWeek:      gn('fMaxServingsWeek'),
+    approvalStatus:       g('fApprovalStatus'),
+    reviewedBy:           g('fReviewedBy'),
+    reviewedAt:           g('fReviewedAt') ? new Date(g('fReviewedAt')).toISOString() : null,
+    nutritionistApproved: gb('fNutrApproved'),
+    conditionalReview:    gb('fConditionalReview'),
+    approvalComments:     g('fApprovalComments'),
+    imageUrl:             g('fImageUrl'),
+    systemDiabetesStatus:   g('fSysDiab'),
+    systemWeightLossStatus: g('fSysWt'),
+    nutrition: {
+      calories:          gn('fCal'),   carbs:          gn('fCarbs'),
+      fiber:             gn('fFiber'), protein:        gn('fProtein'),
+      fat:               gn('fFat'),   sugar:          gn('fSugar'),
+      gi:                gn('fGI'),    gl:             gn('fGL'),
+      iron_mg:           gn('fIron'),  calcium_mg:     gn('fCalcium'),
+      magnesium_mg:      gn('fMag'),   potassium_mg:   gn('fPot'),
+      vitaminC_mg:       gn('fVitC'),  vitaminA_ug:    gn('fVitA'),
+      zinc_mg:           gn('fZinc'),  sodium_mg:      gn('fSodium'),
+      saturatedFat_g:    gn('fSatFat'),unsaturatedFat_g:gn('fUnsatFat'),
+      addedSugar_g:      gn('fAddSugar'),
+    },
+    wellnessScores: {
+      diabetes:          gn('sDiab'),  weightLoss:      gn('sWt'),
+      immunity:          gn('sImm'),   detox:           gn('sDetox'),
+      satiety:           gn('sSat'),   antiInflammatory:gn('sAnti'),
+      heartHealth:       gn('sHeart'), boneHealth:      gn('sBone'),
+      ironSupport:       gn('sIron'),
+    },
+    suitability: {
+      salad:    g('fSalad'), juice:   g('fJuice'), cooking: g('fCook'),
+    },
+  };
+  if (!body.name) { showToast('Name is required', 'error'); return; }
+  try {
+    if (editId) await adminApi.updateProduct(editId, body);
+    else        await adminApi.createProduct(body);
+    showToast(editId ? 'Product updated' : 'Product created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this product?')) return;
+  try { await adminApi.deleteProduct(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
+}
+
+loadCategories().then(() => load());
+</script>
+</body>
+</html>

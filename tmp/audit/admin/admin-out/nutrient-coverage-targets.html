@@ -1,0 +1,110 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Nutrient Coverage Targets · KRISHA PURE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('nutrient-coverage-targets');</script><script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'nutrient-coverage-targets',title:'Nutrient Coverage Targets',sub:'T20/T30/T40 subscription tier targets per basket category',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
+let items=[],editId=null;
+content.innerHTML=`<div id="statsBar"></div>
+<div class="panel">
+<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
+<div class="table-wrap"><table class="data"><thead><tr><th>Coverage ID</th><th>Basket Category</th><th>Description</th><th>T20</th><th>T30</th><th>T40</th><th>T20 Perks</th><th>T30 Perks</th><th>T40 Perks</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Coverage Target</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0">
+  <div class="field"><label>Coverage ID</label><input id="fId" placeholder="NCT001"/></div>
+  <div class="field"><label>Basket Category *</label><input id="fCat" placeholder="Fruit Basket"/></div>
+  <div class="field full"><label>Description</label><input id="fDesc" placeholder="Seasonal &amp; therapeutic fruit recommendations"/></div>
+  <div class="field"><label>T20 Tier</label><input id="fT20" placeholder="Basic"/></div>
+  <div class="field"><label>T30 Tier</label><input id="fT30" placeholder="Advanced"/></div>
+  <div class="field"><label>T40 Tier</label><input id="fT40" placeholder="Premium"/></div>
+  <div class="field"><label>T20 Perks</label><input id="fT20P" placeholder="5 fruit choices"/></div>
+  <div class="field"><label>T30 Perks</label><input id="fT30P" placeholder="15+ seasonal fruits"/></div>
+  <div class="field"><label>T40 Perks</label><input id="fT40P" placeholder="Unlimited + AI personalization"/></div>
+  <div class="field full"><label>Remarks</label><input id="fRemarks" placeholder="Subscription-based access"/></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
+  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
+  const totalFields = allKeys.length;
+  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
+  const emptyFields = totalFields - filledFields;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${totalFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${filledFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
+    </div>
+    ${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">${emptyFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
+    </div>` : ''}
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">${nestedCount}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
+      <div style="font-size:11px;line-height:1.9">${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getNutrientCoverageTargets();items=d.targets||[];renderStats(items);render();}catch(e){showToast(e.message,'error');}
+}
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} records`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.coverageId||'')}</td><td><b>${escapeHtml(i.basketCategory||'')}</b></td>
+    <td>${escapeHtml((i.description||'').substring(0,40))}</td>
+    <td>${escapeHtml(i.tiers?.t20||'')}</td><td>${escapeHtml(i.tiers?.t30||'')}</td><td>${escapeHtml(i.tiers?.t40||'')}</td>
+    <td>${escapeHtml(i.perks?.t20Perks||'')}</td><td>${escapeHtml(i.perks?.t30Perks||'')}</td><td>${escapeHtml(i.perks?.t40Perks||'')}</td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No records</td></tr>';
+}
+function openModal(i){
+  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Coverage Target':'Add Coverage Target';
+  document.getElementById('fId').value=i?.coverageId||'';document.getElementById('fCat').value=i?.basketCategory||'';
+  document.getElementById('fDesc').value=i?.description||'';
+  document.getElementById('fT20').value=i?.tiers?.t20||'';document.getElementById('fT30').value=i?.tiers?.t30||'';document.getElementById('fT40').value=i?.tiers?.t40||'';
+  document.getElementById('fT20P').value=i?.perks?.t20Perks||'';document.getElementById('fT30P').value=i?.perks?.t30Perks||'';document.getElementById('fT40P').value=i?.perks?.t40Perks||'';
+  document.getElementById('fRemarks').value=i?.remarks||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
+async function save(){
+  const body={coverageId:g('fId'),basketCategory:g('fCat'),description:g('fDesc'),remarks:g('fRemarks'),
+    tiers:{t20:g('fT20'),t30:g('fT30'),t40:g('fT40')},
+    perks:{t20Perks:g('fT20P'),t30Perks:g('fT30P'),t40Perks:g('fT40P')}};
+  if(!body.basketCategory){showToast('Basket Category required','error');return;}
+  try{if(editId)await adminApi.updateNutrientCoverageTarget(editId,body);else await adminApi.createNutrientCoverageTarget(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+}
+async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteNutrientCoverageTarget(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
+load();
+</script></body></html>

@@ -1,0 +1,470 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Appointments · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+  .apt-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;transition:box-shadow .15s}
+  .apt-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+  .apt-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.3px}
+  .apt-requested{background:#FFF3E0;color:#E65100} .apt-assigned{background:#E3F2FD;color:#1565C0}
+  .apt-completed{background:#E8F5E9;color:#2D6A35} .apt-cancelled{background:#F5F5F5;color:#757575}
+  .detail-panel{background:#FAFAFA;border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .detail-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:3px}
+  .detail-value{font-size:13px;color:var(--ink);font-weight:500}
+  .chip{display:inline-block;padding:3px 10px;border-radius:16px;font-size:11px;font-weight:600;margin:2px 3px 2px 0}
+  .chip-condition{background:#FFF3E0;color:#E65100;border:1px solid #FFCC80}
+  .chip-goal{background:#E8F5E9;color:#2D6A35;border:1px solid #A5D6A7}
+  .chip-allergy{background:#FFF3E0;color:#BF360C;border:1px solid #FFAB91}
+  .call-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-size:13px}
+  .call-btn-ring{background:#4CAF50;color:#fff} .call-btn-ring:hover{background:#388E3C}
+  .call-btn-end{background:#E53935;color:#fff} .call-btn-end:hover{background:#C62828}
+  .call-status{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:10px;font-weight:600;font-size:14px}
+  .nutrition-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .nutrition-form .full{grid-column:1/-1}
+  .tab-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+  .tab-btn{padding:8px 16px;border-radius:20px;border:1.5px solid var(--border);background:#fff;color:var(--ink-soft);font-weight:600;font-size:12px;cursor:pointer}
+  .tab-btn.active{border-color:var(--green);background:var(--green);color:#fff}
+  #callOverlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.85);flex-direction:column;align-items:center;justify-content:center;gap:20px}
+  #callOverlay.show{display:flex}
+</style>
+</head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('appointments');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'appointments',
+  title: 'Appointments',
+  sub: 'Nutritionist consultation management — view, assign, call & complete',
+});
+
+let items = [], products = [], viewApt = null, callDuration = 0, callTimer = null;
+let pc = null, localStream = null, callWs = null, iceBuf = [];
+const WS_URL = 'wss://13.207.147.69.nip.io/ws';
+const ICE_SERVERS = [
+  { urls: 'stun:13.207.147.69:3478' },
+  { urls: 'turn:13.207.147.69:3478', username: 'krishapure', credential: 'kp_turn_2026' },
+];
+
+content.innerHTML = `
+<div class="tab-bar" id="tabs"></div>
+<div id="listView"></div>
+<div id="detailView" style="display:none"></div>
+
+<!-- Call overlay -->
+<div id="callOverlay">
+  <div style="width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:48px">👤</div>
+  <div style="color:#fff;text-align:center">
+    <div id="callName" style="font-size:22px;font-weight:700"></div>
+    <div id="callSub" style="font-size:13px;opacity:.7;margin-top:4px"></div>
+  </div>
+  <div id="callStatusText" style="color:#fff;font-size:16px;font-weight:600"></div>
+  <div id="callDurationText" style="color:rgba(255,255,255,.7);font-size:14px;font-family:var(--font-mono)">00:00</div>
+  <button class="call-btn call-btn-end" onclick="endCall()" style="margin-top:16px">✕ End Call</button>
+  <audio id="remoteAudio" autoplay></audio>
+  <audio id="localAudio" autoplay muted></audio>
+</div>
+`;
+
+// ── Tabs ──
+const TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'requested', label: '🕐 Requested' },
+  { key: 'assigned', label: '👩‍⚕️ Assigned' },
+  { key: 'completed', label: '✅ Completed' },
+  { key: 'cancelled', label: '✕ Cancelled' },
+];
+let activeTab = 'all';
+
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => {
+    const count = t.key === 'all' ? items.length : items.filter(i => i.status === t.key).length;
+    return `<button class="tab-btn ${activeTab===t.key?'active':''}" onclick="setTab('${t.key}')">${t.label} (${count})</button>`;
+  }).join('');
+}
+
+function setTab(key) { activeTab = key; renderTabs(); renderList(); }
+
+// ── Load ──
+async function load() {
+  loadNutritionists();
+  document.getElementById('listView').innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
+  try {
+    const [aptRes, prodRes] = await Promise.all([
+      req('GET', '/admin/appointments'),
+      req('GET', '/admin/nutrition/products'),
+    ]);
+    items = aptRes.appointments || [];
+    products = (prodRes.products || []).map(p => p.name).filter(Boolean);
+    renderTabs();
+    renderList();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── List view ──
+function renderList() {
+  const filtered = activeTab === 'all' ? items : items.filter(i => i.status === activeTab);
+  if (!filtered.length) {
+    document.getElementById('listView').innerHTML = `<div style="text-align:center;padding:48px;color:var(--ink-faint)">
+      <div style="font-size:40px;margin-bottom:8px">📋</div><p>No ${activeTab === 'all' ? '' : activeTab} appointments</p></div>`;
+    return;
+  }
+  document.getElementById('listView').innerHTML = filtered.map(apt => {
+    const date = fmtDate(apt.requestedDate, { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    const conditions = (apt.healthConditions||[]).map(c => `<span class="chip chip-condition">${escapeHtml(c)}</span>`).join('');
+    return `<div class="apt-card" onclick="viewDetail('${apt._id}')" style="cursor:pointer">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <span style="font-weight:700;font-size:14px">${escapeHtml(apt.memberName||'Member')}</span>
+          <span style="color:var(--ink-faint);font-size:12px;margin-left:8px">${escapeHtml(apt.familyName||'')}</span>
+        </div>
+        <span class="apt-status apt-${apt.status}">${apt.status.toUpperCase()}</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">📅 ${date} · ⏰ ${escapeHtml(apt.requestedSlot||'')}</div>
+      ${apt.assignedTo ? `<div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">👩‍⚕️ ${escapeHtml(apt.assignedTo)}</div>` : ''}
+      <div style="margin-top:4px">${conditions}</div>
+      ${apt.phone ? `<div style="font-size:11px;color:var(--ink-faint);margin-top:4px">📱 +91 ${escapeHtml(apt.phone)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── Detail view ──
+async function viewDetail(id) {
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  document.getElementById('detailView').innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
+
+  try {
+    const d = await req('GET', `/admin/appointments/${id}`);
+    viewApt = d.appointment;
+    const fam = d.family;
+    const member = fam?.members?.find(m => m.memberId === viewApt.memberId) || {};
+
+    const statusClass = `apt-${viewApt.status}`;
+    const conditions = (viewApt.healthConditions||[]).map(c => `<span class="chip chip-condition">${escapeHtml(c)}</span>`).join('');
+    const goals = (member.wellnessGoals||[]).map(g => `<span class="chip chip-goal">${escapeHtml(g)}</span>`).join('') || '<span style="color:var(--ink-faint)">None set</span>';
+    const allergies = (member.allergies||[]).map(a => `<span class="chip chip-allergy">${escapeHtml(a)}</span>`).join('') || '<span style="color:var(--ink-faint)">None</span>';
+    const restrictions = (member.foodRestrictions||[]).map(r => `<span class="chip chip-condition">${escapeHtml(r)}</span>`).join('') || '<span style="color:var(--ink-faint)">None</span>';
+
+    const bmi = member.height && member.weight ? (member.weight / ((member.height/100)**2)).toFixed(1) : null;
+
+    let actionHtml = '';
+    if (viewApt.status === 'requested') {
+      const nutriOptions = (window._nutritionists || [Auth.getDisplayName()]).map(n =>
+        `<option value="${n}" ${n===Auth.getDisplayName()?'selected':''}>${n}</option>`
+      ).join('');
+      actionHtml = `
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="assignTo" style="padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;flex:1">
+            ${nutriOptions}
+          </select>
+          <button class="btn btn-primary" onclick="assignTo()">👩‍⚕️ Assign</button>
+        </div>`;
+    } else if (viewApt.status === 'assigned') {
+      actionHtml = `<button class="call-btn call-btn-ring" onclick="startCall()">📞 Call ${escapeHtml(viewApt.memberName||'Customer')}</button>`;
+    }
+
+    let nutritionFormHtml = '';
+    if (viewApt.status === 'assigned' || viewApt.status === 'completed') {
+      const readonly = viewApt.status === 'completed' ? 'disabled' : '';
+      nutritionFormHtml = `
+        <div class="detail-panel">
+          <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:var(--green-dark)">🩺 Nutrition Prescription</div>
+          <div class="nutrition-form">
+            <div class="field"><label>Total Calories (kcal/day)</label><input id="nCal" type="number" placeholder="1800" value="${viewApt.totalCalories||''}" ${readonly}/></div>
+            <div class="field"><label>Protein (g)</label><input id="nPro" type="number" placeholder="60" value="${viewApt.proteinTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Carbs (g)</label><input id="nCarb" type="number" placeholder="200" value="${viewApt.carbsTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Fat (g)</label><input id="nFat" type="number" placeholder="50" value="${viewApt.fatTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Fiber (g)</label><input id="nFiber" type="number" placeholder="25" value="${viewApt.fiberTarget||''}" ${readonly}/></div>
+            <div class="field full">
+              <label>Foods to Include</label>
+              <div id="includeChips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+              ${!readonly ? `<input id="includeSearch" placeholder="Search products to include…" oninput="searchProduct('include')"/>
+              <div id="includeDropdown" style="border:1px solid var(--border);border-radius:8px;max-height:150px;overflow-y:auto;display:none"></div>` : ''}
+            </div>
+            <div class="field full">
+              <label>Foods to Exclude</label>
+              <div id="excludeChips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
+              ${!readonly ? `<input id="excludeSearch" placeholder="Search products to exclude…" oninput="searchProduct('exclude')"/>
+              <div id="excludeDropdown" style="border:1px solid var(--border);border-radius:8px;max-height:150px;overflow-y:auto;display:none"></div>` : ''}
+            </div>
+            <div class="field full"><label>Nutritionist Notes</label><textarea id="nNotes" rows="3" placeholder="Additional recommendations…" ${readonly}>${escapeHtml(viewApt.nutritionistNotes||'')}</textarea></div>
+            ${viewApt.status !== 'completed' ? `<div class="full"><button class="btn btn-primary" onclick="completeConsultation()">✅ Complete Consultation</button></div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    document.getElementById('detailView').innerHTML = `
+      <button class="btn btn-ghost" onclick="backToList()" style="margin-bottom:12px">← Back to list</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div>
+          <h2 style="margin:0;font-size:20px">${escapeHtml(viewApt.memberName||'Member')}</h2>
+          <div style="color:var(--ink-faint);font-size:13px;margin-top:2px">${escapeHtml(viewApt.familyName||'')} · +91 ${escapeHtml(viewApt.phone||'')}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="apt-status ${statusClass}">${viewApt.status.toUpperCase()}</span>
+          ${actionHtml}
+        </div>
+      </div>
+
+      <div class="detail-panel">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">📅 Appointment Details</div>
+        <div class="detail-grid">
+          <div><div class="detail-label">Date</div><div class="detail-value">${fmtDate(viewApt.requestedDate,{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</div></div>
+          <div><div class="detail-label">Time</div><div class="detail-value">${escapeHtml(viewApt.requestedSlot||'')}</div></div>
+          <div><div class="detail-label">Assigned To</div><div class="detail-value">${escapeHtml(viewApt.assignedTo||'Not assigned')}</div></div>
+          <div><div class="detail-label">Created</div><div class="detail-value">${fmtDate(viewApt.createdAt)}</div></div>
+        </div>
+        <div style="margin-top:12px"><div class="detail-label">Health Conditions</div><div style="margin-top:4px">${conditions||'<span style="color:var(--ink-faint)">None</span>'}</div></div>
+      </div>
+
+      <div class="detail-panel">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px">👤 Member Profile</div>
+        <div class="detail-grid">
+          <div><div class="detail-label">Name</div><div class="detail-value">${escapeHtml(member.name||viewApt.memberName||'')}</div></div>
+          <div><div class="detail-label">Gender / Age</div><div class="detail-value">${escapeHtml(member.gender||'')} ${member.age ? '· '+member.age+' yrs' : ''}</div></div>
+          <div><div class="detail-label">Height</div><div class="detail-value">${member.height ? member.height+' cm' : '–'}</div></div>
+          <div><div class="detail-label">Weight</div><div class="detail-value">${member.weight ? member.weight+' kg' : '–'}</div></div>
+          <div><div class="detail-label">BMI</div><div class="detail-value">${bmi || '–'}</div></div>
+          <div><div class="detail-label">Activity Level</div><div class="detail-value">${escapeHtml(member.activityLevel||'–')}</div></div>
+          <div><div class="detail-label">Diet Type</div><div class="detail-value">${escapeHtml(member.dietType||'–')}</div></div>
+          <div><div class="detail-label">Lifestyle</div><div class="detail-value">${Array.isArray(member.lifestyleCode)?member.lifestyleCode.join(', '):escapeHtml(member.lifestyleCode||'–')}</div></div>
+        </div>
+        <div style="margin-top:12px"><div class="detail-label">Wellness Goals</div><div style="margin-top:4px">${goals}</div></div>
+        <div style="margin-top:8px"><div class="detail-label">Allergies</div><div style="margin-top:4px">${allergies}</div></div>
+        <div style="margin-top:8px"><div class="detail-label">Food Restrictions</div><div style="margin-top:4px">${restrictions}</div></div>
+      </div>
+
+      ${nutritionFormHtml}
+    `;
+
+    // Render include/exclude chips
+    renderFoodChips();
+
+  } catch (e) { showToast(e.message, 'error'); backToList(); }
+}
+
+// Track selected foods
+let selectedInclude = [];
+let selectedExclude = [];
+
+function renderFoodChips() {
+  if (!viewApt) return;
+  selectedInclude = [...(viewApt.foodsToInclude || [])];
+  selectedExclude = [...(viewApt.foodsToExclude || [])];
+  updateChips('include');
+  updateChips('exclude');
+}
+
+function updateChips(type) {
+  const arr = type === 'include' ? selectedInclude : selectedExclude;
+  const el = document.getElementById(type + 'Chips');
+  if (!el) return;
+  const readonly = viewApt?.status === 'completed';
+  el.innerHTML = arr.map(f =>
+    `<span class="chip ${type==='include'?'chip-goal':'chip-allergy'}" style="cursor:${readonly?'default':'pointer'}"
+      ${!readonly ? `onclick="removeFood('${type}','${escapeHtml(f)}')"` : ''}>
+      ${escapeHtml(f)} ${!readonly ? '×' : ''}
+    </span>`
+  ).join('');
+}
+
+function removeFood(type, name) {
+  if (type === 'include') selectedInclude = selectedInclude.filter(f => f !== name);
+  else selectedExclude = selectedExclude.filter(f => f !== name);
+  updateChips(type);
+}
+
+function addFood(type, name) {
+  const arr = type === 'include' ? selectedInclude : selectedExclude;
+  if (!arr.includes(name)) arr.push(name);
+  updateChips(type);
+  const inp = document.getElementById(type + 'Search');
+  const dd = document.getElementById(type + 'Dropdown');
+  if (inp) inp.value = '';
+  if (dd) dd.style.display = 'none';
+}
+
+function searchProduct(type) {
+  const inp = document.getElementById(type + 'Search');
+  const dd = document.getElementById(type + 'Dropdown');
+  if (!inp || !dd) return;
+  const q = inp.value.toLowerCase().trim();
+  if (!q) { dd.style.display = 'none'; return; }
+  const arr = type === 'include' ? selectedInclude : selectedExclude;
+  const matched = products.filter(p => p.toLowerCase().includes(q) && !arr.includes(p)).slice(0, 12);
+  if (!matched.length) { dd.style.display = 'none'; return; }
+  dd.style.display = 'block';
+  dd.innerHTML = matched.map(p =>
+    `<div style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)"
+      onmouseover="this.style.background='var(--green-pale)'" onmouseout="this.style.background='#fff'"
+      onclick="addFood('${type}','${escapeHtml(p)}')">${escapeHtml(p)}</div>`
+  ).join('');
+}
+
+function backToList() {
+  viewApt = null;
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('listView').style.display = 'block';
+  load();
+}
+
+// ── Actions ──
+async function loadNutritionists() {
+  if (!Auth.canAccess('team')) {
+    window._nutritionists = [Auth.getDisplayName()];
+    return;
+  }
+  try {
+    const d = await req('GET', '/admin/team');
+    const nutris = (d.users || []).filter(u => u.role === 'nutrition').map(u => u.displayName || u.username);
+    if (!nutris.includes(Auth.getDisplayName())) nutris.unshift(Auth.getDisplayName());
+    window._nutritionists = nutris;
+  } catch {
+    window._nutritionists = [Auth.getDisplayName()];
+  }
+}
+
+async function assignTo() {
+  const assignedTo = document.getElementById('assignTo')?.value || Auth.getDisplayName();
+  try {
+    await req('PUT', `/admin/appointments/${viewApt._id}/assign`, { assignedTo });
+    showToast('Assigned to ' + assignedTo + ' ✓', 'success');
+    viewDetail(viewApt._id);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function completeConsultation() {
+  const totalCalories = parseInt(document.getElementById('nCal')?.value) || null;
+  if (!totalCalories) return showToast('Total Calories is required', 'error');
+
+  try {
+    await req('PUT', `/admin/appointments/${viewApt._id}/complete`, {
+      totalCalories,
+      proteinTarget: parseInt(document.getElementById('nPro')?.value) || null,
+      carbsTarget:   parseInt(document.getElementById('nCarb')?.value) || null,
+      fatTarget:     parseInt(document.getElementById('nFat')?.value) || null,
+      fiberTarget:   parseInt(document.getElementById('nFiber')?.value) || null,
+      foodsToInclude: selectedInclude,
+      foodsToExclude: selectedExclude,
+      nutritionistNotes: document.getElementById('nNotes')?.value || '',
+    });
+    showToast('Consultation completed ✓', 'success');
+    viewDetail(viewApt._id);
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── WebRTC Call ──
+async function startCall() {
+  if (!viewApt) return;
+  try {
+    await req('PUT', `/admin/appointments/${viewApt._id}/call`);
+
+    document.getElementById('callName').textContent = viewApt.memberName || 'Customer';
+    document.getElementById('callSub').textContent = '+91 ' + (viewApt.phone || '');
+    document.getElementById('callStatusText').textContent = '📞 Ringing…';
+    document.getElementById('callDurationText').textContent = '00:00';
+    document.getElementById('callOverlay').classList.add('show');
+    callDuration = 0;
+    iceBuf = [];
+
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    document.getElementById('localAudio').srcObject = localStream;
+
+    pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+    pc.ontrack = (e) => {
+      document.getElementById('remoteAudio').srcObject = e.streams[0];
+    };
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate && callWs && callWs.readyState === WebSocket.OPEN) {
+        callWs.send(JSON.stringify({ type: 'ice-candidate', appointmentId: viewApt._id, data: JSON.stringify(e.candidate) }));
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'connected') {
+        document.getElementById('callStatusText').textContent = '🟢 Connected';
+        callTimer = setInterval(() => {
+          callDuration++;
+          const m = Math.floor(callDuration/60).toString().padStart(2,'0');
+          const s = (callDuration%60).toString().padStart(2,'0');
+          document.getElementById('callDurationText').textContent = `${m}:${s}`;
+        }, 1000);
+      }
+      if (['disconnected','failed','closed'].includes(pc.connectionState)) endCall();
+    };
+
+    // Connect WebSocket signaling
+    callWs = new WebSocket(WS_URL);
+
+    callWs.onopen = () => {
+      callWs.send(JSON.stringify({ type: 'join', appointmentId: viewApt._id, role: 'admin' }));
+    };
+
+    callWs.onmessage = async (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.type === 'customer-ready') {
+        document.getElementById('callStatusText').textContent = '🔄 Connecting…';
+        // Create and send offer now that customer is connected
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        callWs.send(JSON.stringify({ type: 'offer', appointmentId: viewApt._id, data: JSON.stringify(offer) }));
+      }
+
+      if (msg.type === 'answer' && pc && pc.signalingState === 'have-local-offer') {
+        await pc.setRemoteDescription(JSON.parse(msg.data));
+        // Flush buffered ICE candidates
+        for (const c of iceBuf) {
+          try { await pc.addIceCandidate(c); } catch {}
+        }
+        iceBuf = [];
+      }
+
+      if (msg.type === 'ice-candidate' && pc) {
+        const candidate = JSON.parse(msg.data);
+        if (pc.remoteDescription) {
+          try { await pc.addIceCandidate(candidate); } catch {}
+        } else {
+          iceBuf.push(candidate);
+        }
+      }
+
+      if (msg.type === 'end-call' || msg.type === 'peer-disconnected') {
+        endCall();
+      }
+    };
+
+    callWs.onerror = () => showToast('WebSocket error', 'error');
+
+  } catch (e) {
+    showToast('Could not start call: ' + e.message, 'error');
+    endCall();
+  }
+}
+
+async function endCall() {
+  if (callTimer) { clearInterval(callTimer); callTimer = null; }
+  if (pc) { pc.close(); pc = null; }
+  if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+  if (callWs) {
+    if (callWs.readyState === WebSocket.OPEN) {
+      callWs.send(JSON.stringify({ type: 'end-call', appointmentId: viewApt?._id }));
+    }
+    callWs.close();
+    callWs = null;
+  }
+  document.getElementById('callOverlay').classList.remove('show');
+  if (viewApt) {
+    try { await req('PUT', `/admin/appointments/${viewApt._id}/end-call`); } catch {}
+  }
+}
+
+load();
+</script>
+</body></html>

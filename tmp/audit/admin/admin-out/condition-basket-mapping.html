@@ -1,0 +1,114 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Condition → Basket Mapping · KRISHA PURE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('condition-basket-mapping');</script><script src="js/sidebar.js"></script>
+<script>
+const content=renderShell({active:'condition-basket-mapping',title:'Condition → Basket Mapping',sub:'Maps health conditions to primary, secondary and avoided baskets',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
+let items=[],editId=null;
+content.innerHTML=`<div id="statsBar"></div>
+<div class="panel">
+<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
+<div class="table-wrap"><table class="data"><thead><tr><th>ID</th><th>Condition Code</th><th>Health Condition</th><th>Primary Basket</th><th>Secondary Basket</th><th>Avoid Basket</th><th>Priority</th><th>Auto Apply</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Condition → Basket Mapping</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0">
+  <div class="field"><label>Mapping ID</label><input id="fId" placeholder="CBM001"/></div>
+  <div class="field"><label>Condition Code *</label><input id="fCode" placeholder="HC001"/></div>
+  <div class="field"><label>Health Condition</label><input id="fCond" placeholder="Diabetes"/></div>
+  <div class="field"><label>Primary Basket</label><input id="fPrimary" placeholder="Low GI Basket"/></div>
+  <div class="field"><label>Secondary Basket</label><input id="fSecondary" placeholder="High Fibre Basket"/></div>
+  <div class="field"><label>Avoid Basket</label><input id="fAvoid" placeholder="High Sugar Basket"/></div>
+  <div class="field"><label>Priority</label><select id="fPri"><option>High</option><option>Medium</option><option>Low</option><option>Highest</option></select></div>
+  <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Nutritionist Approval</label><select id="fApproval"><option>Yes</option><option>No</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Active</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field full"><label>Remarks</label><textarea id="fRemarks" rows="2"></textarea></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+function renderStats(items) {
+  if (!items || !items.length) return;
+  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
+  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
+  const totalFields = allKeys.length;
+  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
+  const emptyFields = totalFields - filledFields;
+  const el = document.getElementById('statsBar');
+  if (!el) return;
+  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${totalFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${filledFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
+    </div>
+    ${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">${emptyFields}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
+    </div>` : ''}
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
+      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">${nestedCount}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
+    </div>
+    <div style="width:1px;background:var(--border);align-self:stretch"></div>
+    <div style="flex:1;min-width:180px">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
+      <div style="font-size:11px;line-height:1.9">${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}</span>`).join('')}</div>
+    </div>
+  </div>`;
+}
+
+async function load(){
+  document.getElementById('tbody').innerHTML='<tr><td colspan="10" class="loading-row"><span class="spinner"></span></td></tr>';
+  try{const d=await adminApi.getConditionBasketMappings();items=d.mappings||[];renderStats(items);render();}catch(e){showToast(e.message,'error');}
+}
+function render(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent=`${f.length} mappings`;
+  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
+    <td class="mono">${escapeHtml(i.mappingId||'')}</td><td class="mono">${escapeHtml(i.conditionCode||'')}</td>
+    <td><b>${escapeHtml(i.conditionName||'')}</b></td><td>${escapeHtml(i.primaryBasket||'')}</td>
+    <td>${escapeHtml(i.secondaryBasket||'')}</td><td style="color:var(--red)">${escapeHtml(i.avoidBasket||'')}</td>
+    <td>${escapeHtml(i.priority||'')}</td><td>${escapeHtml(i.autoApply||'')}</td>
+    <td><span class="pill pill-active">${escapeHtml(i.ruleStatus||'')}</span></td>
+    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No records</td></tr>';
+}
+function openModal(i){
+  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Mapping':'Add Mapping';
+  document.getElementById('fId').value=i?.mappingId||'';document.getElementById('fCode').value=i?.conditionCode||'';
+  document.getElementById('fCond').value=i?.conditionName||'';document.getElementById('fPrimary').value=i?.primaryBasket||'';
+  document.getElementById('fSecondary').value=i?.secondaryBasket||'';document.getElementById('fAvoid').value=i?.avoidBasket||'';
+  document.getElementById('fPri').value=i?.priority||'High';document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';
+  document.getElementById('fAuto').value=i?.autoApply||'Yes';document.getElementById('fApproval').value=i?.nutritionistApproval||'Yes';
+  document.getElementById('fStatus').value=i?.ruleStatus||'Active';document.getElementById('fRemarks').value=i?.remarks||'';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
+function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
+async function save(){
+  const body={mappingId:g('fId'),conditionCode:g('fCode'),conditionName:g('fCond'),primaryBasket:g('fPrimary'),
+    secondaryBasket:g('fSecondary'),avoidBasket:g('fAvoid'),priority:g('fPri'),clinicalReviewRequired:g('fClin'),
+    autoApply:g('fAuto'),nutritionistApproval:g('fApproval'),ruleStatus:g('fStatus'),remarks:g('fRemarks')};
+  if(!body.conditionCode){showToast('Condition Code required','error');return;}
+  try{if(editId)await adminApi.updateConditionBasketMapping(editId,body);else await adminApi.createConditionBasketMapping(body);
+    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+}
+async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteConditionBasketMapping(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
+load();
+</script></body></html>

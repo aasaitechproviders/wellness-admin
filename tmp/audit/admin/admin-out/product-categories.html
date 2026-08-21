@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Product Categories · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('product-categories');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({ active:'product-categories', title:'Product Categories', sub:'Manage categories used for product classification', actions:`<button class="btn btn-primary" onclick="openModal()">+ Add Category</button>` });
+
+let all=[], editId=null;
+
+content.innerHTML=`
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search categories…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="countBadge" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr>
+        <th>Name</th><th>Description</th><th>Sort Order</th><th>Products</th><th>Status</th><th></th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head"><h3 id="modalTitle">Add Category</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div style="padding:0 20px 16px">
+      <div class="form-grid">
+        <div class="field full"><label>Category Name *</label><input id="fName" placeholder="e.g. Leafy Vegetables"/></div>
+        <div class="field full"><label>Description</label><input id="fDesc" placeholder="Brief description of this category"/></div>
+        <div class="field"><label>Sort Order</label><input id="fSort" type="number" placeholder="1" value="0"/></div>
+        <div class="field"><label>Is Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+        <div class="field full"><label>Icon / Emoji</label><input id="fIcon" placeholder="🥬 (optional emoji or icon name)"/></div>
+        <div class="field full"><label>Colour (hex)</label><input id="fColor" type="color" value="#2D6A35" style="height:38px;padding:4px 6px"/></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="save()">Save Category</button>
+    </div>
+  </div>
+</div>`;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await req('GET', '/admin/nutrition/product-categories?limit=500');
+    all = d.items || [];
+    render();
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+function render() {
+  const q = (document.getElementById('srch').value||'').toLowerCase();
+  const filtered = q ? all.filter(c => (c.name||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q)) : all;
+  document.getElementById('countBadge').textContent = `${filtered.length} categories`;
+  document.getElementById('tbody').innerHTML = filtered.map(c => `
+    <tr>
+      <td><b>${c.icon||''} ${escapeHtml(c.name||'')}</b></td>
+      <td style="color:var(--ink-soft);font-size:12px">${escapeHtml(c.description||'—')}</td>
+      <td class="num">${c.sortOrder??0}</td>
+      <td class="num">—</td>
+      <td><span class="pill ${c.isActive!==false?'pill-active':'pill-inactive'}">${c.isActive!==false?'Active':'Inactive'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(c)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${c._id}')">Del</button>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">No categories found</td></tr>';
+}
+
+function openModal(c) {
+  editId = c ? c._id : null;
+  document.getElementById('modalTitle').textContent = c ? 'Edit Category' : 'Add Category';
+  document.getElementById('fName').value    = c?.name        || '';
+  document.getElementById('fDesc').value    = c?.description || '';
+  document.getElementById('fSort').value    = c?.sortOrder   ?? 0;
+  document.getElementById('fActive').value  = c?.isActive === false ? 'false' : 'true';
+  document.getElementById('fIcon').value    = c?.icon        || '';
+  document.getElementById('fColor').value   = c?.color       || '#2D6A35';
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display='none'; editId=null; }
+
+async function save() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) { showToast('Name is required','error'); return; }
+  const body = {
+    name,
+    description: document.getElementById('fDesc').value.trim() || null,
+    sortOrder:   parseInt(document.getElementById('fSort').value)||0,
+    isActive:    document.getElementById('fActive').value === 'true',
+    icon:        document.getElementById('fIcon').value.trim() || null,
+    color:       document.getElementById('fColor').value || null,
+  };
+  try {
+    if (editId) await req('PUT', `/admin/nutrition/product-categories/${editId}`, body);
+    else        await req('POST', '/admin/nutrition/product-categories', body);
+    showToast(editId ? 'Category updated' : 'Category created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message,'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this category?')) return;
+  try { await req('DELETE', `/admin/nutrition/product-categories/${id}`); showToast('Deleted','success'); load(); }
+  catch(e) { showToast(e.message,'error'); }
+}
+
+load();
+</script>
+</body>
+</html>

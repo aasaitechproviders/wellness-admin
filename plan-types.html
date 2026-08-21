@@ -55,10 +55,6 @@ content.innerHTML = `
         <input id="fName" placeholder="LIV Care"/>
       </div>
       <div class="field">
-        <label>Duration (days) *</label>
-        <input id="fDuration" type="number" min="1" placeholder="20"/>
-      </div>
-      <div class="field">
         <label>Coverage % * <span style="font-size:11px;color:var(--ink-faint)">(% of weekly nutrition from basket)</span></label>
         <input id="fCoverage" type="number" min="1" max="100" placeholder="30"/>
       </div>
@@ -193,7 +189,7 @@ function openModal(i) {
   document.getElementById('mTitle').textContent = i ? 'Edit Plan Type' : 'Add Plan Type';
   document.getElementById('fCode').value     = i?.planCode     || '';
   document.getElementById('fName').value     = i?.planName     || '';
-  document.getElementById('fDuration').value = i?.durationDays || '';
+
   document.getElementById('fCoverage').value = i?.coveragePct  || '';
   document.getElementById('fDesc').value     = i?.description  || '';
   document.getElementById('fStatus').value   = i?.status       || 'Active';
@@ -216,18 +212,16 @@ async function save() {
   const planCode    = g('fCode').toUpperCase();
   const planName    = g('fName');
   const coveragePct = gn('fCoverage');
-  const durationDays = gn('fDuration');
   const includedCategories = getSelectedCategories();
 
   if (!planCode)    return showToast('Plan Code is required', 'error');
   if (!planName)    return showToast('Plan Name is required', 'error');
   if (!coveragePct) return showToast('Coverage % is required', 'error');
   if (coveragePct < 1 || coveragePct > 100) return showToast('Coverage % must be between 1 and 100', 'error');
-  if (!durationDays) return showToast('Duration (days) is required', 'error');
   if (!includedCategories.length) return showToast('Select at least one included product category', 'error');
 
   const body = {
-    planCode, planName, durationDays, coveragePct,
+    planCode, planName, coveragePct,
     includedCategories,
     description: g('fDesc'),
     status:      g('fStatus'),

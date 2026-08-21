@@ -4,7 +4,7 @@ const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southea
 
 const ROLE_DEFAULTS = {
   admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments',
-              'approvals','subscription-plans','subscription-durations','plan-types',
+              'approvals','subscription-plans','subscription-durations','plan-types','procurement',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
@@ -274,6 +274,11 @@ const adminApi = {
   updateSubscriptionPlan:  (id, body) => req('PUT', `/admin/subscription-plans/${id}`, body),
   deleteSubscriptionPlan:  (id)       => req('DELETE', `/admin/subscription-plans/${id}`),
   hardDeleteSubscriptionPlan: (id)    => req('DELETE', `/admin/subscription-plans/${id}/hard`),
+
+  // Procurement
+  generateProcurementOrders: (body)     => req('POST', '/admin/procurement/generate', body),
+  retriggerOrder:            (id)       => req('POST', `/admin/procurement/retrigger/${id}`),
+  getProcurementOrders:      (date)     => req('GET',  `/admin/procurement/orders${date ? `?date=${date}` : ''}`),
 
   // Subscription Durations (kp_subscriptionDurations)
   getSubscriptionDurations:    ()         => req('GET',    '/admin/subscription-durations'),

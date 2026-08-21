@@ -1,0 +1,213 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Procurement · KRISHA PURE Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('procurement');</script><script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'procurement',
+  title: 'Procurement',
+  sub: 'Generate tomorrow\'s delivery orders and view procurement & packing details',
+});
+
+let procurementData = null;
+let selectedDate = (() => {
+  const d = new Date(); d.setDate(d.getDate() + 1);
+  return d.toISOString().split('T')[0];
+})();
+
+content.innerHTML = `
+<!-- Date + Trigger -->
+<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
+  <div style="display:flex;align-items:center;gap:8px">
+    <label style="font-size:13px;font-weight:600;color:var(--ink-soft)">Delivery Date</label>
+    <input type="date" id="dateInput" value="${selectedDate}"
+      style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font-body)"
+      onchange="selectedDate=this.value;load()"/>
+  </div>
+  <button class="btn btn-primary" onclick="generate()" id="genBtn">
+    🚀 Generate Tomorrow's Orders
+  </button>
+  <button class="btn btn-ghost" onclick="load()" style="font-size:13px">↻ Refresh</button>
+</div>
+
+<!-- Stats bar -->
+<div id="statsBar" style="display:none;margin-bottom:16px"></div>
+
+<!-- Tabs -->
+<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
+  <button id="tabProcure" onclick="switchTab('procure')"
+    style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid var(--green-dark);color:var(--green-dark);margin-bottom:-2px">
+    📦 Procurement List
+  </button>
+  <button id="tabPacking" onclick="switchTab('packing')"
+    style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--ink-soft);margin-bottom:-2px">
+    🗂 Packing Orders
+  </button>
+</div>
+
+<!-- Procurement List -->
+<div id="paneProcure">
+  <div class="panel">
+    <div style="padding:10px 16px;font-size:12px;color:var(--ink-soft);border-bottom:1px solid var(--border);background:var(--green-pale)">
+      📦 Total quantities to procure across all orders for this date
+    </div>
+    <div class="table-wrap">
+      <table class="data">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Total Qty (g)</th>
+            <th>Total Qty (kg)</th>
+            <th>Orders</th>
+          </tr>
+        </thead>
+        <tbody id="procureBody">
+          <tr><td colspan="5" class="loading-row"><span class="spinner"></span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Packing Orders -->
+<div id="panePacking" style="display:none">
+  <div id="packingOrders"></div>
+</div>`;
+
+function switchTab(tab) {
+  document.getElementById('paneProcure').style.display = tab === 'procure' ? 'block' : 'none';
+  document.getElementById('panePacking').style.display = tab === 'packing' ? 'block' : 'none';
+  document.getElementById('tabProcure').style.borderBottomColor = tab === 'procure' ? 'var(--green-dark)' : 'transparent';
+  document.getElementById('tabProcure').style.color = tab === 'procure' ? 'var(--green-dark)' : 'var(--ink-soft)';
+  document.getElementById('tabPacking').style.borderBottomColor = tab === 'packing' ? 'var(--green-dark)' : 'transparent';
+  document.getElementById('tabPacking').style.color = tab === 'packing' ? 'var(--green-dark)' : 'var(--ink-soft)';
+}
+
+async function generate() {
+  const btn = document.getElementById('genBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  try {
+    const result = await adminApi.generateProcurementOrders({ targetDate: selectedDate });
+    const r = result.result;
+    showToast(`✅ Generated ${r.created} orders · ${r.substitutions} substitutions · ${r.skipped} skipped`, 'success');
+    if (r.errors?.length) {
+      r.errors.forEach(e => showToast(`⚠️ ${e}`, 'error'));
+    }
+    await load();
+  } catch(e) { showToast(e.message, 'error'); }
+  finally { btn.disabled = false; btn.textContent = '🚀 Generate Tomorrow\'s Orders'; }
+}
+
+async function retrigger(orderId) {
+  if (!confirm('Re-run substitution for this order?')) return;
+  try {
+    const r = await adminApi.retriggerOrder(orderId);
+    showToast(`✅ Re-generated · ${r.itemCount} items · ${r.hasSubstitution ? 'Has substitutions' : 'No substitutions'}`, 'success');
+    await load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function renderStats(data) {
+  const bar = document.getElementById('statsBar');
+  bar.style.display = 'flex';
+  const subCount = data.totalOrders || 0;
+  const subItems = data.procurementList?.length || 0;
+  const hasSubs  = (data.orders || []).filter(o => o.hasSubstitution).length;
+  bar.innerHTML = `
+    <div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;align-items:center;width:100%;box-sizing:border-box">
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green)">${subCount}</span>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Orders</span>
+      </div>
+      <div style="width:1px;background:var(--border);align-self:stretch"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark)">${subItems}</span>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Products</span>
+      </div>
+      <div style="width:1px;background:var(--border);align-self:stretch"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
+        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:${hasSubs>0?'#E65100':'var(--green)'}">${hasSubs}</span>
+        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Substitutions</span>
+      </div>
+      <div style="width:1px;background:var(--border);align-self:stretch"></div>
+      <div style="flex:1;min-width:120px">
+        <span style="font-size:11px;color:var(--ink-soft)">Delivery date: <strong>${fmtDate(selectedDate)}</strong></span>
+      </div>
+    </div>`;
+}
+
+function renderProcurementList(list) {
+  const tbody = document.getElementById('procureBody');
+  if (!list?.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--ink-faint)">No procurement orders for this date — click Generate to create them</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.map(item => `<tr>
+    <td style="font-weight:600">${escapeHtml(item.name)}</td>
+    <td><span style="padding:2px 8px;border-radius:4px;background:var(--green-pale);color:var(--green-dark);font-size:11px">${escapeHtml(item.category||'–')}</span></td>
+    <td class="mono" style="font-weight:700;color:var(--green-dark)">${item.totalGrams.toLocaleString('en-IN')} g</td>
+    <td class="mono">${(item.totalGrams/1000).toFixed(2)} kg</td>
+    <td class="mono">${item.orderCount}</td>
+  </tr>`).join('');
+}
+
+function renderPackingOrders(orders) {
+  const wrap = document.getElementById('packingOrders');
+  if (!orders?.length) {
+    wrap.innerHTML = `<div style="text-align:center;padding:48px;color:var(--ink-faint)">No orders for this date</div>`;
+    return;
+  }
+  wrap.innerHTML = orders.map(order => `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <span style="font-weight:700;font-size:15px">${escapeHtml(order.familyName||'Family')}</span>
+            ${order.hasSubstitution ? `<span style="background:#FFF3E0;color:#E65100;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">⚠ Has Substitutions</span>` : ''}
+            <span style="background:var(--green-pale);color:var(--green-dark);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700">${escapeHtml(order.status||'')}</span>
+          </div>
+          <div style="font-size:12px;color:var(--ink-soft)">
+            📍 ${escapeHtml(order.deliveryAddress?.flatNo||'')}${order.deliveryAddress?.towerNo?', '+order.deliveryAddress.towerNo:''} · ${escapeHtml(order.deliveryAddress?.apartmentName||'')} · ${escapeHtml(order.deliveryAddress?.city||'')}
+          </div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">
+            🕐 ${escapeHtml(order.deliverySlot||'')} · 📦 ${escapeHtml(order.basketName||'')}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="retrigger('${order._id}')">
+            ↻ Re-generate
+          </button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px">
+        ${(order.items||[]).map(item => `
+          <div style="background:${item.substituted?'#FFF8E1':'var(--bg)'};border:1px solid ${item.substituted?'#FFE082':' var(--border)'};border-radius:8px;padding:10px">
+            <div style="font-weight:600;font-size:13px">${escapeHtml(item.name)}</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">${item.quantityG||0}g · ${escapeHtml(item.category||'')}</div>
+            ${item.substituted ? `<div style="font-size:11px;color:#E65100;margin-top:4px">⚠ Substituted for: ${escapeHtml(item.substitutedFor||'')}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function load() {
+  document.getElementById('procureBody').innerHTML = '<tr><td colspan="5" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const data = await adminApi.getProcurementOrders(selectedDate);
+    procurementData = data;
+    renderStats(data);
+    renderProcurementList(data.procurementList || []);
+    renderPackingOrders(data.orders || []);
+  } catch(e) {
+    document.getElementById('procureBody').innerHTML =
+      `<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--ink-faint)">${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+load();
+</script>
+</body></html>

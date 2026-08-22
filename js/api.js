@@ -170,7 +170,8 @@ const adminApi = {
   // Products (kp_products)
   getProducts:    (p)         => req('GET', `/admin/nutrition/products${qs(p)}`),
   getProduct:     (id)        => req('GET', `/admin/nutrition/products/${id}`),
-  createProduct:  (body)      => req('POST', '/admin/nutrition/products', body),
+  createProduct:       (body) => req('POST', '/admin/nutrition/products', body),
+  recalculateScores:   ()    => req('POST', '/admin/products/recalculate-scores'),
   updateProduct:  (id, body)  => req('PUT', `/admin/nutrition/products/${id}`, body),
   deleteProduct:  (id)        => req('DELETE', `/admin/nutrition/products/${id}`),
 

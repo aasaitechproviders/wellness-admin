@@ -287,8 +287,11 @@ const adminApi = {
   updateSubscriptionDuration:  (id, body) => req('PUT',    `/admin/subscription-durations/${id}`, body),
   deleteSubscriptionDuration:  (id)       => req('DELETE', `/admin/subscription-durations/${id}`),
 
-  // Product Categories (kp_productCategories) — used by plan-types for category picker
-  getProductCategories: (p) => req('GET', `/admin/nutrition/product-categories${qs(p)}`),
+  // Product Categories (kp_productCategories)
+  getProductCategories:    (p)         => req('GET',    `/admin/nutrition/product-categories${qs(p)}`),
+  createProductCategory:   (body)      => req('POST',   '/admin/nutrition/product-categories', body),
+  updateProductCategory:   (id, body)  => req('PUT',    `/admin/nutrition/product-categories/${id}`, body),
+  deleteProductCategory:   (id)        => req('DELETE', `/admin/nutrition/product-categories/${id}`),
 
   // MET Ranges (kp_metRanges)
   getMetRanges:    (p)         => req('GET', `/admin/nutrition/met-ranges${qs(p)}`),

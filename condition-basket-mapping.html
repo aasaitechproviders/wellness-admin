@@ -25,6 +25,7 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>Nutritionist Approval</label><select id="fApproval"><option>Yes</option><option>No</option></select></div>
   <div class="field"><label>Rule Status</label><select id="fStatus"><option>Active</option><option>Pending</option><option>Inactive</option></select></div>
   <div class="field full"><label>Remarks</label><textarea id="fRemarks" rows="2"></textarea></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
@@ -97,6 +98,7 @@ function openModal(i){
   document.getElementById('fPri').value=i?.priority||'High';document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';
   document.getElementById('fAuto').value=i?.autoApply||'Yes';document.getElementById('fApproval').value=i?.nutritionistApproval||'Yes';
   document.getElementById('fStatus').value=i?.ruleStatus||'Active';document.getElementById('fRemarks').value=i?.remarks||'';
+  document.getElementById('fIsActive').value=i?.isActive===false?'false':'true';
   document.getElementById('modal').style.display='flex';
 }
 function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
@@ -104,7 +106,7 @@ function g(id){const v=document.getElementById(id)?.value;return(v===''||v===und
 async function save(){
   const body={mappingId:g('fId'),conditionCode:g('fCode'),conditionName:g('fCond'),primaryBasket:g('fPrimary'),
     secondaryBasket:g('fSecondary'),avoidBasket:g('fAvoid'),priority:g('fPri'),clinicalReviewRequired:g('fClin'),
-    autoApply:g('fAuto'),nutritionistApproval:g('fApproval'),ruleStatus:g('fStatus'),remarks:g('fRemarks')};
+    autoApply:g('fAuto'),nutritionistApproval:g('fApproval'),ruleStatus:g('fStatus'),remarks:g('fRemarks'),isActive:document.getElementById('fIsActive').value==='true'};
   if(!body.conditionCode){showToast('Condition Code required','error');return;}
   try{if(editId)await adminApi.updateConditionBasketMapping(editId,body);else await adminApi.createConditionBasketMapping(body);
     showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}

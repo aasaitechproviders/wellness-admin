@@ -54,9 +54,9 @@ async function load() {
     document.getElementById('body').innerHTML = coupons.length ? coupons.map(c => `
       <tr>
         <td class="mono"><b>${escapeHtml(c.code)}</b>${c.description ? `<div class="muted" style="font-size:11px;font-family:var(--font-body)">${escapeHtml(c.description)}</div>` : ''}</td>
-        <td>${c.discountType === 'percent' ? `${c.discountValue}%${c.maxDiscount ? ` (max ${fmtMoney(c.maxDiscount)})` : ''}` : fmtMoney(c.discountValue)}</td>
-        <td>${c.minOrderValue ? fmtMoney(c.minOrderValue) : '–'}</td>
-        <td>${c.timesUsed || 0}${c.usageLimitTotal ? ` / ${c.usageLimitTotal}` : ''}<div class="muted" style="font-size:10.5px">${c.usageLimitPerFamily || 1}/family</div></td>
+        <td>${c.discountType === 'percent' ? `${c.discountValue}%${c.maxDiscountAmount ? ` (max ${fmtMoney(c.maxDiscountAmount)})` : ''}` : fmtMoney(c.discountValue)}</td>
+        <td>${c.minOrderAmount ? fmtMoney(c.minOrderAmount) : '–'}</td>
+        <td>${c.timesUsed || 0}${c.usageLimit ? ` / ${c.usageLimit}` : ''}<div class="muted" style="font-size:10.5px">${c.usageLimitPerFamily || 1}/family</div></td>
         <td style="font-size:12px">${c.validFrom ? fmtDate(c.validFrom, {day:'numeric',month:'short'}) : 'Any'} – ${c.validTo ? fmtDate(c.validTo, {day:'numeric',month:'short'}) : 'Any'}</td>
         <td><span class="pill ${c.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${c.isActive === false ? 'Inactive' : 'Active'}</span></td>
         <td>
@@ -104,10 +104,10 @@ function openModal(id) {
           </div>
 
           <div class="field"><label>Discount Value *</label><input name="discountValue" type="number" value="${c?.discountValue ?? ''}" required /></div>
-          <div class="field"><label>Max Discount (for % type)</label><input name="maxDiscount" type="number" value="${c?.maxDiscount ?? ''}" /></div>
-          <div class="field"><label>Min Order Value</label><input name="minOrderValue" type="number" value="${c?.minOrderValue ?? ''}" /></div>
+          <div class="field"><label>Max Discount (for % type)</label><input name="maxDiscountAmount" type="number" value="${c?.maxDiscountAmount ?? ''}" /></div>
+          <div class="field"><label>Min Order Value</label><input name="minOrderAmount" type="number" value="${c?.minOrderAmount ?? ''}" /></div>
           <div class="field"><label>Usage Limit / Family</label><input name="usageLimitPerFamily" type="number" value="${c?.usageLimitPerFamily ?? 1}" /></div>
-          <div class="field"><label>Total Usage Limit</label><input name="usageLimitTotal" type="number" value="${c?.usageLimitTotal ?? ''}" placeholder="unlimited" /></div>
+          <div class="field"><label>Total Usage Limit</label><input name="usageLimit" type="number" value="${c?.usageLimitTotal ?? ''}" placeholder="unlimited" /></div>
           ${isEdit ? `<div class="field"><label>Times Used (read-only)</label><input value="${c.timesUsed || 0}" disabled /></div>` : ''}
           <div class="field"><label>Valid From</label><input name="validFrom" type="date" value="${toDateInput(c?.validFrom)}" /></div>
           <div class="field"><label>Valid To</label><input name="validTo" type="date" value="${toDateInput(c?.validTo)}" /></div>
@@ -135,10 +135,10 @@ function openModal(id) {
       description: fd.get('description') || undefined,
       discountType: fd.get('discountType'),
       discountValue: fd.get('discountValue') ? Number(fd.get('discountValue')) : undefined,
-      maxDiscount: fd.get('maxDiscount') ? Number(fd.get('maxDiscount')) : null,
-      minOrderValue: fd.get('minOrderValue') ? Number(fd.get('minOrderValue')) : null,
+      maxDiscountAmount: fd.get('maxDiscountAmount') ? Number(fd.get('maxDiscount')) : null,
+      minOrderAmount: fd.get('minOrderAmount') ? Number(fd.get('minOrderValue')) : null,
       usageLimitPerFamily: fd.get('usageLimitPerFamily') ? Number(fd.get('usageLimitPerFamily')) : 1,
-      usageLimitTotal: fd.get('usageLimitTotal') ? Number(fd.get('usageLimitTotal')) : null,
+      usageLimit: fd.get('usageLimit') ? Number(fd.get('usageLimitTotal')) : null,
       validFrom: fd.get('validFrom') || null,
       validTo: fd.get('validTo') || null,
     };
@@ -167,9 +167,9 @@ function viewCoupon(id) {
         </div>
         <div class="form-grid" style="gap:0 14px;padding:4px 0 8px">
           <div class="field"><label>Discount</label><div style="font-weight:700;font-size:18px;color:var(--green)">${c.discountType==='percent' ? c.discountValue+'%' : '₹'+c.discountValue+' flat'}</div></div>
-          <div class="field"><label>Times Used</label><div style="font-family:var(--font-mono)">${c.timesUsed||0}${c.usageLimitTotal ? ' / '+c.usageLimitTotal : ''}</div></div>
-          ${c.minOrderValue ? `<div class="field"><label>Min. Order</label><div>${fmtMoney(c.minOrderValue)}</div></div>` : ''}
-          ${c.maxDiscount   ? `<div class="field"><label>Max Discount</label><div>${fmtMoney(c.maxDiscount)}</div></div>` : ''}
+          <div class="field"><label>Times Used</label><div style="font-family:var(--font-mono)">${c.timesUsed||0}${c.usageLimit ? ' / '+c.usageLimit : ''}</div></div>
+          ${c.minOrderAmount ? `<div class="field"><label>Min. Order</label><div>${fmtMoney(c.minOrderAmount)}</div></div>` : ''}
+          ${c.maxDiscountAmount   ? `<div class="field"><label>Max Discount</label><div>${fmtMoney(c.maxDiscountAmount)}</div></div>` : ''}
           ${c.validFrom ? `<div class="field"><label>Valid From</label><div>${fmtDate(c.validFrom)}</div></div>` : ''}
           ${c.validTo   ? `<div class="field"><label>Valid To</label><div>${fmtDate(c.validTo)}</div></div>` : ''}
           ${c.description ? `<div class="field full"><label>Description</label><div style="font-size:13px">${escapeHtml(c.description)}</div></div>` : ''}

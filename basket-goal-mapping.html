@@ -24,6 +24,10 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
   <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
   <div class="field full"><label>Eligibility Criteria</label><input id="fElig" placeholder="Healthy adults (BMI 18.5-24.9)"/></div>
+  <div class="field"><label>Nutritionist Approved</label><select id="fNutritionistApproved"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field"><label>Nutritionist Approved</label><select id="fNutritionistApproved"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
   <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
@@ -97,6 +101,8 @@ function openModal(i){
   document.getElementById('fPrimary').value=i?.primaryBasket||'Yes';document.getElementById('fAuto').value=i?.autoRecommend||'Yes';
   document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
   document.getElementById('fElig').value=i?.eligibilityCriteria||'';document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('fNutritionistApproved').value=i?.nutritionistApproved||'Yes';
+  document.getElementById('fIsActive').value=i?.isActive===false?'false':'true';
   document.getElementById('modal').style.display='flex';
 }
 function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
@@ -105,7 +111,7 @@ async function save(){
   const body={mappingCode:g('fCode'),basketCode:g('fBasket'),basketName:g('fBName'),goalCode:g('fGoal'),
     wellnessGoal:g('fGName'),priority:parseInt(document.getElementById('fPri').value)||null,
     primaryBasket:g('fPrimary'),autoRecommend:g('fAuto'),clinicalReviewRequired:g('fClin'),
-    ruleStatus:g('fStatus'),eligibilityCriteria:g('fElig'),nutritionistComments:g('fComments')};
+    ruleStatus:g('fStatus'),eligibilityCriteria:g('fElig'),nutritionistApproved:g('fNutritionistApproved'),isActive:document.getElementById('fIsActive').value==='true',nutritionistComments:g('fComments')};
   if(!body.basketCode||!body.goalCode){showToast('Basket Code and Goal Code required','error');return;}
   try{if(editId)await adminApi.updateBasketGoalMapping(editId,body);else await adminApi.createBasketGoalMapping(body);
     showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}

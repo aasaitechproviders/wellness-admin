@@ -23,6 +23,7 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>T30 Perks</label><input id="fT30P" placeholder="15+ seasonal fruits"/></div>
   <div class="field"><label>T40 Perks</label><input id="fT40P" placeholder="Unlimited + AI personalization"/></div>
   <div class="field full"><label>Remarks</label><input id="fRemarks" placeholder="Subscription-based access"/></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
@@ -93,6 +94,7 @@ function openModal(i){
   document.getElementById('fT20').value=i?.tiers?.t20||'';document.getElementById('fT30').value=i?.tiers?.t30||'';document.getElementById('fT40').value=i?.tiers?.t40||'';
   document.getElementById('fT20P').value=i?.perks?.t20Perks||'';document.getElementById('fT30P').value=i?.perks?.t30Perks||'';document.getElementById('fT40P').value=i?.perks?.t40Perks||'';
   document.getElementById('fRemarks').value=i?.remarks||'';
+  document.getElementById('fIsActive').value=i?.isActive===false?'false':'true';
   document.getElementById('modal').style.display='flex';
 }
 function closeModal(){document.getElementById('modal').style.display='none';editId=null;}

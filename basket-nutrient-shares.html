@@ -30,6 +30,8 @@ content.innerHTML=`<div id="statsBar"></div>
   <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option></select></div>
   <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>Conditional</option><option>Yes</option><option>No</option></select></div>
   <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field"><label>Nutritionist Approved</label><select id="fNutritionistApproved"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
   <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
 </div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
@@ -118,6 +120,8 @@ function openModal(i){
   document.getElementById('fTotal').value=md.totalPct||'';document.getElementById('fLogic').value=i?.distributionLogic||'';
   document.getElementById('fAuto').value=i?.autoApply||'Yes';document.getElementById('fClin').value=i?.clinicalReviewRequired||'Conditional';
   document.getElementById('fStatus').value=i?.ruleStatus||'Approved';document.getElementById('fComments').value=i?.nutritionistComments||'';
+  document.getElementById('fNutritionistApproved').value=i?.nutritionistApproved||'Yes';
+  document.getElementById('fIsActive').value=i?.isActive===false?'false':'true';
   document.getElementById('modal').style.display='flex';
 }
 function closeModal(){document.getElementById('modal').style.display='none';editId=null;}

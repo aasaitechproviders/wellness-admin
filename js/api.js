@@ -139,7 +139,10 @@ const adminApi = {
   createCoupon:     (body)     => req('POST', '/admin/coupons', body),
   updateCoupon:     (id, body) => req('PUT', `/admin/coupons/${id}`, body),
   deleteCoupon:     (id)       => req('DELETE', `/admin/coupons/${id}`),
-  hardDeleteCoupon: (id)       => req('DELETE', `/admin/coupons/${id}/hard`),
+  hardDeleteCoupon:     (id)   => req('DELETE', `/admin/coupons/${id}/hard`),
+  hardDeleteApartment:  (id)   => req('DELETE', `/admin/apartments/${id}/hard`),
+  hardDeleteCity:       (id)   => req('DELETE', `/admin/cities/${id}/hard`),
+  getGoals:             ()     => req('GET',    `/admin/nutrition/wellness-goals`),
 
   // Apartments
   getApartments:       ()         => req('GET', '/admin/apartments'),

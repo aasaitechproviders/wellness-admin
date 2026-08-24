@@ -1,0 +1,210 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Wellness Score Formulas · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+.inputs-table { width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }
+.inputs-table th { background:var(--bg-soft); padding:6px 8px; text-align:left; font-weight:600; font-size:11px; color:var(--ink-soft); border-bottom:1px solid var(--border); }
+.inputs-table td { padding:5px 6px; border-bottom:1px solid var(--border-soft); vertical-align:middle; }
+.inputs-table input, .inputs-table select { width:100%; padding:4px 6px; font-size:12px; border:1px solid var(--border); border-radius:4px; background:var(--bg); color:var(--ink); }
+.inputs-table .btn-icon { background:none; border:none; cursor:pointer; color:var(--danger); font-size:16px; padding:2px 6px; }
+.add-input-btn { margin-top:8px; font-size:12px; }
+.weight-sum { font-size:11px; color:var(--ink-soft); margin-top:4px; }
+.weight-sum.warn { color:var(--danger); font-weight:600; }
+.formula-badge { display:inline-block; background:var(--accent-soft,#e8f5e9); color:var(--accent,#2e7d32); border-radius:4px; padding:2px 8px; font-size:11px; font-family:'JetBrains Mono',monospace; margin-right:4px; }
+</style>
+</head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('wellness-score-formulas');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const NUTRIENT_FIELDS = [
+  'calories','carbs','fiber','protein','fat','sugar','gi','gl',
+  'iron_mg','calcium_mg','magnesium_mg','potassium_mg','vitaminC_mg',
+  'vitaminA_ug','zinc_mg','sodium_mg','saturatedFat_g','unsaturatedFat_g',
+  'addedSugar_g','folate_ug','selenium_ug','iodine_ug'
+];
+const INPUT_TYPES = ['positive','reverse','energy','energyDiv3'];
+
+const content = renderShell({
+  active: 'wellness-score-formulas',
+  title: 'Wellness Score Formulas',
+  sub: 'Controls how each product wellness score (immunity, diabetes, weightLoss…) is calculated from nutrition data. Changes trigger a bulk product score recalculation.',
+  actions: `
+    <button class="btn btn-ghost" onclick="recalcAll()" title="Recalculate all product wellness scores using current formulas">↻ Recalculate All Products</button>
+    <button class="btn btn-primary" onclick="openModal()">+ Add Formula</button>
+  `
+});
+
+let items = [], editId = null, inputRows = [];
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search formulas…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Score Field</th><th>Display Name</th><th>Goal Code</th><th>Inputs</th><th>Weight Sum</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal" style="max-width:760px;max-height:90vh;overflow-y:auto">
+  <div class="modal-head"><h3 id="mTitle">Add Wellness Score Formula</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+  <div class="form-grid" style="padding:4px 0 8px">
+    <div class="field"><label>Score Field * <span class="opt">(camelCase key, e.g. immunity)</span></label><input id="fScoreField" placeholder="immunity"/></div>
+    <div class="field"><label>Display Name *</label><input id="fDisplayName" placeholder="Immunity"/></div>
+    <div class="field"><label>Goal Code <span class="opt">(linked wellness goal)</span></label><input id="fGoalCode" placeholder="WG001"/></div>
+    <div class="field"><label>Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  </div>
+
+  <div style="padding:0 0 4px">
+    <label style="font-weight:600;font-size:13px">Nutrient Inputs</label>
+    <p style="font-size:12px;color:var(--ink-soft);margin:2px 0 6px">Each input defines how one nutrient field contributes to the score. Weights should sum to 1.0.</p>
+    <table class="inputs-table">
+      <thead><tr>
+        <th>Nutrient Field</th><th>Type</th><th>Weight</th><th>Reference <span style="font-weight:400">(positive)</span></th><th>Factor <span style="font-weight:400">(reverse)</span></th><th></th>
+      </tr></thead>
+      <tbody id="inputsBody"></tbody>
+    </table>
+    <div id="weightSum" class="weight-sum"></div>
+    <button class="btn btn-ghost add-input-btn" onclick="addInputRow()">+ Add Nutrient Input</button>
+  </div>
+
+  <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save Formula</button></div>
+</div></div>`;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getWellnessFormulas();
+    items = d.items || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function weightSum(inputs) {
+  return inputs.reduce((s, inp) => s + (parseFloat(inp.weight)||0), 0);
+}
+
+function render() {
+  const q = (document.getElementById('srch').value || '').toLowerCase();
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} formulas`;
+  document.getElementById('tbody').innerHTML = f.map(i => {
+    const ws = weightSum(i.inputs||[]);
+    const wsOk = Math.abs(ws - 1) < 0.01;
+    return `<tr>
+      <td><span class="formula-badge">${escapeHtml(i.scoreField||'')}</span></td>
+      <td><b>${escapeHtml(i.displayName||'')}</b></td>
+      <td class="mono" style="font-size:12px">${escapeHtml(i.goalCode||'–')}</td>
+      <td style="font-size:12px;color:var(--ink-soft)">${(i.inputs||[]).length} inputs</td>
+      <td><span class="pill ${wsOk?'pill-active':'pill-warn'}">${ws.toFixed(2)}</span></td>
+      <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No formulas found. Add formulas to enable wellness score calculation.</td></tr>';
+}
+
+function renderInputsTable() {
+  const nutrientOpts = NUTRIENT_FIELDS.map(f=>`<option value="${f}">${f}</option>`).join('');
+  const typeOpts = INPUT_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+  document.getElementById('inputsBody').innerHTML = inputRows.map((row, idx) => `
+    <tr id="irow_${idx}">
+      <td><select onchange="inputRows[${idx}].nutrientField=this.value;updateWeightSum()">${NUTRIENT_FIELDS.map(f=>`<option value="${f}" ${row.nutrientField===f?'selected':''}>${f}</option>`).join('')}</select></td>
+      <td><select onchange="inputRows[${idx}].type=this.value;updateWeightSum()">${INPUT_TYPES.map(t=>`<option value="${t}" ${row.type===t?'selected':''}>${t}</option>`).join('')}</select></td>
+      <td><input type="number" step="0.01" min="0" max="1" value="${row.weight??''}" placeholder="0.25" oninput="inputRows[${idx}].weight=parseFloat(this.value)||0;updateWeightSum()" style="width:70px"/></td>
+      <td><input type="number" step="0.01" value="${row.reference??''}" placeholder="e.g. 20" oninput="inputRows[${idx}].reference=parseFloat(this.value)||null" style="width:80px"/></td>
+      <td><input type="number" step="0.01" value="${row.factor??''}" placeholder="e.g. 0.5" oninput="inputRows[${idx}].factor=parseFloat(this.value)||null" style="width:80px"/></td>
+      <td><button class="btn-icon" onclick="removeInputRow(${idx})" title="Remove">✕</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="6" style="color:var(--ink-soft);font-size:12px;padding:8px">No inputs yet. Add at least one nutrient input.</td></tr>';
+  updateWeightSum();
+}
+
+function updateWeightSum() {
+  const ws = inputRows.reduce((s,r)=>s+(parseFloat(r.weight)||0),0);
+  const el = document.getElementById('weightSum');
+  const ok = Math.abs(ws-1)<0.01;
+  el.textContent = `Weight sum: ${ws.toFixed(3)} ${ok ? '✓' : '⚠ Should equal 1.0'}`;
+  el.className = 'weight-sum' + (ok ? '' : ' warn');
+}
+
+function addInputRow() {
+  inputRows.push({ nutrientField: NUTRIENT_FIELDS[0], type: 'positive', weight: 0, reference: null, factor: null });
+  renderInputsTable();
+}
+
+function removeInputRow(idx) {
+  inputRows.splice(idx, 1);
+  renderInputsTable();
+}
+
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit Wellness Score Formula' : 'Add Wellness Score Formula';
+  document.getElementById('fScoreField').value   = i?.scoreField || '';
+  document.getElementById('fDisplayName').value  = i?.displayName || '';
+  document.getElementById('fGoalCode').value     = i?.goalCode || '';
+  document.getElementById('fActive').value       = i?.isActive === false ? 'false' : 'true';
+  inputRows = (i?.inputs || []).map(r => ({ ...r }));
+  renderInputsTable();
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; inputRows = []; }
+function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
+
+async function save() {
+  const scoreField  = (g('fScoreField')||'').trim();
+  const displayName = (g('fDisplayName')||'').trim();
+  if (!scoreField)  { showToast('Score Field is required', 'error'); return; }
+  if (!displayName) { showToast('Display Name is required', 'error'); return; }
+  if (!inputRows.length) { showToast('At least one nutrient input is required', 'error'); return; }
+
+  const inputs = inputRows.map(r => {
+    const inp = { nutrientField: r.nutrientField, type: r.type, weight: parseFloat(r.weight)||0 };
+    if (r.reference !== null && r.reference !== undefined) inp.reference = parseFloat(r.reference);
+    if (r.factor    !== null && r.factor    !== undefined) inp.factor    = parseFloat(r.factor);
+    return inp;
+  });
+
+  const body = {
+    scoreField,
+    displayName,
+    goalCode: g('fGoalCode'),
+    isActive: document.getElementById('fActive').value === 'true',
+    inputs,
+  };
+  try {
+    if (editId) await adminApi.updateWellnessFormula(editId, body);
+    else        await adminApi.createWellnessFormula(body);
+    showToast(editId ? 'Formula updated' : 'Formula created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this formula? Product wellness scores for this field will no longer be calculated.')) return;
+  try { await adminApi.deleteWellnessFormula(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
+}
+
+async function recalcAll() {
+  if (!confirm('Recalculate wellness scores for ALL products using current formulas? This may take a moment.')) return;
+  try {
+    showToast('Recalculating…', 'info');
+    const d = await adminApi.recalculateScores();
+    showToast(`Done — ${d.updated ?? ''} products updated`, 'success');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script></body></html>

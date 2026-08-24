@@ -1,0 +1,121 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Age Goal Rules · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('age-goal-rules');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'age-goal-rules',
+  title: 'Age Goal Rules',
+  sub: 'Maps age brackets to suggested wellness goals — used by the goal suggestion engine for members under 18 and seniors',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Rule</button>`
+});
+
+let items = [], editId = null;
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Age Range</th><th>Goal Codes</th><th>Review Required</th><th>Notes</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal" style="max-width:560px"><div class="modal-head"><h3 id="mTitle">Add Age Goal Rule</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0 12px">
+  <div class="field"><label>Age Min * <span class="opt">(years, inclusive)</span></label><input id="fAgeMin" type="number" min="0" max="120" placeholder="e.g. 0"/></div>
+  <div class="field"><label>Age Max * <span class="opt">(years, inclusive)</span></label><input id="fAgeMax" type="number" min="0" max="120" placeholder="e.g. 17"/></div>
+  <div class="field full"><label>Goal Codes * <span class="opt">(comma-separated, e.g. WG015, WG010)</span></label>
+    <input id="fGoalCodes" placeholder="WG015, WG010"/>
+  </div>
+  <div class="field"><label>Review Required</label><select id="fReview"><option value="false">No</option><option value="true">Yes</option></select></div>
+  <div class="field"><label>Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field full"><label>Notes <span class="opt">(shown in engine logs)</span></label>
+    <textarea id="fNotes" rows="2" placeholder="e.g. Child under 18 — Kids Nutrition focus"></textarea>
+  </div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getAgeGoalRules();
+    items = (d.items || []).sort((a,b) => (a.ageMin||0) - (b.ageMin||0));
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function render() {
+  const q = (document.getElementById('srch').value || '').toLowerCase();
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} rules`;
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td class="mono"><b>${i.ageMin ?? '–'} – ${i.ageMax ?? '–'} yrs</b></td>
+    <td>${(i.goalCodes||[]).map(g=>`<span class="pill pill-active" style="margin:1px">${escapeHtml(g)}</span>`).join(' ')}</td>
+    <td><span class="pill ${i.reviewRequired ? 'pill-warn' : 'pill-inactive'}">${i.reviewRequired ? 'Yes' : 'No'}</span></td>
+    <td style="font-size:12px;color:var(--ink-soft);max-width:200px">${escapeHtml(i.notes||'')}</td>
+    <td><span class="pill ${i.isActive ? 'pill-active' : 'pill-inactive'}">${i.isActive ? 'Yes' : 'No'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="6" class="empty">No age goal rules found. Add rules to enable age-based goal suggestions.</td></tr>';
+}
+
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit Age Goal Rule' : 'Add Age Goal Rule';
+  document.getElementById('fAgeMin').value    = i?.ageMin ?? '';
+  document.getElementById('fAgeMax').value    = i?.ageMax ?? '';
+  document.getElementById('fGoalCodes').value = (i?.goalCodes || []).join(', ');
+  document.getElementById('fReview').value    = i?.reviewRequired ? 'true' : 'false';
+  document.getElementById('fActive').value    = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('fNotes').value     = i?.notes || '';
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+function g(id) { const v = document.getElementById(id)?.value; return (v === '' || v === undefined) ? null : v; }
+
+async function save() {
+  const ageMin = parseInt(document.getElementById('fAgeMin').value);
+  const ageMax = parseInt(document.getElementById('fAgeMax').value);
+  const codesRaw = document.getElementById('fGoalCodes').value.trim();
+  if (isNaN(ageMin) || isNaN(ageMax)) { showToast('Age Min and Max are required', 'error'); return; }
+  if (ageMin > ageMax) { showToast('Age Min must be less than Age Max', 'error'); return; }
+  if (!codesRaw) { showToast('At least one Goal Code is required', 'error'); return; }
+  const goalCodes = codesRaw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  const body = {
+    ageMin,
+    ageMax,
+    goalCodes,
+    reviewRequired: document.getElementById('fReview').value === 'true',
+    isActive:       document.getElementById('fActive').value === 'true',
+    notes:          g('fNotes'),
+  };
+  try {
+    if (editId) await adminApi.updateAgeGoalRule(editId, body);
+    else        await adminApi.createAgeGoalRule(body);
+    showToast(editId ? 'Rule updated' : 'Rule created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this age goal rule? The goal suggestion engine will no longer apply it.')) return;
+  try { await adminApi.deleteAgeGoalRule(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script></body></html>

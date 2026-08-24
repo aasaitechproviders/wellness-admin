@@ -9,6 +9,7 @@ const NAV_SECTIONS = [
       { key: 'orders',            href: 'orders.html',            label: 'Orders',             icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2 M9 3h6v4H9z M9 12h6 M9 16h4' },
       { key: 'customers',         href: 'customers.html',         label: 'Customers',          icon: 'M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1 M9 11a3 3 0 100-6 3 3 0 000 6z M22 19v-1a3.5 3.5 0 00-3-3.5 M16 4.2a3 3 0 010 5.6' },
       { key: 'coupons',           href: 'coupons.html',           label: 'Coupons',            icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 000 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 000-4z M9 7v10' },
+      { key: 'cities',            href: 'cities.html',            label: 'Cities',             icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
       { key: 'apartments',        href: 'apartments.html',        label: 'Apartments',         icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6' },
       { key: 'wellness-partners', href: 'wellness-partners.html', label: 'Wellness Partners',  icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M9 11a4 4 0 100-8 4 4 0 000 8z' },
       { key: 'approvals',          href: 'approvals.html',          label: 'Approvals',           icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -41,6 +42,8 @@ const NAV_SECTIONS = [
       { key: 'plan-types',               href: 'plan-types.html',               label: 'Plan Types (T20/T30/T40)',   icon: 'M9 11l3 3L22 4 M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11' },
       { key: 'allergies',                 href: 'allergies.html',                 label: 'Allergies',                  icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z M9 12l2 2 4-4' },
       { key: 'met-ranges',                href: 'met-ranges.html',                label: 'MET Ranges',                 icon: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z' },
+      { key: 'age-goal-rules',            href: 'age-goal-rules.html',            label: 'Age Goal Rules',             icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75' },
+      { key: 'wellness-score-formulas',   href: 'wellness-score-formulas.html',   label: 'Wellness Score Formulas',    icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
     ],
   },
 ];

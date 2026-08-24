@@ -1,0 +1,97 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Cities · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('cities');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'cities',
+  title: 'Cities',
+  sub: 'Delivery cities shown to customers during registration and address setup',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add City</button>`
+});
+
+let items = [], editId = null;
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search cities…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>City Name</th><th>Active</th><th>Created</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal"><div class="modal-head"><h3 id="mTitle">Add City</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0 12px">
+  <div class="field"><label>City Name *</label><input id="fName" placeholder="e.g. COIMBATORE"/></div>
+  <div class="field"><label>Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="4" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getCities();
+    items = d.cities || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function render() {
+  const q = (document.getElementById('srch').value || '').toLowerCase();
+  const f = items.filter(i => !q || (i.name || '').toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} cities`;
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td><b>${escapeHtml(i.name || '')}</b></td>
+    <td><span class="pill ${i.isActive ? 'pill-active' : 'pill-inactive'}">${i.isActive ? 'Active' : 'Inactive'}</span></td>
+    <td style="font-size:12px;color:var(--ink-soft)">${i.createdAt ? new Date(i.createdAt).toLocaleDateString() : '–'}</td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="4" class="empty">No cities found. Add at least one city to allow customer registration.</td></tr>';
+}
+
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit City' : 'Add City';
+  document.getElementById('fName').value   = i?.name || '';
+  document.getElementById('fActive').value = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+
+async function save() {
+  const name = document.getElementById('fName').value.trim().toUpperCase();
+  if (!name) { showToast('City name is required', 'error'); return; }
+  const body = {
+    name,
+    isActive: document.getElementById('fActive').value === 'true',
+  };
+  try {
+    if (editId) await adminApi.updateCity(editId, body);
+    else        await adminApi.createCity(body);
+    showToast(editId ? 'City updated' : 'City created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Deactivate this city? Customers in this city will not be affected, but new registrations will not see it.')) return;
+  try { await adminApi.deleteCity(id); showToast('City deactivated', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script></body></html>

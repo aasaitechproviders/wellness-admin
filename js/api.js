@@ -296,6 +296,18 @@ const adminApi = {
   updateMetRange:  (id, body)  => req('PUT', `/admin/nutrition/met-ranges/${id}`, body),
   deleteMetRange:  (id)        => req('DELETE', `/admin/nutrition/met-ranges/${id}`),
 
+  // Age Goal Rules (kp_ageGoalRules)
+  getAgeGoalRules:    (p)         => req('GET', `/admin/nutrition/age-goal-rules${qs(p)}`),
+  createAgeGoalRule:  (body)      => req('POST', '/admin/nutrition/age-goal-rules', body),
+  updateAgeGoalRule:  (id, body)  => req('PUT', `/admin/nutrition/age-goal-rules/${id}`, body),
+  deleteAgeGoalRule:  (id)        => req('DELETE', `/admin/nutrition/age-goal-rules/${id}`),
+
+  // Wellness Score Formulas (kp_wellnessScoreFormulas)
+  getWellnessFormulas:    (p)         => req('GET', `/admin/nutrition/wellness-score-formulas${qs(p)}`),
+  createWellnessFormula:  (body)      => req('POST', '/admin/nutrition/wellness-score-formulas', body),
+  updateWellnessFormula:  (id, body)  => req('PUT', `/admin/nutrition/wellness-score-formulas/${id}`, body),
+  deleteWellnessFormula:  (id)        => req('DELETE', `/admin/nutrition/wellness-score-formulas/${id}`),
+
   // Allergies (kp_allergies)
   getAllergies:    (p)         => req('GET', `/admin/nutrition/allergies${qs(p)}`),
   createAllergen: (body)      => req('POST', '/admin/nutrition/allergies', body),

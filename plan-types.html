@@ -1,285 +1,142 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Plan Types · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/admin.css"/></head><body>
-<script src="js/api.js"></script><script>Auth.guardMenu('plan-types');</script><script src="js/sidebar.js"></script>
+<script src="js/api.js"></script><script>Auth.guardMenu('plan-types');</script>
+<script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
   active: 'plan-types',
-  title: 'Plan Types',
-  sub: 'Configure wellness basket plan codes, names, nutrition coverage % and included product categories',
+  title: 'Plan Types (T20 / T30 / T40)',
+  sub: 'LIV Care / LIV Balance / LIV Premium plan definitions — controls basket category coverage and customisation',
   actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Plan Type</button>`
 });
 
-let items = [], editId = null, allCategories = [];
+const ALL_CATEGORIES = ['Vegetable','Leafy Vegetables','Fruits','Microgreens','Nuts and Seeds','Milk Products','Sprouts','Herbs'];
+let items = [], editId = null;
 
 content.innerHTML = `
-<div id="statsBar"></div>
 <div class="panel">
   <div class="toolbar">
-    <input type="search" id="srch" placeholder="Search plan types…" oninput="render()"/>
+    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
     <div class="spacer"></div>
     <span id="cnt" class="muted" style="font-size:12px"></span>
   </div>
-  <div class="table-wrap">
-    <table class="data">
-      <thead>
-        <tr>
-          <th>Plan Code</th>
-          <th>Plan Name</th>
-          <th>Coverage %</th>
-          <th>Included Categories</th>
-          <th>Description</th>
-          <th>Active</th>
-          <th>Customise</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Code</th><th>Plan Name</th><th>Coverage %</th><th>Duration Days</th><th>Included Categories</th><th>Customisation</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
 </div>
 
 <div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
-  <div class="modal wide">
-    <div class="modal-head">
-      <h3 id="mTitle">Add Plan Type</h3>
-      <button class="modal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="form-grid" style="padding:4px 0">
-      <div class="field">
-        <label>Plan Code * <span style="font-size:11px;color:var(--ink-faint)">(e.g. T20, T30, T40)</span></label>
-        <input id="fCode" placeholder="T20" style="text-transform:uppercase"/>
-      </div>
-      <div class="field">
-        <label>Plan Name *</label>
-        <input id="fName" placeholder="LIV Care"/>
-      </div>
-      <div class="field">
-        <label>Coverage % * <span style="font-size:11px;color:var(--ink-faint)">(% of weekly nutrition from basket)</span></label>
-        <input id="fCoverage" type="number" min="1" max="100" placeholder="30"/>
-      </div>
-      <div class="field full">
-        <label>Included Product Categories *
-          <span style="font-size:11px;color:var(--ink-faint)"> — tick which product categories appear in baskets for this plan</span>
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Plan Type</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
+  <div class="field"><label>Plan Code * <span class="opt">T20 / T30 / T40</span></label><input id="fPlanCode" placeholder="T20" style="text-transform:uppercase"/></div>
+  <div class="field"><label>Plan Name *</label><input id="fPlanName" placeholder="LIV Care"/></div>
+  <div class="field"><label>Coverage % <span class="opt">% of weekly nutrition covered</span></label><input id="fCoveragePct" type="number" min="1" max="100" placeholder="30"/></div>
+  <div class="field"><label>Duration Days</label><input id="fDurationDays" type="number" placeholder="7"/></div>
+  <div class="field"><label>Allow Customisation</label><select id="fAllowCustomisation"><option value="false">No</option><option value="true">Yes</option></select></div>
+  <div class="field"><label>Status</label><select id="fStatus"><option>Active</option><option>Inactive</option></select></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field full"><label>Description</label><textarea id="fDescription" rows="2" placeholder="Brief description shown to customer…"></textarea></div>
+  <div class="field full"><label>Notes <span class="opt">(internal)</span></label><textarea id="fNotes" rows="2"></textarea></div>
+
+  <div class="field full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+    <label style="font-weight:700;font-size:13px">Included Categories <span class="opt">(select all that apply)</span></label>
+    <div id="catCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+      ${ALL_CATEGORIES.map(c => `
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;background:var(--bg-soft);padding:4px 10px;border-radius:6px;border:1px solid var(--border)">
+          <input type="checkbox" class="cat-cb" value="${c}" style="width:auto"/> ${c}
         </label>
-        <div id="catCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;min-height:40px">
-          <span style="color:var(--ink-faint);font-size:12px">Loading categories…</span>
-        </div>
-      </div>
-      <div class="field full">
-        <label>Description</label>
-        <input id="fDesc" placeholder="30% of weekly nutrition needs covered by basket"/>
-      </div>
-      <div class="field">
-        <label>Status</label>
-        <select id="fStatus">
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-          <option value="Draft">Draft</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Is Active</label>
-        <select id="fActive">
-          <option value="true">Yes</option>
-          <option value="false">No</option>
-        </select>
-      </div>
-      <div class="field full">
-        <label>Allow Basket Customisation
-          <span style="font-size:11px;color:var(--ink-faint)"> — can customers add/remove items from this plan's basket?</span>
-        </label>
-        <select id="fCustomise">
-          <option value="false">No — basket is fixed (LIV Care)</option>
-          <option value="true">Yes — customer can customise (LIV Balance / Premium)</option>
-        </select>
-      </div>
-      <div class="field full">
-        <label>Notes</label>
-        <textarea id="fNotes" rows="2" placeholder="Additional notes about this plan type…"></textarea>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="save()">Save Plan Type</button>
+      `).join('')}
     </div>
   </div>
-</div>`;
+</div></div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
 
-function renderCategoryCheckboxes(selectedCategories) {
-  const wrap = document.getElementById('catCheckboxes');
-  if (!allCategories.length) {
-    wrap.innerHTML = '<span style="color:var(--ink-faint);font-size:12px">No categories found — add them in Product Categories first</span>';
-    return;
-  }
-  wrap.innerHTML = allCategories.map(cat => {
-    const checked = selectedCategories.includes(cat.name) ? 'checked' : '';
-    const id = `cat_${cat.name.replace(/\s+/g,'_')}`;
-    return `<label for="${id}" style="display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:13px;background:#fff">
-      <input type="checkbox" id="${id}" value="${escapeHtml(cat.name)}" ${checked} style="accent-color:var(--green);width:14px;height:14px"/>
-      ${escapeHtml(cat.name)}
-    </label>`;
-  }).join('');
-}
-
-function getSelectedCategories() {
-  const boxes = document.querySelectorAll('#catCheckboxes input[type=checkbox]:checked');
-  return Array.from(boxes).map(b => b.value);
-}
-
-function renderStats(data) {
-  if (!data?.length) return;
-  const active = data.filter(i => i.isActive !== false).length;
-  const avgCov = Math.round(data.reduce((s,i) => s + (parseFloat(i.coveragePct)||0), 0) / data.length);
-  const el = document.getElementById('statsBar');
-  if (!el) return;
-  el.innerHTML = `
-  <div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${data.length}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Total Plans</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${active}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Active</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${avgCov}%</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Avg Coverage</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="flex:1;min-width:180px">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Plan Codes</div>
-      <div style="font-size:12px;line-height:1.9">
-        ${data.map(i=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:2px 10px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono);font-weight:700">${escapeHtml(i.planCode||'')} <span style="font-weight:400;opacity:.7">${i.coveragePct||0}%</span></span>`).join('')}
-      </div>
-    </div>
-  </div>`;
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getPlanTypes();
+    items = (d.planTypes || d.items || []).sort((a,b) => (a.planCode||'').localeCompare(b.planCode||''));
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 function render() {
-  const q = (document.getElementById('srch').value || '').toLowerCase();
+  const q = (document.getElementById('srch').value||'').toLowerCase();
   const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
   document.getElementById('cnt').textContent = `${f.length} plan types`;
-  document.getElementById('tbody').innerHTML = f.length === 0
-    ? `<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--ink-faint)">No plan types found</td></tr>`
-    : f.map(i => {
-        const cats = Array.isArray(i.includedCategories) && i.includedCategories.length
-          ? i.includedCategories.map(c => `<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;font-size:11px;margin:1px 2px">${escapeHtml(c)}</span>`).join('')
-          : `<span style="color:var(--ink-faint);font-size:11px">Not configured</span>`;
-        return `<tr>
-          <td class="mono" style="font-weight:700;color:var(--green-dark)">${escapeHtml(i.planCode||'')}</td>
-          <td>${escapeHtml(i.planName||'')}</td>
-          <td>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="flex:1;max-width:80px;height:6px;background:var(--border);border-radius:3px;overflow:hidden">
-                <div style="height:100%;width:${Math.min(i.coveragePct||0,100)}%;background:var(--green);border-radius:3px"></div>
-              </div>
-              <span class="mono" style="font-weight:700;color:var(--green-dark)">${i.coveragePct||0}%</span>
-            </div>
-          </td>
-          <td>${cats}</td>
-          <td style="color:var(--ink-soft);font-size:12px">${escapeHtml(i.description||'–')}</td>
-          <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.isActive!==false?'#E8F5E9':'#FFF3E0'};color:${i.isActive!==false?'#2D6A35':'#E65100'}">${i.isActive!==false?'Active':'Inactive'}</span></td>
-          <td><span style="padding:2px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${i.allowCustomisation?'#E3F2FD':'#F5F5F5'};color:${i.allowCustomisation?'#1565C0':'#9E9E9E'}">${i.allowCustomisation?'✓ Allowed':'✗ Fixed'}</span></td>
-          <td>
-            <div style="display:flex;gap:6px">
-              <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
-              <button class="btn btn-ghost" style="padding:4px 10px;font-size:12px;color:#DC2626;border-color:#DC2626" onclick="del('${i._id}')">Delete</button>
-            </div>
-          </td>
-        </tr>`;
-      }).join('');
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td class="mono"><b>${escapeHtml(i.planCode||'')}</b></td>
+    <td>${escapeHtml(i.planName||'')}</td>
+    <td class="mono">${i.coveragePct != null ? i.coveragePct+'%' : '–'}</td>
+    <td class="mono">${i.durationDays ?? '–'}</td>
+    <td style="font-size:11px">${(i.includedCategories||[]).map(c=>`<span style="background:#e8f5e9;color:#2e7d32;padding:1px 6px;border-radius:4px;margin:1px;display:inline-block">${escapeHtml(c)}</span>`).join('')||'–'}</td>
+    <td><span class="pill ${i.allowCustomisation?'pill-active':'pill-inactive'}">${i.allowCustomisation?'Yes':'No'}</span></td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="8" class="empty">No plan types found.</td></tr>';
 }
 
 function openModal(i) {
   editId = i ? i._id : null;
   document.getElementById('mTitle').textContent = i ? 'Edit Plan Type' : 'Add Plan Type';
-  document.getElementById('fCode').value     = i?.planCode     || '';
-  document.getElementById('fName').value     = i?.planName     || '';
-
-  document.getElementById('fCoverage').value = i?.coveragePct  || '';
-  document.getElementById('fDesc').value     = i?.description  || '';
-  document.getElementById('fStatus').value    = i?.status              || 'Active';
-  document.getElementById('fActive').value    = String(i?.isActive !== false);
-  document.getElementById('fCustomise').value = String(i?.allowCustomisation === true);
-  document.getElementById('fNotes').value     = i?.notes               || '';
-  const selectedCats = Array.isArray(i?.includedCategories) ? i.includedCategories : [];
-  renderCategoryCheckboxes(selectedCats);
+  document.getElementById('fPlanCode').value          = i?.planCode || '';
+  document.getElementById('fPlanName').value          = i?.planName || '';
+  document.getElementById('fCoveragePct').value       = i?.coveragePct ?? '';
+  document.getElementById('fDurationDays').value      = i?.durationDays ?? '';
+  document.getElementById('fAllowCustomisation').value= i?.allowCustomisation ? 'true' : 'false';
+  document.getElementById('fStatus').value            = i?.status || 'Active';
+  document.getElementById('fIsActive').value          = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('fDescription').value       = i?.description || '';
+  document.getElementById('fNotes').value             = i?.notes || '';
+  const selected = i?.includedCategories || [];
+  document.querySelectorAll('.cat-cb').forEach(cb => { cb.checked = selected.includes(cb.value); });
   document.getElementById('modal').style.display = 'flex';
 }
-
-function closeModal() {
-  document.getElementById('modal').style.display = 'none';
-  editId = null;
-}
-
-const g  = id => document.getElementById(id)?.value?.trim() || '';
-const gn = id => parseFloat(document.getElementById(id)?.value) || null;
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
+function gn(id) { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; }
+function gi(id) { const v = parseInt(document.getElementById(id)?.value); return isNaN(v) ? null : v; }
 
 async function save() {
-  const planCode    = g('fCode').toUpperCase();
-  const planName    = g('fName');
-  const coveragePct = gn('fCoverage');
-  const includedCategories = getSelectedCategories();
-
-  if (!planCode)    return showToast('Plan Code is required', 'error');
-  if (!planName)    return showToast('Plan Name is required', 'error');
-  if (!coveragePct) return showToast('Coverage % is required', 'error');
-  if (coveragePct < 1 || coveragePct > 100) return showToast('Coverage % must be between 1 and 100', 'error');
-  if (!includedCategories.length) return showToast('Select at least one included product category', 'error');
-
+  const planCode = (g('fPlanCode')||'').toUpperCase();
+  const planName = g('fPlanName');
+  if (!planCode) { showToast('Plan Code is required', 'error'); return; }
+  if (!planName) { showToast('Plan Name is required', 'error'); return; }
+  const includedCategories = [...document.querySelectorAll('.cat-cb:checked')].map(cb => cb.value);
   const body = {
-    planCode, planName, coveragePct,
-    includedCategories,
-    description: g('fDesc'),
+    planCode,
+    planName,
+    coveragePct:        gn('fCoveragePct'),
+    durationDays:       gi('fDurationDays'),
+    allowCustomisation: document.getElementById('fAllowCustomisation').value === 'true',
     status:             g('fStatus'),
-    isActive:           document.getElementById('fActive').value === 'true',
-    allowCustomisation: document.getElementById('fCustomise').value === 'true',
+    isActive:           document.getElementById('fIsActive').value === 'true',
+    description:        g('fDescription'),
     notes:              g('fNotes'),
+    includedCategories,
   };
-
   try {
-    if (editId) {
-      await adminApi.updatePlanType(editId, body);
-      showToast(`${planCode} updated ✓`, 'success');
-    } else {
-      await adminApi.createPlanType(body);
-      showToast(`${planCode} created ✓`, 'success');
-    }
-    closeModal();
-    load();
+    if (editId) await adminApi.updatePlanType(editId, body);
+    else        await adminApi.createPlanType(body);
+    showToast(editId ? 'Updated' : 'Created', 'success');
+    closeModal(); load();
   } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function del(id) {
-  if (!confirm('Delete this plan type? This may affect basket generation.')) return;
-  try {
-    await adminApi.deletePlanType(id);
-    showToast('Deleted ✓', 'success');
-    load();
-  } catch(e) { showToast(e.message, 'error'); }
+  if (!confirm('Delete this plan type? Customers on this plan will be affected.')) return;
+  try { await adminApi.deletePlanType(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
 }
-
-async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
-  try {
-    // Load categories and plan types in parallel
-    // nutritionCRUD returns data under derived key (hyphens stripped) AND under 'items'
-    const [planData, catData] = await Promise.all([
-      adminApi.getPlanTypes(),
-      adminApi.getProductCategories().catch(() => ({ items: [] })),
-    ]);
-    allCategories = (catData.items || catData.categories || catData.productcategories || []).filter(c => c.isActive !== false);
-    items = planData.items || planData.planTypes || planData.plantypes || [];
-    renderStats(items);
-    render();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
 load();
-</script>
-</body></html>
+</script></body></html>

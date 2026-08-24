@@ -3,119 +3,143 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="css/admin.css"/></head><body>
-<script src="js/api.js"></script><script>Auth.guardMenu('activity-levels');</script><script src="js/sidebar.js"></script>
+<script src="js/api.js"></script><script>Auth.guardMenu('activity-levels');</script>
+<script src="js/sidebar.js"></script>
 <script>
-const content=renderShell({active:'activity-levels',title:'Activity Levels',sub:'PAL-based activity classifications used in calorie and nutrition calculations',actions:`<button class="btn btn-primary" onclick="openModal()">+ Add</button>`});
-let items=[],editId=null;
-content.innerHTML=`<div id="statsBar"></div>
+const content = renderShell({
+  active: 'activity-levels',
+  title: 'Activity Levels',
+  sub: 'PAL values per activity level — used in TDEE calculation for the basket engine',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Level</button>`
+});
+
+let items = [], editId = null;
+
+content.innerHTML = `
 <div class="panel">
-<div class="toolbar"><input type="search" id="srch" placeholder="Search…" oninput="render()"/><div class="spacer"></div><span id="cnt" class="muted" style="font-size:12px"></span></div>
-<div class="table-wrap"><table class="data"><thead><tr><th>Code</th><th>Level</th><th>Display Name</th><th>PAL Value</th><th>MET Range</th><th>Cal Adjustment</th><th>Exercise Duration</th><th>Status</th><th></th></tr></thead><tbody id="tbody"></tbody></table></div></div>
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Code</th><th>Activity Level</th><th>Display Name</th><th>PAL Value</th><th>MET Range</th><th>Duration</th><th>Clinical</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
 <div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
 <div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Activity Level</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
 <div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
-  <div class="field"><label>Activity Code</label><input id="fCode" placeholder="ACT001"/></div>
-  <div class="field"><label>Activity Level *</label><input id="fLevel" placeholder="Sedentary"/></div>
-  <div class="field"><label>Display Name</label><input id="fDisplay" placeholder="Sedentary Lifestyle"/></div>
-  <div class="field"><label>PAL Value</label><input id="fPAL" type="number" step="0.01" placeholder="1.2"/></div>
-  <div class="field"><label>MET Range</label><input id="fMET" placeholder="1.0–1.5"/></div>
-  <div class="field"><label>Calories Adjustment</label><input id="fCal" placeholder="0%"/></div>
-  <div class="field"><label>Exercise Duration</label><input id="fExercise" placeholder="0–30 min/day"/></div>
-  <div class="field"><label>Typical Activities</label><input id="fTypical" placeholder="Desk work, TV, driving"/></div>
-  <div class="field full"><label>Description</label><textarea id="fDesc" rows="2"></textarea></div>
-  <div class="field"><label>Auto Apply</label><select id="fAuto"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
-  <div class="field"><label>Clinical Review Required</label><select id="fClin"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
-  <div class="field"><label>Rule Status</label><select id="fStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
-  <div class="field"><label>Reference Guideline</label><input id="fRef" placeholder="ICMR/NIN"/></div>
-  <div class="field full"><label>Nutritionist Comments</label><textarea id="fComments" rows="2"></textarea></div>
+  <div class="field"><label>Activity Code</label><input id="fActivityCode" placeholder="ACT001"/></div>
+  <div class="field"><label>Activity Level * <span class="opt">internal key</span></label><input id="fActivityLevel" placeholder="Sedentary"/></div>
+  <div class="field"><label>Display Name</label><input id="fDisplayName" placeholder="Sedentary Lifestyle"/></div>
+  <div class="field"><label>PAL Value <span class="opt">Physical Activity Level multiplier</span></label><input id="fPalValue" type="number" step="0.01" placeholder="1.2"/></div>
+  <div class="field"><label>MET Range</label><input id="fMetRange" placeholder="1.0–1.5"/></div>
+  <div class="field"><label>Calories Adjustment</label><input id="fCaloriesAdjustment" placeholder="0%"/></div>
+  <div class="field"><label>Exercise Duration</label><input id="fExerciseDuration" placeholder="0–30 min/day"/></div>
+  <div class="field"><label>Typical Activities</label><input id="fTypicalActivities" placeholder="Desk work, TV, driving"/></div>
+  <div class="field full"><label>Description</label><textarea id="fDescription" rows="2"></textarea></div>
+  <div class="field"><label>Auto Apply</label><select id="fAutoApply"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
+  <div class="field"><label>Clinical Review Required</label><select id="fClinicalReviewRequired"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
+  <div class="field"><label>Rule Status</label><select id="fRuleStatus"><option>Approved</option><option>Pending</option><option>Inactive</option></select></div>
+  <div class="field"><label>Nutritionist Approved</label><select id="fNutritionistApproved"><option value="Yes">Yes</option><option value="No">No</option></select></div>
+  <div class="field"><label>Reference Guideline</label><input id="fReferenceGuideline" placeholder="ICMR/NIN"/></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field full"><label>Nutritionist Comments</label><textarea id="fNutritionistComments" rows="2"></textarea></div>
 </div></div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
 
-
-function renderStats(items) {
-  if (!items || !items.length) return;
-  const allKeys = [...new Set(items.flatMap(i => Object.keys(i)))].filter(k => !['_id','__v','createdAt','updatedAt'].includes(k));
-  const nestedCount = allKeys.filter(k => items.some(i => typeof i[k] === 'object' && i[k] !== null && !Array.isArray(i[k]))).length;
-  const totalFields = allKeys.length;
-  const filledFields = allKeys.filter(k => items.some(i => i[k] !== null && i[k] !== undefined && i[k] !== '')).length;
-  const emptyFields = totalFields - filledFields;
-  const el = document.getElementById('statsBar');
-  if (!el) return;
-  el.innerHTML = `<div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-start">
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green);line-height:1">${items.length}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Rows</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink);line-height:1">${totalFields}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Fields</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark);line-height:1">${filledFields}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Populated</span>
-    </div>
-    ${emptyFields > 0 ? `<div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:#C9A84C;line-height:1">${emptyFields}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Empty</span>
-    </div>` : ''}
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:44px">
-      <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--ink-soft);line-height:1">${nestedCount}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:2px">Nested</span>
-    </div>
-    <div style="width:1px;background:var(--border);align-self:stretch"></div>
-    <div style="flex:1;min-width:180px">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:5px">Field Names</div>
-      <div style="font-size:11px;line-height:1.9">${allKeys.map(k=>`<span style="display:inline-block;background:var(--green-pale);color:var(--green-dark);padding:1px 7px;border-radius:4px;margin:2px 3px 2px 0;font-family:var(--font-mono)">${k}</span>`).join('')}</div>
-    </div>
-  </div>`;
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getActivityLevels();
+    items = d.activityLevels || d.items || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
-async function load(){
-  document.getElementById('tbody').innerHTML='<tr><td colspan="9" class="loading-row"><span class="spinner"></span></td></tr>';
-  try{const d=await adminApi.getActivityLevels();items=d.activityLevels||[];renderStats(items);render();}catch(e){showToast(e.message,'error');}
+function render() {
+  const q = (document.getElementById('srch').value||'').toLowerCase();
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} levels`;
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td class="mono" style="font-size:12px">${escapeHtml(i.activityCode||'')}</td>
+    <td><b>${escapeHtml(i.activityLevel||'')}</b></td>
+    <td style="font-size:12px">${escapeHtml(i.displayName||'')}</td>
+    <td class="mono"><b>${i.palValue??'–'}</b></td>
+    <td class="mono" style="font-size:12px">${escapeHtml(i.metRange||'–')}</td>
+    <td style="font-size:12px">${escapeHtml(i.exerciseDuration||'–')}</td>
+    <td><span class="pill ${i.clinicalReviewRequired==='Yes'?'pill-warn':i.clinicalReviewRequired==='Conditional'?'pill-placed':'pill-inactive'}">${escapeHtml(i.clinicalReviewRequired||'No')}</span></td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No activity levels found.</td></tr>';
 }
-function render(){
-  const q=(document.getElementById('srch').value||'').toLowerCase();
-  const f=items.filter(i=>!q||JSON.stringify(i).toLowerCase().includes(q));
-  document.getElementById('cnt').textContent=`${f.length} records`;
-  document.getElementById('tbody').innerHTML=f.map(i=>`<tr>
-    <td class="mono">${escapeHtml(i.activityCode||'')}</td><td><b>${escapeHtml(i.activityLevel||'')}</b></td>
-    <td>${escapeHtml(i.displayName||'')}</td><td class="num">${i.palValue||'–'}</td>
-    <td class="mono">${escapeHtml(i.metRange||'')}</td><td>${escapeHtml(i.caloriesAdjustment||'')}</td>
-    <td>${escapeHtml(i.exerciseDuration||'')}</td>
-    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${escapeHtml(i.ruleStatus||'')}</span></td>
-    <td><button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button></td>
-  </tr>`).join('')||'<tr><td colspan="9" class="empty">No records</td></tr>';
+
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit Activity Level' : 'Add Activity Level';
+  document.getElementById('fActivityCode').value          = i?.activityCode || '';
+  document.getElementById('fActivityLevel').value         = i?.activityLevel || '';
+  document.getElementById('fDisplayName').value           = i?.displayName || '';
+  document.getElementById('fPalValue').value              = i?.palValue ?? '';
+  document.getElementById('fMetRange').value              = i?.metRange || '';
+  document.getElementById('fCaloriesAdjustment').value    = i?.caloriesAdjustment || '';
+  document.getElementById('fExerciseDuration').value      = i?.exerciseDuration || '';
+  document.getElementById('fTypicalActivities').value     = i?.typicalActivities || '';
+  document.getElementById('fDescription').value           = i?.description || '';
+  document.getElementById('fAutoApply').value             = i?.autoApply || 'Yes';
+  document.getElementById('fClinicalReviewRequired').value= i?.clinicalReviewRequired || 'No';
+  document.getElementById('fRuleStatus').value            = i?.ruleStatus || 'Approved';
+  document.getElementById('fNutritionistApproved').value  = i?.nutritionistApproved || 'Yes';
+  document.getElementById('fReferenceGuideline').value    = i?.referenceGuideline || '';
+  document.getElementById('fIsActive').value              = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('fNutritionistComments').value  = i?.nutritionistComments || '';
+  document.getElementById('modal').style.display = 'flex';
 }
-function openModal(i){
-  editId=i?i._id:null;document.getElementById('mTitle').textContent=i?'Edit Activity Level':'Add Activity Level';
-  document.getElementById('fCode').value=i?.activityCode||'';document.getElementById('fLevel').value=i?.activityLevel||'';
-  document.getElementById('fDisplay').value=i?.displayName||'';document.getElementById('fPAL').value=i?.palValue||'';
-  document.getElementById('fMET').value=i?.metRange||'';document.getElementById('fCal').value=i?.caloriesAdjustment||'';
-  document.getElementById('fExercise').value=i?.exerciseDuration||'';document.getElementById('fTypical').value=i?.typicalActivities||'';
-  document.getElementById('fDesc').value=i?.description||'';document.getElementById('fAuto').value=i?.autoApply||'Yes';
-  document.getElementById('fClin').value=i?.clinicalReviewRequired||'No';document.getElementById('fStatus').value=i?.ruleStatus||'Approved';
-  document.getElementById('fRef').value=i?.referenceGuideline||'';document.getElementById('fComments').value=i?.nutritionistComments||'';
-  document.getElementById('modal').style.display='flex';
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
+function gn(id) { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? null : v; }
+
+async function save() {
+  const activityLevel = g('fActivityLevel');
+  if (!activityLevel) { showToast('Activity Level is required', 'error'); return; }
+  const body = {
+    activityCode:           g('fActivityCode'),
+    activityLevel,
+    displayName:            g('fDisplayName'),
+    palValue:               gn('fPalValue'),
+    metRange:               g('fMetRange'),
+    caloriesAdjustment:     g('fCaloriesAdjustment'),
+    exerciseDuration:       g('fExerciseDuration'),
+    typicalActivities:      g('fTypicalActivities'),
+    description:            g('fDescription'),
+    autoApply:              g('fAutoApply'),
+    clinicalReviewRequired: g('fClinicalReviewRequired'),
+    ruleStatus:             g('fRuleStatus'),
+    nutritionistApproved:   g('fNutritionistApproved'),
+    referenceGuideline:     g('fReferenceGuideline'),
+    isActive:               document.getElementById('fIsActive').value === 'true',
+    nutritionistComments:   g('fNutritionistComments'),
+  };
+  try {
+    if (editId) await adminApi.updateActivityLevel(editId, body);
+    else        await adminApi.createActivityLevel(body);
+    showToast(editId ? 'Updated' : 'Created', 'success');
+    closeModal(); load();
+  } catch(e) { showToast(e.message, 'error'); }
 }
-function closeModal(){document.getElementById('modal').style.display='none';editId=null;}
-function g(id){const v=document.getElementById(id)?.value;return(v===''||v===undefined)?null:v;}
-async function save(){
-  const body={activityCode:g('fCode'),activityLevel:g('fLevel'),displayName:g('fDisplay'),
-    palValue:parseFloat(document.getElementById('fPAL').value)||null,metRange:g('fMET'),
-    caloriesAdjustment:g('fCal'),exerciseDuration:g('fExercise'),typicalActivities:g('fTypical'),
-    description:g('fDesc'),autoApply:g('fAuto'),clinicalReviewRequired:g('fClin'),
-    ruleStatus:g('fStatus'),referenceGuideline:g('fRef'),nutritionistComments:g('fComments')};
-  if(!body.activityLevel){showToast('Activity level required','error');return;}
-  try{if(editId)await adminApi.updateActivityLevel(editId,body);else await adminApi.createActivityLevel(body);
-    showToast(editId?'Updated':'Created','success');closeModal();load();}catch(e){showToast(e.message,'error');}
+
+async function del(id) {
+  if (!confirm('Delete this activity level? TDEE calculations for members using this level will be affected.')) return;
+  try { await adminApi.deleteActivityLevel(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
 }
-async function del(id){if(!confirm('Delete?'))return;try{await adminApi.deleteActivityLevel(id);showToast('Deleted','success');load();}catch(e){showToast(e.message,'error');}}
 load();
 </script></body></html>

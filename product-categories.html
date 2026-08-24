@@ -1,125 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Product Categories · KRISHA PURE Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/admin.css"/>
-</head>
-<body>
-<script src="js/api.js"></script>
-<script>Auth.guardMenu('product-categories');</script>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('product-categories');</script>
 <script src="js/sidebar.js"></script>
 <script>
-const content = renderShell({ active:'product-categories', title:'Product Categories', sub:'Manage categories used for product classification', actions:`<button class="btn btn-primary" onclick="openModal()">+ Add Category</button>` });
+const content = renderShell({
+  active: 'product-categories',
+  title: 'Product Categories',
+  sub: 'Categories used for basket diversity and plan-type filtering in the basket engine',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Category</button>`
+});
 
-let all=[], editId=null;
+let items = [], editId = null;
 
-content.innerHTML=`
+content.innerHTML = `
 <div class="panel">
   <div class="toolbar">
-    <input type="search" id="srch" placeholder="Search categories…" oninput="render()"/>
+    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
     <div class="spacer"></div>
-    <span id="countBadge" class="muted" style="font-size:12px"></span>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
   </div>
-  <div class="table-wrap">
-    <table class="data">
-      <thead><tr>
-        <th>Name</th><th>Description</th><th>Sort Order</th><th>Products</th><th>Status</th><th></th>
-      </tr></thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Sort</th><th>Icon</th><th>Name</th><th>Color</th><th>Description</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
 </div>
 
 <div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-head"><h3 id="modalTitle">Add Category</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-    <div style="padding:0 20px 16px">
-      <div class="form-grid">
-        <div class="field full"><label>Category Name *</label><input id="fName" placeholder="e.g. Leafy Vegetables"/></div>
-        <div class="field full"><label>Description</label><input id="fDesc" placeholder="Brief description of this category"/></div>
-        <div class="field"><label>Sort Order</label><input id="fSort" type="number" placeholder="1" value="0"/></div>
-        <div class="field"><label>Is Active</label><select id="fActive"><option value="true">Yes</option><option value="false">No</option></select></div>
-        <div class="field full"><label>Icon / Emoji</label><input id="fIcon" placeholder="🥬 (optional emoji or icon name)"/></div>
-        <div class="field full"><label>Colour (hex)</label><input id="fColor" type="color" value="#2D6A35" style="height:38px;padding:4px 6px"/></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="save()">Save Category</button>
-    </div>
-  </div>
-</div>`;
+<div class="modal"><div class="modal-head"><h3 id="mTitle">Add Category</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0 12px">
+  <div class="field"><label>Category Name *</label><input id="fName" placeholder="Leafy Vegetables"/></div>
+  <div class="field"><label>Icon / Emoji</label><input id="fIcon" placeholder="🥬"/></div>
+  <div class="field"><label>Color (hex)</label><input id="fColor" type="color" value="#2D6A35" style="height:38px;padding:4px 6px"/></div>
+  <div class="field"><label>Sort Order</label><input id="fSortOrder" type="number" placeholder="1"/></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field full"><label>Description</label><textarea id="fDescription" rows="2" placeholder="Brief description of this category"></textarea></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
 
 async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
-    const d = await req('GET', '/admin/nutrition/product-categories?limit=500');
-    all = d.items || [];
+    const d = await adminApi.getProductCategories();
+    items = (d.categories || d.items || []).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     render();
-  } catch(e) { showToast(e.message,'error'); }
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 function render() {
   const q = (document.getElementById('srch').value||'').toLowerCase();
-  const filtered = q ? all.filter(c => (c.name||'').toLowerCase().includes(q) || (c.description||'').toLowerCase().includes(q)) : all;
-  document.getElementById('countBadge').textContent = `${filtered.length} categories`;
-  document.getElementById('tbody').innerHTML = filtered.map(c => `
-    <tr>
-      <td><b>${c.icon||''} ${escapeHtml(c.name||'')}</b></td>
-      <td style="color:var(--ink-soft);font-size:12px">${escapeHtml(c.description||'—')}</td>
-      <td class="num">${c.sortOrder??0}</td>
-      <td class="num">—</td>
-      <td><span class="pill ${c.isActive!==false?'pill-active':'pill-inactive'}">${c.isActive!==false?'Active':'Inactive'}</span></td>
-      <td>
-        <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(c)})'>Edit</button>
-        <button class="btn btn-danger btn-sm" onclick="del('${c._id}')">Del</button>
-      </td>
-    </tr>`).join('') || '<tr><td colspan="6" class="empty">No categories found</td></tr>';
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} categories`;
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td class="mono">${i.sortOrder??'–'}</td>
+    <td style="font-size:20px">${escapeHtml(i.icon||'')}</td>
+    <td><b>${escapeHtml(i.name||'')}</b></td>
+    <td><span style="display:inline-flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:4px;background:${escapeHtml(i.color||'#ccc')};display:inline-block"></span><span class="mono" style="font-size:12px">${escapeHtml(i.color||'')}</span></span></td>
+    <td style="font-size:12px;color:var(--ink-soft);max-width:220px">${escapeHtml(i.description||'')}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="7" class="empty">No categories found.</td></tr>';
 }
 
-function openModal(c) {
-  editId = c ? c._id : null;
-  document.getElementById('modalTitle').textContent = c ? 'Edit Category' : 'Add Category';
-  document.getElementById('fName').value    = c?.name        || '';
-  document.getElementById('fDesc').value    = c?.description || '';
-  document.getElementById('fSort').value    = c?.sortOrder   ?? 0;
-  document.getElementById('fActive').value  = c?.isActive === false ? 'false' : 'true';
-  document.getElementById('fIcon').value    = c?.icon        || '';
-  document.getElementById('fColor').value   = c?.color       || '#2D6A35';
+function openModal(i) {
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? 'Edit Category' : 'Add Category';
+  document.getElementById('fName').value        = i?.name || '';
+  document.getElementById('fIcon').value        = i?.icon || '';
+  document.getElementById('fColor').value       = i?.color || '#2D6A35';
+  document.getElementById('fSortOrder').value   = i?.sortOrder ?? '';
+  document.getElementById('fIsActive').value    = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('fDescription').value = i?.description || '';
   document.getElementById('modal').style.display = 'flex';
 }
-function closeModal() { document.getElementById('modal').style.display='none'; editId=null; }
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
 
 async function save() {
-  const name = document.getElementById('fName').value.trim();
-  if (!name) { showToast('Name is required','error'); return; }
+  const name = g('fName');
+  if (!name) { showToast('Category name is required', 'error'); return; }
   const body = {
     name,
-    description: document.getElementById('fDesc').value.trim() || null,
-    sortOrder:   parseInt(document.getElementById('fSort').value)||0,
-    isActive:    document.getElementById('fActive').value === 'true',
-    icon:        document.getElementById('fIcon').value.trim() || null,
-    color:       document.getElementById('fColor').value || null,
+    icon:        g('fIcon'),
+    color:       g('fColor'),
+    sortOrder:   parseInt(document.getElementById('fSortOrder').value) || 99,
+    isActive:    document.getElementById('fIsActive').value === 'true',
+    description: g('fDescription'),
   };
   try {
-    if (editId) await req('PUT', `/admin/nutrition/product-categories/${editId}`, body);
-    else        await req('POST', '/admin/nutrition/product-categories', body);
-    showToast(editId ? 'Category updated' : 'Category created', 'success');
+    if (editId) await adminApi.updateProductCategory(editId, body);
+    else        await adminApi.createProductCategory(body);
+    showToast(editId ? 'Updated' : 'Created', 'success');
     closeModal(); load();
-  } catch(e) { showToast(e.message,'error'); }
+  } catch(e) { showToast(e.message, 'error'); }
 }
 
 async function del(id) {
-  if (!confirm('Delete this category?')) return;
-  try { await req('DELETE', `/admin/nutrition/product-categories/${id}`); showToast('Deleted','success'); load(); }
-  catch(e) { showToast(e.message,'error'); }
+  if (!confirm('Delete this category? Products in this category may be affected.')) return;
+  try { await adminApi.deleteProductCategory(id); showToast('Deleted', 'success'); load(); }
+  catch(e) { showToast(e.message, 'error'); }
 }
-
 load();
-</script>
-</body>
-</html>
+</script></body></html>

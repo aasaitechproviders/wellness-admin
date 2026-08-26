@@ -170,7 +170,7 @@ async function openOrder(id) {
         <table class="data">
           <thead><tr><th>Item</th><th>Quantity</th></tr></thead>
           <tbody>
-            ${(o.items || []).map(it => `<tr><td>${escapeHtml(it.name)}</td><td>${it.quantity || it.qty || 1} ${escapeHtml(it.unit || '')}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No items recorded</td></tr>'}
+            ${(o.items || []).map(it => `<tr><td>${escapeHtml(it.name)}</td><td>${it.quantityG || it.quantity || it.qty || 1} ${escapeHtml(it.unit || 'g')}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No items recorded</td></tr>'}
           </tbody>
         </table>
       </div>

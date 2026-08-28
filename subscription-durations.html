@@ -46,7 +46,7 @@ async function load() {
   document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getSubscriptionDurations();
-    items = (d.durations || d.items || []).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
+    items = (d.subscriptionDurations || d.durations || d.items || []).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
     render();
   } catch(e) { showToast(e.message, 'error'); }
 }

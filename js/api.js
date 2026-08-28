@@ -319,6 +319,11 @@ const adminApi = {
   createAllergen: (body)      => req('POST', '/admin/nutrition/allergies', body),
   updateAllergen: (id, body)  => req('PUT', `/admin/nutrition/allergies/${id}`, body),
   deleteAllergen: (id)        => req('DELETE', `/admin/nutrition/allergies/${id}`),
+
+  // Pricing Config
+  getPricingConfig:  ()     => req('GET',  '/pricing-config'),
+  savePricingConfig: (body) => req('PUT',  '/pricing-config', body),
+  calculatePrice:    (body) => req('POST', '/pricing-config/calculate', body),
 };
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

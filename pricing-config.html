@@ -107,7 +107,7 @@ async function saveAll() {
   const profit = parseFloat(document.getElementById('profitPct')?.value) || 0
 
   try {
-    await API.put('/pricing-config', { rows: updatedRows, profitPct: profit })
+    await adminApi.savePricingConfig('/pricing-config', { rows: updatedRows, profitPct: profit })
     showToast('Pricing config saved ✓', 'success')
     rows = updatedRows
     profitPct = profit
@@ -118,7 +118,7 @@ async function saveAll() {
 
 async function load() {
   try {
-    const d = await API.get('/pricing-config')
+    const d = await adminApi.getPricingConfig()
     rows      = d.rows      || []
     profitPct = d.profitPct || 0
     document.getElementById('profitPct').value = profitPct

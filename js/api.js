@@ -321,8 +321,8 @@ const adminApi = {
   deleteAllergen: (id)        => req('DELETE', `/admin/nutrition/allergies/${id}`),
 
   // Pricing Config
-  getPricingConfig:  ()     => req('GET',  '/pricing-config'),
-  savePricingConfig: (body) => req('PUT',  '/pricing-config', body),
+  getPricingConfig:  ()     => req('GET',  '/admin/pricing-config'),
+  savePricingConfig: (body) => req('PUT',  '/admin/pricing-config', body),
   calculatePrice:    (body) => req('POST', '/pricing-config/calculate', body),
 };
 

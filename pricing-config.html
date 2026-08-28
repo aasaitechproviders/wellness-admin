@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Pricing Config · KRISHA LIV Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('pricing-config');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'pricing-config',
+  title:  'Pricing Configuration',
+  sub:    'Configure packaging cost, delivery charges and profit margin per plan and frequency',
+  actions: `<button class="btn btn-primary" onclick="saveAll()">💾 Save All Changes</button>`
+});
+
+const FREQ   = [{ days: 2, label: '2 Days Once' }, { days: 7, label: '7 Days Once (Weekly)' }]
+const PLANS  = [{ code: 'T20', name: 'LIV Care' }, { code: 'T30', name: 'LIV Balance' }, { code: 'T40', name: 'LIV Premium' }]
+
+let rows = [], profitPct = 0
+
+content.innerHTML = `
+<div class="panel" style="margin-bottom:20px">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-weight:700;font-size:15px">Global Profit Margin</div>
+      <div class="muted" style="font-size:12px;margin-top:2px">Applied as % on top of product + packaging + delivery costs</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input id="profitPct" type="number" min="0" max="100" step="0.1" style="width:90px;padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-weight:700;text-align:center" placeholder="0"/>
+      <span style="font-size:15px;font-weight:700;color:var(--text-muted)">%</span>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+    <div style="font-weight:700;font-size:15px">Packaging & Delivery Costs per Delivery</div>
+    <div class="muted" style="font-size:12px;margin-top:2px">Set costs for each frequency × LIV plan combination</div>
+  </div>
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr>
+        <th>Frequency</th>
+        <th>LIV Plan</th>
+        <th>Packaging Cost (₹)</th>
+        <th>Delivery Charge (₹)</th>
+        <th>Total Add-on (₹)</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:20px">
+  <div style="padding:16px 20px;border-bottom:1px solid var(--border)">
+    <div style="font-weight:700;font-size:15px">Pricing Formula</div>
+  </div>
+  <div style="padding:16px 20px;font-size:13px;line-height:2;color:var(--text-muted)">
+    <code>Product Cost = Sum of basket item costs (from curation engine)</code><br>
+    <code>Per Delivery = (Product + Packaging + Delivery) × (1 + Profit%/100)</code><br>
+    <code>Total = Per Delivery × Number of Deliveries in subscription period</code><br>
+    <code>Final = Total × (1 - Subscription Discount%)</code>
+  </div>
+</div>
+`
+
+function render() {
+  const tbody = document.getElementById('tbody')
+  tbody.innerHTML = FREQ.flatMap(f =>
+    PLANS.map((p, pi) => {
+      const key = `${f.days}_${p.code}`
+      const row = rows.find(r => r.frequencyDays === f.days && r.livPlanCode === p.code) || {}
+      const pkg  = row.packagingCost || 0
+      const del  = row.deliveryCost  || 0
+      return `<tr>
+        ${pi === 0 ? `<td rowspan="3" style="font-weight:700;vertical-align:middle;background:var(--surface)">${f.label}</td>` : ''}
+        <td><span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:${p.code==='T20'?'#E8F5E9':p.code==='T30'?'#E3F2FD':'#F3E5F5'};color:${p.code==='T20'?'#2E7D32':p.code==='T30'?'#1565C0':'#6A1B9A'}">${p.name}</span></td>
+        <td><input type="number" min="0" step="0.01" id="pkg_${key}" value="${pkg}" style="width:100px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px" onchange="updateTotal('${key}')"/></td>
+        <td><input type="number" min="0" step="0.01" id="del_${key}" value="${del}" style="width:100px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px" onchange="updateTotal('${key}')"/></td>
+        <td id="total_${key}" style="font-weight:700;color:var(--green)">₹${(pkg + del).toFixed(2)}</td>
+      </tr>`
+    })
+  ).join('')
+}
+
+function updateTotal(key) {
+  const pkg   = parseFloat(document.getElementById(`pkg_${key}`)?.value) || 0
+  const del   = parseFloat(document.getElementById(`del_${key}`)?.value) || 0
+  const el    = document.getElementById(`total_${key}`)
+  if (el) el.textContent = `₹${(pkg + del).toFixed(2)}`
+}
+
+async function saveAll() {
+  const updatedRows = FREQ.flatMap(f =>
+    PLANS.map(p => {
+      const key = `${f.days}_${p.code}`
+      return {
+        frequencyDays:  f.days,
+        frequencyLabel: f.label,
+        livPlanCode:    p.code,
+        livPlanName:    p.name,
+        packagingCost:  parseFloat(document.getElementById(`pkg_${key}`)?.value) || 0,
+        deliveryCost:   parseFloat(document.getElementById(`del_${key}`)?.value) || 0,
+      }
+    })
+  )
+  const profit = parseFloat(document.getElementById('profitPct')?.value) || 0
+
+  try {
+    await API.put('/pricing-config', { rows: updatedRows, profitPct: profit })
+    showToast('Pricing config saved ✓', 'success')
+    rows = updatedRows
+    profitPct = profit
+  } catch (e) {
+    showToast('Failed to save: ' + e.message, 'error')
+  }
+}
+
+async function load() {
+  try {
+    const d = await API.get('/pricing-config')
+    rows      = d.rows      || []
+    profitPct = d.profitPct || 0
+    document.getElementById('profitPct').value = profitPct
+    render()
+  } catch {
+    render()
+  }
+}
+
+load()
+</script>
+</body></html>

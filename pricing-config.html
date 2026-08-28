@@ -107,7 +107,7 @@ async function saveAll() {
   const profit = parseFloat(document.getElementById('profitPct')?.value) || 0
 
   try {
-    await adminApi.savePricingConfig('/pricing-config', { rows: updatedRows, profitPct: profit })
+    await adminApi.savePricingConfig({ rows: updatedRows, profitPct: profit })
     showToast('Pricing config saved ✓', 'success')
     rows = updatedRows
     profitPct = profit

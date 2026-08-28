@@ -13,8 +13,34 @@ const content = renderShell({
   actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Plan Type</button>`
 });
 
-const ALL_CATEGORIES = ['Vegetable','Leafy Vegetables','Fruits','Microgreens','Nuts and Seeds','Milk Products','Sprouts','Herbs'];
+let ALL_CATEGORIES = []; // loaded dynamically from kp_productCategories
 let items = [], editId = null;
+
+async function loadCategories() {
+  try {
+    const d = await adminApi.getProductCategories();
+    ALL_CATEGORIES = (d.categories || d.items || [])
+      .filter(c => c.isActive !== false)
+      .sort((a,b) => (a.sortOrder||99) - (b.sortOrder||99))
+      .map(c => c.name || c.categoryName);
+    renderCategoryCheckboxes();
+  } catch { ALL_CATEGORIES = ['Leafy Vegetables','Fruits','Vegetable','Nuts and Seeds','Microgreens','Essentials']; renderCategoryCheckboxes(); }
+}
+
+function renderCategoryCheckboxes(selected = [], categoryLimits = {}) {
+  const el = document.getElementById('catCheckboxes');
+  if (!el) return;
+  el.innerHTML = ALL_CATEGORIES.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg-soft);padding:6px 10px;border-radius:8px;border:1px solid var(--border);min-width:200px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;flex:1">
+        <input type="checkbox" class="cat-cb" value="${c}" style="width:auto" ${selected.includes(c)?'checked':''}/> ${c}
+      </label>
+      <input type="number" class="cat-max" data-cat="${c}" min="1" max="50" placeholder="Max" title="Max items for ${c}"
+        value="${categoryLimits[c]||''}"
+        style="width:60px;padding:3px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;text-align:center"/>
+    </div>
+  `).join('');
+}
 
 content.innerHTML = `
 <div class="panel">
@@ -46,19 +72,15 @@ content.innerHTML = `
 
   <div class="field full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
     <label style="font-weight:700;font-size:13px">Included Categories <span class="opt">(select all that apply)</span></label>
-    <div id="catCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
-      ${ALL_CATEGORIES.map(c => `
-        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;background:var(--bg-soft);padding:4px 10px;border-radius:6px;border:1px solid var(--border)">
-          <input type="checkbox" class="cat-cb" value="${c}" style="width:auto"/> ${c}
-        </label>
-      `).join('')}
-    </div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Check to include · Set max items per delivery (leave blank = no cap)</div>
+    <div id="catCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px"></div>
   </div>
 </div></div>
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
 
 async function load() {
+  await loadCategories();
   document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getPlanTypes();
@@ -98,8 +120,9 @@ function openModal(i) {
   document.getElementById('fIsActive').value          = i?.isActive === false ? 'false' : 'true';
   document.getElementById('fDescription').value       = i?.description || '';
   document.getElementById('fNotes').value             = i?.notes || '';
-  const selected = i?.includedCategories || [];
-  document.querySelectorAll('.cat-cb').forEach(cb => { cb.checked = selected.includes(cb.value); });
+  const selected       = i?.includedCategories || [];
+  const categoryLimits = i?.categoryLimits     || {};
+  renderCategoryCheckboxes(selected, categoryLimits);
   document.getElementById('modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
@@ -113,6 +136,11 @@ async function save() {
   if (!planCode) { showToast('Plan Code is required', 'error'); return; }
   if (!planName) { showToast('Plan Name is required', 'error'); return; }
   const includedCategories = [...document.querySelectorAll('.cat-cb:checked')].map(cb => cb.value);
+  const categoryLimits = {};
+  document.querySelectorAll('.cat-max').forEach(inp => {
+    const v = parseInt(inp.value);
+    if (!isNaN(v) && v > 0) categoryLimits[inp.dataset.cat] = v;
+  });
   const body = {
     planCode,
     planName,
@@ -124,6 +152,7 @@ async function save() {
     description:        g('fDescription'),
     notes:              g('fNotes'),
     includedCategories,
+    categoryLimits,
   };
   try {
     if (editId) await adminApi.updatePlanType(editId, body);

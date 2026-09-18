@@ -98,8 +98,8 @@ content.innerHTML=`
           <div class="field"><label>Name *</label><input id="fName" placeholder="Spinach"/></div>
           <div class="field"><label>Category</label><select id="fCategory"></select></div>
           <div class="field"><label>Seasonal</label><select id="fSeasonal">${SEASON.map(s=>`<option>${s}</option>`).join('')}</select></div>
-          <div class="field"><label>Price per 100g (₹)</label><input id="fPrice" type="number" step="0.01" placeholder="10"/></div>
-          <div class="field"><label>Current Price per 100g (₹)</label><input id="fCurrentPrice" type="number" step="0.01" placeholder="10"/></div>
+          <div class="field"><label>Base Price / MRP (₹ per 100g)</label><input id="fPrice" type="number" step="0.01" placeholder="e.g. 12.00"/></div>
+          <div class="field"><label>Selling Price (₹ per 100g) <span style="color:#C62828">*</span></label><input id="fCurrentPrice" type="number" step="0.01" placeholder="e.g. 10.00" required/></div>
           <div class="field"><label>Serving Unit</label><input id="fUnit" placeholder="g" value="g"/></div>
           <div class="field"><label>Shelf Life</label><input id="fShelf" placeholder="2–5 days"/></div>
           <div class="field"><label>Storage Type</label><select id="fStorage">${STORAGE.map(s=>`<option>${s}</option>`).join('')}</select></div>
@@ -213,15 +213,16 @@ content.innerHTML=`
       <div class="tab-pane" id="tab-basket">
         <div class="section-title">Weekly Basket Quantity Limits</div>
         <div class="form-grid">
-          <div class="field"><label>Typical Serving (g)</label><input id="fTypicalServing" type="number" placeholder="100"/></div>
-          <div class="field"><label>Min Basket (g)</label><input id="fMinBasketG" type="number" placeholder="50"/></div>
-          <div class="field"><label>Max Basket (g)</label><input id="fMaxBasketG" type="number" placeholder="500"/></div>
-          <div class="field"><label>Max Servings / Week</label><input id="fMaxServingsWeek" type="number" placeholder="3"/></div>
+          <div class="field"><label>Typical Serving (g) <span style="color:#C62828">*</span></label><input id="fTypicalServing" type="number" placeholder="e.g. 200"/></div>
+          <div class="field"><label>Min Basket (g)</label><input id="fMinBasketG" type="number" placeholder="e.g. 50"/></div>
+          <div class="field"><label>Max Basket (g)</label><input id="fMaxBasketG" type="number" placeholder="e.g. 500"/></div>
+          <div class="field"><label>Max Servings / Week</label><input id="fMaxServingsWeek" type="number" placeholder="e.g. 3"/></div>
         </div>
-        <div style="margin-top:12px;padding:12px 14px;background:var(--green-pale);border-radius:10px;font-size:12px;color:var(--ink-soft);line-height:1.7">
-          💡 <b>Typical Serving</b> is used as the default basket quantity per delivery.<br/>
-          <b>Min/Max Basket</b> are hard clamps — the engine will never go below Min or above Max.<br/>
-          <b>Max Servings/Week</b> caps how many times this product appears across the week.
+        <div style="margin-top:12px;padding:12px 14px;background:var(--green-pale);border-radius:10px;font-size:12px;color:var(--ink-soft);line-height:1.8">
+          💡 <b>Typical Serving</b> — the default qty placed in the basket per addition (e.g. 200g). Also used for price calculation: <code>estimatedCost = Selling Price × Typical Serving / 100</code>.<br/>
+          <b>Min/Max Basket (g)</b> — hard clamps. Engine never goes below Min or above Max regardless of nutrition needs.<br/>
+          <b>Max Servings/Week</b> — caps how many times this product appears in a week. Products at this limit are excluded from the basket engine.<br/>
+          <b>Pricing example:</b> Spinach at ₹5 / 100g with 200g typical serving → ₹10 per basket addition.
         </div>
       </div>
 
@@ -462,12 +463,17 @@ function gn(id)      { const v = document.getElementById(id)?.value; return v ==
 function gb(id)      { return document.getElementById(id)?.value === 'true'; }
 
 async function save() {
+  // Validate required fields
+  if (!g('fName')) { alert('Product name is required'); return; }
+  if (!gn('fCurrentPrice') && !gn('fPrice')) { alert('Selling Price (₹ per 100g) is required'); return; }
+  if (!gn('fTypicalServing')) { alert('Typical Serving (g) is required — used for basket qty and price calculation'); return; }
+
   const body = {
     productId:            g('fProductId'),
     name:                 g('fName'),
     category:             g('fCategory'),
     pricePer100g:         gn('fPrice'),
-    currentPricePer100g:  gn('fCurrentPrice'),
+    currentPricePer100g:  gn('fCurrentPrice') || gn('fPrice'), // selling price falls back to base price
     servingUnit:          g('fUnit'),
     seasonal:             g('fSeasonal'),
     shelfLife:            g('fShelf'),

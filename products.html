@@ -64,7 +64,7 @@ content.innerHTML=`
         <th>Cal</th><th>Protein</th><th>Fiber</th><th>GI</th>
         <th>Min/Typical/Max (g)</th>
         <th>Diabetes</th><th>Wt.Loss</th><th>Immunity</th>
-        <th>Approval</th><th>Status</th><th></th>
+        <th>Avail</th><th>Review</th><th>Approval</th><th>Status</th><th></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -110,6 +110,7 @@ content.innerHTML=`
         <div class="section-title">Flags</div>
         <div class="form-grid">
           <div class="field"><label>Is Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+          <div class="field"><label>Availability <span style="color:#C62828">*</span> <span style="font-weight:400;font-size:11px;color:var(--ink-faint)">(must be true for basket)</span></label><select id="fAvailability"><option value="false">No — Not Available</option><option value="true">Yes — Available</option></select></div>
           <div class="field"><label>Is Non-Veg</label><select id="fIsNonVeg"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field"><label>Hard Exclusion</label><select id="fHardExclusion"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field"><label>Microgreen Compatible</label><select id="fMicro"><option value="true">Yes</option><option value="false">No</option></select></div>
@@ -228,12 +229,17 @@ content.innerHTML=`
 
       <!-- TAB: APPROVAL -->
       <div class="tab-pane" id="tab-approval">
+        <div style="padding:10px 14px;background:#FFF8E1;border-radius:8px;margin-bottom:12px;font-size:12px;color:#5D4037;border:1px solid #FFE082">
+          ⚠️ <b>All three conditions must be met</b> for a product to enter the basket engine pool:<br/>
+          <b>Review Status = Reviewed</b> AND <b>Approval Status = Reviewed</b> AND <b>Nutritionist Approved = Yes</b>
+        </div>
         <div class="section-title">Review & Approval</div>
         <div class="form-grid">
-          <div class="field"><label>Approval Status</label><select id="fApprovalStatus">${APPROVAL_STATUSES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>Review Status <span style="color:#C62828">*</span></label><select id="fReviewStatus"><option value="Not Reviewed">Not Reviewed</option><option value="Reviewed">Reviewed</option></select></div>
+          <div class="field"><label>Approval Status <span style="color:#C62828">*</span></label><select id="fApprovalStatus">${APPROVAL_STATUSES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="field"><label>Nutritionist Approved <span style="color:#C62828">*</span></label><select id="fNutrApproved"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field"><label>Reviewed By</label><input id="fReviewedBy" placeholder="Savitha"/></div>
           <div class="field"><label>Reviewed At</label><input id="fReviewedAt" type="date"/></div>
-          <div class="field"><label>Nutritionist Approved</label><select id="fNutrApproved"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field"><label>Conditional Review</label><select id="fConditionalReview"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field full"><label>Approval Comments</label><input id="fApprovalComments" placeholder="Any notes from review…"/></div>
           <div class="field"><label>Image URL</label><input id="fImageUrl" placeholder="https://…"/></div>
@@ -313,7 +319,7 @@ function renderStats(items) {
 
 /* ── Load & filter ── */
 async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="14" class="loading-row"><span class="spinner"></span></td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="16" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getProducts({ limit: 1000 });
     allProducts = d.products || [];
@@ -359,13 +365,15 @@ function render() {
       <td class="num">${p.wellnessScores?.diabetes??'–'}</td>
       <td class="num">${p.wellnessScores?.weightLoss??'–'}</td>
       <td class="num">${p.wellnessScores?.immunity??'–'}</td>
+      <td><span class="pill ${p.availability?'pill-active':'pill-inactive'}">${p.availability?'Yes':'No'}</span></td>
+      <td>${approvalBadge(p.reviewStatus)}</td>
       <td>${approvalBadge(p.approvalStatus)}</td>
       <td><span class="pill ${p.isActive?'pill-active':'pill-inactive'}">${p.isActive?'Active':'Inactive'}</span></td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(p)})'>Edit</button>
         <button class="btn btn-danger btn-sm" onclick="del('${p._id}')">Del</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="14" class="empty">No products found</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="16" class="empty">No products found</td></tr>';
 }
 
 function changePage(d) { page += d; render(); }
@@ -399,6 +407,7 @@ function openModal(p) {
   sv('fBasis',            p?.nutritionDataBasis|| 'Per 100g edible portion – raw');
   sv('fTaste',            p?.tasteProfile      || '');
   sv('fIsActive',         p?.isActive === false ? 'false' : 'true');
+  sv('fAvailability',     p?.availability === true ? 'true' : 'false');
   sv('fIsNonVeg',         p?.isNonVeg  === true  ? 'true'  : 'false');
   sv('fHardExclusion',    p?.hardExclusion === true ? 'true' : 'false');
   sv('fMicro',            p?.microgreenCompatible === false ? 'false' : 'true');
@@ -444,6 +453,7 @@ function openModal(p) {
   sv('fMaxServingsWeek', p?.maxServingsWeek  ?? '');
 
   // Approval
+  sv('fReviewStatus',      p?.reviewStatus      || 'Not Reviewed');
   sv('fApprovalStatus',    p?.approvalStatus    || 'Pending');
   sv('fReviewedBy',        p?.reviewedBy        || '');
   sv('fReviewedAt',        p?.reviewedAt ? p.reviewedAt.split('T')[0] : '');
@@ -485,6 +495,7 @@ async function save() {
     curationNotes:        g('fCurationNotes'),
     curationTags:         [...curationTagsList],
     isActive:             gb('fIsActive'),
+    availability:         gb('fAvailability'),
     isNonVeg:             gb('fIsNonVeg'),
     hardExclusion:        gb('fHardExclusion'),
     microgreenCompatible: gb('fMicro'),
@@ -495,6 +506,7 @@ async function save() {
     minBasketG:           gn('fMinBasketG'),
     maxBasketG:           gn('fMaxBasketG'),
     maxServingsWeek:      gn('fMaxServingsWeek'),
+    reviewStatus:         g('fReviewStatus'),
     approvalStatus:       g('fApprovalStatus'),
     reviewedBy:           g('fReviewedBy'),
     reviewedAt:           g('fReviewedAt') ? new Date(g('fReviewedAt')).toISOString() : null,

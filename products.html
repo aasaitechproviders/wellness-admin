@@ -170,38 +170,41 @@ content.innerHTML=`
 
       <!-- TAB: WELLNESS -->
       <div class="tab-pane" id="tab-wellness">
-        <div style="padding:10px 0 8px;background:var(--green-pale);border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:var(--ink-soft)">
-          💡 Scores are <b>auto-calculated</b> from nutrition data when you save. Fields shown here are read-only computed values. Use <b>⟳ Recalculate All Scores</b> to bulk-refresh all 143 products.
+        <div style="padding:10px 14px;background:var(--green-pale);border-radius:8px;margin-bottom:12px;font-size:12px;color:var(--ink-soft)">
+          ✏️ Scores are <b>editable</b> — nutritionist can override any value manually and save. Click <b>🔄 Recalculate from Formula</b> to discard manual overrides and recompute all scores from nutrition data. Use <b>⟳ Recalculate All Scores</b> to bulk-refresh all products.
+        </div>
+        <div style="margin-bottom:12px">
+          <button class="btn btn-ghost" style="font-size:12px;padding:6px 14px" onclick="recalcProduct()">🔄 Recalculate from Formula</button>
         </div>
         <div class="section-title">Weight & Metabolic</div>
         <div class="score-row">
-          <div class="field"><label>General Wellness</label><input id="sGenWell" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Weight Loss</label><input id="sWt" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Weight Gain</label><input id="sWtGain" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Satiety</label><input id="sSat" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Diabetes</label><input id="sDiab" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Build Muscle</label><input id="sBuildMuscle" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
+          <div class="field"><label>General Wellness</label><input id="sGenWell" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Weight Loss</label><input id="sWt" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Weight Gain</label><input id="sWtGain" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Satiety</label><input id="sSat" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Diabetes</label><input id="sDiab" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Build Muscle</label><input id="sBuildMuscle" type="number" min="0" max="100"/></div>
         </div>
         <div class="section-title">Cardiovascular & Organ</div>
         <div class="score-row">
-          <div class="field"><label>Heart Health</label><input id="sHeart" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Hypertension</label><input id="sHypert" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Fatty Liver</label><input id="sFattyLiver" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
+          <div class="field"><label>Heart Health</label><input id="sHeart" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Hypertension</label><input id="sHypert" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Fatty Liver</label><input id="sFattyLiver" type="number" min="0" max="100"/></div>
         </div>
         <div class="section-title">Immunity & Micronutrient</div>
         <div class="score-row">
-          <div class="field"><label>Immunity</label><input id="sImm" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Iron Support</label><input id="sIron" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Bone Health</label><input id="sBone" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Thyroid Support</label><input id="sThyroid" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
+          <div class="field"><label>Immunity</label><input id="sImm" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Iron Support</label><input id="sIron" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Bone Health</label><input id="sBone" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Thyroid Support</label><input id="sThyroid" type="number" min="0" max="100"/></div>
         </div>
         <div class="section-title">Women's Health & Ageing</div>
         <div class="score-row">
-          <div class="field"><label>PCOS</label><input id="sPcos" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Pregnancy</label><input id="sPregnancy" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Lactation</label><input id="sLactation" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Healthy Ageing</label><input id="sAgeing" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
-          <div class="field"><label>Sports Nutrition</label><input id="sSports" type="number" min="0" max="100" readonly style="background:#f9f9f9"/></div>
+          <div class="field"><label>PCOS</label><input id="sPcos" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Pregnancy</label><input id="sPregnancy" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Lactation</label><input id="sLactation" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Healthy Ageing</label><input id="sAgeing" type="number" min="0" max="100"/></div>
+          <div class="field"><label>Sports Nutrition</label><input id="sSports" type="number" min="0" max="100"/></div>
         </div>
         <div class="section-title">System Computed Flags</div>
         <div class="form-grid">
@@ -528,7 +531,17 @@ async function save() {
       saturatedFat_g:    gn('fSatFat'),unsaturatedFat_g:gn('fUnsatFat'),
       addedSugar_g:      gn('fAddSugar'),
     },
-    // wellnessScores are auto-calculated by backend from nutrition data + kp_wellnessScoreFormulas
+    wellnessScores: {
+      generalWellness: gn('sGenWell'),   weightLoss:     gn('sWt'),
+      weightGain:      gn('sWtGain'),    satiety:        gn('sSat'),
+      diabetes:        gn('sDiab'),      buildMuscle:    gn('sBuildMuscle'),
+      heartHealth:     gn('sHeart'),     hypertension:   gn('sHypert'),
+      fattyLiver:      gn('sFattyLiver'),immunity:       gn('sImm'),
+      ironSupport:     gn('sIron'),      boneHealth:     gn('sBone'),
+      thyroidSupport:  gn('sThyroid'),   pcos:           gn('sPcos'),
+      pregnancy:       gn('sPregnancy'), lactation:      gn('sLactation'),
+      healthyAgeing:   gn('sAgeing'),    sportsNutrition:gn('sSports'),
+    },
     suitability: {
       salad:    g('fSalad'), juice:   g('fJuice'), cooking: g('fCook'),
     },
@@ -546,6 +559,29 @@ async function del(id) {
   if (!confirm('Delete this product?')) return;
   try { await adminApi.deleteProduct(id); showToast('Deleted', 'success'); load(); }
   catch(e) { showToast(e.message, 'error'); }
+}
+
+async function recalcProduct() {
+  if (!editId) { showToast('No product open', 'error'); return; }
+  if (!confirm('Discard any manual score edits and recompute all wellness scores from formula?')) return;
+  try {
+    // Send wellnessScores: {} so backend formula fills all (manual map is empty → formula wins)
+    const cur = await adminApi.getProduct(editId);
+    const body = { ...cur, wellnessScores: {} };
+    delete body._id;
+    const r = await adminApi.updateProduct(editId, body);
+    const ws = r.item ? r.item.wellnessScores : null;
+    if (ws) {
+      const sv = (id, v) => { const el = document.getElementById(id); if (el) el.value = (v != null ? v : ''); };
+      sv('sGenWell', ws.generalWellness); sv('sWt', ws.weightLoss);      sv('sWtGain', ws.weightGain);
+      sv('sSat', ws.satiety);             sv('sDiab', ws.diabetes);       sv('sBuildMuscle', ws.buildMuscle);
+      sv('sHeart', ws.heartHealth);       sv('sHypert', ws.hypertension); sv('sFattyLiver', ws.fattyLiver);
+      sv('sImm', ws.immunity);            sv('sIron', ws.ironSupport);    sv('sBone', ws.boneHealth);
+      sv('sThyroid', ws.thyroidSupport);  sv('sPcos', ws.pcos);           sv('sPregnancy', ws.pregnancy);
+      sv('sLactation', ws.lactation);     sv('sAgeing', ws.healthyAgeing);sv('sSports', ws.sportsNutrition);
+    }
+    showToast('Wellness scores recalculated from formula', 'success');
+  } catch(e) { showToast(e.message || 'Recalculation failed', 'error'); }
 }
 
 async function recalcAll() {

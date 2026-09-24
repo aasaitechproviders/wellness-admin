@@ -1,13 +1,23 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Procurement · KRISHA PURE Admin</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/admin.css"/></head><body>
-<script src="js/api.js"></script><script>Auth.guardMenu('procurement');</script><script src="js/sidebar.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('procurement');</script>
+<script src="js/sidebar.js"></script>
 <script>
 const content = renderShell({
   active: 'procurement',
   title: 'Procurement',
-  sub: 'Generate daily delivery orders and view procurement & packing details per member',
+  sub: 'Daily order quantities and per-member packing breakdown',
 });
 
 let selectedDate = (() => {
@@ -16,21 +26,16 @@ let selectedDate = (() => {
 })();
 
 content.innerHTML = `
-<!-- Date + Trigger -->
+<!-- Date bar -->
 <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px">
-  <div style="display:flex;align-items:center;gap:8px">
-    <label style="font-size:13px;font-weight:600;color:var(--ink-soft)">Delivery Date</label>
-    <input type="date" id="dateInput" value="${selectedDate}"
-      style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font-body)"
-      onchange="selectedDate=this.value;load()"/>
-  </div>
-  <button class="btn btn-primary" onclick="generate()" id="genBtn">
-    🚀 Generate Orders
-  </button>
+  <label style="font-size:13px;font-weight:600;color:var(--ink-soft)">Delivery Date</label>
+  <input type="date" id="dateInput" value="${selectedDate}"
+    style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:var(--font-body)"
+    onchange="selectedDate=this.value;load()" />
   <button class="btn btn-ghost" onclick="load()" style="font-size:13px">↻ Refresh</button>
 </div>
 
-<!-- Stats bar -->
+<!-- Day totals stats bar -->
 <div id="statsBar" style="display:none;margin-bottom:16px"></div>
 
 <!-- Tabs -->
@@ -49,22 +54,20 @@ content.innerHTML = `
 <div id="paneProcure">
   <div class="panel">
     <div style="padding:10px 16px;font-size:12px;color:var(--ink-soft);border-bottom:1px solid var(--border);background:var(--green-pale)">
-      📦 Total quantities to procure across all member orders for this date
+      📦 Total quantities to procure across all subscription orders for this delivery date
     </div>
     <div class="table-wrap">
       <table class="data">
-        <thead>
-          <tr>
-            <th>Product</th>
-            <th>Category</th>
-            <th>Total Qty (g)</th>
-            <th>Total Qty (kg)</th>
-            <th>Members</th>
-            <th>Est. Cost</th>
-          </tr>
-        </thead>
+        <thead><tr>
+          <th>Product</th>
+          <th>Category</th>
+          <th>Total Qty (g)</th>
+          <th>Total Qty (kg)</th>
+          <th>Members</th>
+          <th>Est. Product Cost</th>
+        </tr></thead>
         <tbody id="procureBody">
-          <tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>
+          <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
         </tbody>
       </table>
     </div>
@@ -74,72 +77,63 @@ content.innerHTML = `
 <!-- Packing Orders -->
 <div id="panePacking" style="display:none">
   <div id="packingOrders"></div>
-</div>`;
+</div>
+`;
 
 function switchTab(tab) {
-  document.getElementById('paneProcure').style.display  = tab === 'procure' ? 'block' : 'none';
-  document.getElementById('panePacking').style.display  = tab === 'packing' ? 'block' : 'none';
-  document.getElementById('tabProcure').style.borderBottomColor = tab === 'procure' ? 'var(--green-dark)' : 'transparent';
-  document.getElementById('tabProcure').style.color              = tab === 'procure' ? 'var(--green-dark)' : 'var(--ink-soft)';
-  document.getElementById('tabPacking').style.borderBottomColor = tab === 'packing' ? 'var(--green-dark)' : 'transparent';
-  document.getElementById('tabPacking').style.color              = tab === 'packing' ? 'var(--green-dark)' : 'var(--ink-soft)';
+  document.getElementById('paneProcure').style.display  = tab === 'procure' ? '' : 'none';
+  document.getElementById('panePacking').style.display  = tab === 'packing' ? '' : 'none';
+  ['Procure','Packing'].forEach(t => {
+    const el = document.getElementById('tab' + t);
+    const active = (t.toLowerCase() === tab) || (t === 'Procure' && tab === 'procure') || (t === 'Packing' && tab === 'packing');
+    el.style.borderBottomColor = active ? 'var(--green-dark)' : 'transparent';
+    el.style.color             = active ? 'var(--green-dark)' : 'var(--ink-soft)';
+  });
 }
 
-async function generate() {
-  const btn = document.getElementById('genBtn');
-  btn.disabled = true; btn.textContent = '⏳ Generating…';
-  try {
-    const result = await adminApi.generateProcurementOrders({ targetDate: selectedDate });
-    const r = result.result;
-    showToast(`✅ Generated ${r.created} member orders · ${r.skipped} skipped`, 'success');
-    if (r.errors?.length) r.errors.forEach(e => showToast(`⚠️ ${e}`, 'error'));
-    await load();
-  } catch(e) { showToast(e.message, 'error'); }
-  finally { btn.disabled = false; btn.textContent = '🚀 Generate Orders'; }
+function statCard(label, value, sub, color) {
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;min-width:90px;flex:1">
+      <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:${color||'var(--green-dark)'}">${value}</span>
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:1px">${label}</span>
+      ${sub ? `<span style="font-size:10px;color:var(--ink-soft);margin-top:1px">${sub}</span>` : ''}
+    </div>`;
 }
 
-async function retrigger(orderId, memberName) {
-  if (!confirm(`Re-generate fresh basket for ${memberName}?`)) return;
-  try {
-    const r = await adminApi.retriggerOrder(orderId);
-    showToast(`✅ Re-generated for ${r.memberName} · ${r.itemCount} items · ₹${r.totalAmount}`, 'success');
-    await load();
-  } catch(e) { showToast(e.message, 'error'); }
+function divider() {
+  return `<div style="width:1px;background:var(--border);align-self:stretch"></div>`;
 }
 
 function renderStats(data) {
   const bar = document.getElementById('statsBar');
-  bar.style.display = 'flex';
-  const totalMembers   = data.totalMembers || data.totalOrders || 0;
-  const totalProducts  = data.procurementList?.length || 0;
-  const totalFamilies  = [...new Set((data.orders||[]).map(o => o.familyId?.toString()))].length;
+  bar.style.display = 'block';
+  const dt = data.dayTotals || {};
   bar.innerHTML = `
-    <div style="display:flex;gap:14px;padding:12px 16px;background:#fff;border:1px solid var(--border);border-radius:10px;flex-wrap:wrap;align-items:center;width:100%;box-sizing:border-box">
-      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
-        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green)">${totalMembers}</span>
-        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Members</span>
-      </div>
-      <div style="width:1px;background:var(--border);align-self:stretch"></div>
-      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
-        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark)">${totalFamilies}</span>
-        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Families</span>
-      </div>
-      <div style="width:1px;background:var(--border);align-self:stretch"></div>
-      <div style="display:flex;flex-direction:column;align-items:center;min-width:60px">
-        <span style="font-family:var(--font-mono);font-size:22px;font-weight:700;color:var(--green-dark)">${totalProducts}</span>
-        <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Products</span>
-      </div>
-      <div style="width:1px;background:var(--border);align-self:stretch"></div>
-      <div style="flex:1;min-width:120px">
-        <span style="font-size:11px;color:var(--ink-soft)">Delivery date: <strong>${fmtDate(selectedDate)}</strong></span>
-      </div>
+    <div style="display:flex;gap:14px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;align-items:center;box-sizing:border-box">
+      ${statCard('Members',       data.totalMembers  || 0)}
+      ${divider()}
+      ${statCard('Families',      data.totalFamilies || 0)}
+      ${divider()}
+      ${statCard('Orders',        data.totalOrders   || 0)}
+      ${divider()}
+      ${statCard('Product Cost',  dt.totalProductCost  != null ? '₹'+(+dt.totalProductCost ).toFixed(0) : '–', null, '#555')}
+      ${divider()}
+      ${statCard('Packaging',     dt.totalPackagingCost!= null ? '₹'+(+dt.totalPackagingCost).toFixed(0) : '–', null, '#555')}
+      ${divider()}
+      ${statCard('Delivery',      dt.totalDeliveryCost != null ? '₹'+(+dt.totalDeliveryCost ).toFixed(0) : '–', null, '#555')}
+      ${divider()}
+      ${statCard('Profit',        dt.totalProfitAmount != null ? '₹'+(+dt.totalProfitAmount ).toFixed(0) : '–', null, '#C9A84C')}
+      ${divider()}
+      ${statCard('Revenue',       dt.totalRevenue      != null ? '₹'+(+dt.totalRevenue      ).toFixed(0) : '–', null, 'var(--green-dark)')}
     </div>`;
 }
 
 function renderProcurementList(list) {
   const tbody = document.getElementById('procureBody');
   if (!list?.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--ink-faint)">No procurement orders for this date — click Generate to create them</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="text-align:center">
+      <div class="icon">📦</div>No subscription orders scheduled for this date
+    </td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(item => `<tr>
@@ -147,21 +141,15 @@ function renderProcurementList(list) {
     <td><span style="padding:2px 8px;border-radius:4px;background:var(--green-pale);color:var(--green-dark);font-size:11px">${escapeHtml(item.category||'–')}</span></td>
     <td class="mono" style="font-weight:700;color:var(--green-dark)">${(item.totalGrams||0).toLocaleString('en-IN')} g</td>
     <td class="mono">${((item.totalGrams||0)/1000).toFixed(2)} kg</td>
-    <td class="mono">${item.orderCount}</td>
+    <td class="mono">${item.orderCount||0}</td>
     <td class="mono">₹${(item.totalCost||0).toFixed(0)}</td>
   </tr>`).join('');
-}
-
-function coveragePill(pct) {
-  const v = parseFloat(pct) || 0;
-  const color = v >= 90 ? '#1B5E3B' : v >= 60 ? '#C9A84C' : '#C62828';
-  return `<span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;background:${color}22;color:${color}">${v.toFixed(0)}%</span>`;
 }
 
 function renderPackingOrders(orders) {
   const wrap = document.getElementById('packingOrders');
   if (!orders?.length) {
-    wrap.innerHTML = `<div style="text-align:center;padding:48px;color:var(--ink-faint)">No orders for this date</div>`;
+    wrap.innerHTML = `<div class="empty"><div class="icon">🗂</div>No subscription orders for this date</div>`;
     return;
   }
 
@@ -169,93 +157,128 @@ function renderPackingOrders(orders) {
   const byFamily = {};
   orders.forEach(o => {
     const fk = o.familyId?.toString() || 'unknown';
-    if (!byFamily[fk]) byFamily[fk] = { familyName: o.familyName, address: o.deliveryAddress, members: [] };
+    if (!byFamily[fk]) byFamily[fk] = {
+      familyName:  o.familyName,
+      phone:       o.phone,
+      address:     o.deliveryAddress,
+      members:     [],
+    };
     byFamily[fk].members.push(o);
   });
 
-  wrap.innerHTML = Object.values(byFamily).map(family => `
+  wrap.innerHTML = Object.values(byFamily).map(family => {
+    // Family-level totals
+    const famRevenue = family.members.reduce((s,o) => s+(o.totalAmount||0), 0);
+
+    return `
     <div style="background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden">
+
       <!-- Family header -->
-      <div style="padding:14px 16px;background:var(--green-pale);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="padding:14px 18px;background:var(--green-pale);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
         <div>
           <div style="font-weight:700;font-size:15px;color:var(--green-dark)">🏠 ${escapeHtml(family.familyName||'Family')}</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">
-            📍 ${escapeHtml(family.address?.flatNo||'')}${family.address?.towerNo?', '+family.address.towerNo:''} · ${escapeHtml(family.address?.apartmentName||'')} · ${escapeHtml(family.address?.city||'')}
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:3px">
+            📞 ${escapeHtml(family.phone||'–')} &nbsp;·&nbsp;
+            📍 ${escapeHtml([family.address?.flatNo, family.address?.towerNo, family.address?.apartmentName, family.address?.city].filter(Boolean).join(', ') || '–')}
           </div>
         </div>
-        <span style="font-size:12px;color:var(--ink-soft)">${family.members.length} member${family.members.length>1?'s':''}</span>
+        <div style="text-align:right">
+          <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--green-dark)">₹${famRevenue.toFixed(0)}</div>
+          <div style="font-size:11px;color:var(--ink-soft)">${family.members.length} member${family.members.length>1?'s':''}</div>
+        </div>
       </div>
 
-      <!-- Per-member packs -->
+      <!-- Per-member rows -->
       ${family.members.map(order => {
-        const coverage = order.coveragePercent || {};
-        const items    = order.basketItems || [];
+        const items = order.basketItems || [];
+        const productCost   = order.productCost   ?? items.reduce((s,i) => s+(i.estimatedCost||0), 0);
+        const packagingCost = order.packagingCost;
+        const deliveryCost  = order.deliveryCost;
+        const profitAmount  = order.profitAmount;
+        const totalAmount   = order.totalAmount || 0;
+
         return `
-        <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
+
+          <!-- Member header -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
             <div>
-              <div style="display:flex;align-items:center;gap:8px">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                 <span style="font-weight:700;font-size:14px">👤 ${escapeHtml(order.memberName||'Member')}</span>
-                <span style="background:var(--green-pale);color:var(--green-dark);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${escapeHtml(order.planType||'')}</span>
-                <span style="background:var(--bg);color:var(--ink-soft);padding:2px 8px;border-radius:4px;font-size:11px">${escapeHtml(order.status||'')}</span>
+                <span style="background:var(--green-pale);color:var(--green-dark);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">
+                  ${escapeHtml(order.planDisplayName || order.planType || '–')}
+                </span>
+                <span style="background:#f5f5f5;color:var(--ink-soft);padding:2px 8px;border-radius:4px;font-size:11px">
+                  Every ${order.deliveryFreqDays||'?'} days · ${order.durationMonths||'?'} mo
+                </span>
               </div>
               <div style="font-size:12px;color:var(--ink-soft);margin-top:4px">
-                🕐 ${escapeHtml(order.deliverySlot||'')} · 
-                Goals: ${(order.goals||[]).join(', ')||'–'} · 
-                Score: ${order.wellnessScore||0}/100
+                🕐 ${escapeHtml(order.deliverySlot||'–')} &nbsp;·&nbsp; ${escapeHtml(order.wellnessGoal||'–')}
               </div>
             </div>
-            <div style="display:flex;gap:8px;align-items:center">
-              <span style="font-family:var(--font-mono);font-weight:700;color:var(--green-dark)">₹${(order.totalAmount||0).toFixed(0)}</span>
-              <button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" onclick="retrigger('${order._id}','${escapeHtml(order.memberName||'Member')}')">
-                ↻ Re-generate
-              </button>
+            <!-- Cost breakdown chip -->
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:180px;font-size:12px">
+              <div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
+                <span>Product Cost</span>
+                <span class="mono">₹${productCost.toFixed(0)}</span>
+              </div>
+              ${packagingCost != null ? `<div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
+                <span>Packaging</span><span class="mono">₹${(+packagingCost).toFixed(0)}</span></div>` : ''}
+              ${deliveryCost != null ? `<div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
+                <span>Delivery</span><span class="mono">₹${(+deliveryCost).toFixed(0)}</span></div>` : ''}
+              ${profitAmount != null ? `<div style="display:flex;justify-content:space-between;color:#C9A84C;padding:2px 0">
+                <span>Profit</span><span class="mono">₹${(+profitAmount).toFixed(0)}</span></div>` : ''}
+              <div style="border-top:1.5px solid var(--border);margin-top:4px;padding-top:5px;display:flex;justify-content:space-between;font-weight:700;color:var(--green-dark)">
+                <span>Total</span><span class="mono">₹${totalAmount.toFixed(0)}</span>
+              </div>
             </div>
           </div>
 
-          <!-- Nutrition coverage pills -->
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding:8px;background:var(--bg);border-radius:6px">
-            ${['calories','protein','carbs','fat','fibre','iron','calcium','vitaminC','vitaminA'].map(k =>
-              `<span style="font-size:10px;color:var(--ink-soft)">${k}: ${coveragePill(coverage[k]||0)}</span>`
-            ).join('')}
-          </div>
-
-          <!-- Basket items grid -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
-            ${items.map(item => `
-              <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-                <div style="font-weight:600;font-size:13px">${escapeHtml(item.name)}</div>
-                <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">
-                  ${item.quantityG||0}g · ${item.servings||'–'} serving${(item.servings||1)>1?'s':''} · ${escapeHtml(item.category||'')}
-                </div>
-                <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">
-                  Cal: ${(item.nutrients?.calories||0).toFixed(0)} · Prot: ${(item.nutrients?.protein||0).toFixed(1)}g · Iron: ${(item.nutrients?.iron||0).toFixed(1)}mg
-                </div>
-              </div>
-            `).join('')}
+          <!-- Basket items -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">
+            ${items.length
+              ? items.map(item => `
+                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+                  <div style="font-weight:600;font-size:13px">${escapeHtml(item.name||'–')}</div>
+                  <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">
+                    <span class="mono">${item.quantityG||0} g</span>
+                    &nbsp;·&nbsp; ${escapeHtml(item.category||'–')}
+                  </div>
+                  <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">
+                    ₹${(item.pricePer100g||0).toFixed(0)}/100g
+                    &nbsp;·&nbsp; est. ₹${(item.estimatedCost||0).toFixed(0)}
+                  </div>
+                </div>`).join('')
+              : `<div style="color:var(--ink-faint);font-size:12px;grid-column:1/-1">No basket items</div>`}
           </div>
         </div>`;
       }).join('')}
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function load() {
-  document.getElementById('procureBody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
-  document.getElementById('packingOrders').innerHTML = '<div style="padding:32px;text-align:center"><span class="spinner"></span></div>';
+  document.getElementById('procureBody').innerHTML =
+    '<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>';
+  document.getElementById('packingOrders').innerHTML =
+    '<div style="padding:32px;text-align:center"><div class="spinner"></div></div>';
+  document.getElementById('statsBar').style.display = 'none';
+
   try {
     const data = await adminApi.getProcurementOrders(selectedDate);
     renderStats(data);
     renderProcurementList(data.procurementList || []);
     renderPackingOrders(data.orders || []);
-  } catch(e) {
+  } catch (e) {
+    const msg = escapeHtml(e.message);
     document.getElementById('procureBody').innerHTML =
-      `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--ink-faint)">${escapeHtml(e.message)}</td></tr>`;
+      `<tr><td colspan="6" class="empty"><div class="icon">⚠️</div>${msg}</td></tr>`;
     document.getElementById('packingOrders').innerHTML =
-      `<div style="text-align:center;padding:32px;color:var(--ink-faint)">${escapeHtml(e.message)}</div>`;
+      `<div class="empty"><div class="icon">⚠️</div>${msg}</div>`;
   }
 }
 
 load();
 </script>
-</body></html>
+</body>
+</html>

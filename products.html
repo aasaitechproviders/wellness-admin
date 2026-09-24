@@ -355,7 +355,7 @@ function render() {
   document.getElementById('pgInfo').textContent = `${start+1}–${Math.min(start+perPage,filtered.length)} of ${filtered.length}`;
   document.getElementById('prevBtn').disabled = page === 1;
   document.getElementById('nextBtn').disabled = start + perPage >= filtered.length;
-  document.getElementById('tbody').innerHTML = slice.map(p => `
+  document.getElementById('tbody').innerHTML = slice.map((p, i) => `
     <tr>
       <td class="mono">${escapeHtml(p.productId||'')}</td>
       <td><b>${escapeHtml(p.name||'')}</b>${p.isNonVeg?'<span style="color:#C62828;font-size:10px;margin-left:4px">🥩NV</span>':''}</td>
@@ -373,7 +373,7 @@ function render() {
       <td>${approvalBadge(p.approvalStatus)}</td>
       <td><span class="pill ${p.isActive?'pill-active':'pill-inactive'}">${p.isActive?'Active':'Inactive'}</span></td>
       <td>
-        <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(p)})'>Edit</button>
+        <button class="btn btn-ghost btn-sm" data-idx="${start + i}" onclick="openModal(filtered[this.dataset.idx])">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="del('${p._id}')">Del</button>
       </td>
     </tr>`).join('') || '<tr><td colspan="16" class="empty">No products found</td></tr>';

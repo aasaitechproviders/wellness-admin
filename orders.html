@@ -14,16 +14,34 @@
 <script>Auth.guard();</script>
 <script src="js/sidebar.js"></script>
 <script>
-const content = renderShell({ active: 'orders', title: 'Orders', sub: 'Track and update deliveries' });
+const content = renderShell({ active: 'orders', title: 'Orders', sub: 'Track and manage all subscription deliveries' });
 
-const ORDER_STATUSES = ['placed','confirmed','packed','out_for_delivery','delivered','cancelled'];
-let state = { status: '', city: '', date: '', search: '', page: 1, limit: 20 };
+// All statuses including subscription flow
+const ORDER_STATUSES = ['scheduled','packed','out_for_delivery','delivered','cancelled'];
+const STATUS_LABEL   = {
+  scheduled:        'Scheduled',
+  packed:           'Packed',
+  out_for_delivery: 'Out for Delivery',
+  delivered:        'Delivered',
+  cancelled:        'Cancelled',
+};
+const STATUS_COLOR = {
+  scheduled:        '#1B5E3B',
+  packed:           '#C9A84C',
+  out_for_delivery: '#1565C0',
+  delivered:        '#2E7D32',
+  cancelled:        '#C62828',
+};
+
+let state = { status: 'scheduled', date: '', search: '', page: 1, limit: 20 };
 
 content.innerHTML = `
   <div class="toolbar">
-    <input type="text" id="f-search" placeholder="Search order no, phone or name…" />
-    <select id="f-status"><option value="">All statuses</option>${ORDER_STATUSES.map(s => `<option value="${s}">${s.replace(/_/g,' ')}</option>`).join('')}</select>
-    <select id="f-city"><option value="">All cities</option><option>Coimbatore</option><option>Chennai</option></select>
+    <input type="text" id="f-search" placeholder="Search member name…" style="min-width:200px" />
+    <select id="f-status">
+      <option value="">All statuses</option>
+      ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === 'scheduled' ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+    </select>
     <input type="date" id="f-date" />
     <div class="spacer"></div>
     <button class="btn btn-ghost btn-sm" id="f-clear">Clear filters</button>
@@ -33,10 +51,22 @@ content.innerHTML = `
     <div class="table-wrap">
       <table class="data">
         <thead><tr>
-          <th>Order No</th><th>Customer</th><th>City</th><th>Items</th>
-          <th>Total</th><th>Delivery</th><th>Status</th><th></th>
+          <th>Member</th>
+          <th>Family / Phone</th>
+          <th>Plan</th>
+          <th>Delivery Date</th>
+          <th>Items</th>
+          <th>Product Cost</th>
+          <th>Packaging</th>
+          <th>Delivery</th>
+          <th>Profit</th>
+          <th style="color:var(--green-dark)">Total</th>
+          <th>Status</th>
+          <th></th>
         </tr></thead>
-        <tbody id="orders-body"><tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr></tbody>
+        <tbody id="orders-body">
+          <tr><td colspan="12" class="loading-row"><div class="spinner"></div></td></tr>
+        </tbody>
       </table>
     </div>
     <div class="pagination" id="pagination"></div>
@@ -45,64 +75,91 @@ content.innerHTML = `
   <div id="modal-root"></div>
 `;
 
-['f-search','f-status','f-city','f-date'].forEach(id => {
+// Wire filters
+['f-search','f-status','f-date'].forEach(id => {
   const el = document.getElementById(id);
   const ev = id === 'f-search' ? 'input' : 'change';
   let t;
   el.addEventListener(ev, () => {
     clearTimeout(t);
     t = setTimeout(() => {
-      state.search = document.getElementById('f-search').value;
+      state.search = document.getElementById('f-search').value.trim();
       state.status = document.getElementById('f-status').value;
-      state.city   = document.getElementById('f-city').value;
       state.date   = document.getElementById('f-date').value;
-      state.page = 1;
+      state.page   = 1;
       loadOrders();
     }, id === 'f-search' ? 350 : 0);
   });
 });
+
 document.getElementById('f-clear').addEventListener('click', () => {
-  state = { status: '', city: '', date: '', search: '', page: 1, limit: 20 };
+  state = { status: 'scheduled', date: '', search: '', page: 1, limit: 20 };
   document.getElementById('f-search').value = '';
-  document.getElementById('f-status').value = '';
-  document.getElementById('f-city').value = '';
-  document.getElementById('f-date').value = '';
+  document.getElementById('f-status').value = 'scheduled';
+  document.getElementById('f-date').value   = '';
   loadOrders();
 });
 
+function statusPill(s) {
+  const color = STATUS_COLOR[s] || '#666';
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:700;background:${color}18;color:${color}">${STATUS_LABEL[s] || s}</span>`;
+}
+
 function statusSelect(order) {
-  return `<select class="status-select" data-id="${order._id}" style="padding:5px 8px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;background:#fff">
-    ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}
+  return `<select class="status-select" data-id="${order._id}"
+    style="padding:5px 8px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;background:#fff">
+    ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
   </select>`;
 }
 
+function fmtCost(v) {
+  if (v == null) return '<span class="muted">–</span>';
+  return `<span class="mono">₹${(+v).toFixed(0)}</span>`;
+}
+
 async function loadOrders() {
-  document.getElementById('orders-body').innerHTML = `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
+  document.getElementById('orders-body').innerHTML =
+    `<tr><td colspan="12" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { orders, total, pages } = await adminApi.getOrders({
-      status: state.status, city: state.city, date: state.date, search: state.search,
+      status: state.status, date: state.date, search: state.search,
       page: state.page, limit: state.limit,
     });
 
     if (!orders.length) {
-      document.getElementById('orders-body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">📦</div>No orders match these filters</div></td></tr>`;
+      document.getElementById('orders-body').innerHTML =
+        `<tr><td colspan="12"><div class="empty"><div class="icon">📦</div>No orders match these filters</div></td></tr>`;
     } else {
-      document.getElementById('orders-body').innerHTML = orders.map(o => `
-        <tr>
-          <td class="mono" style="cursor:pointer" onclick="openOrder('${o._id}')">${o.orderNo}</td>
-          <td>${escapeHtml(o.familyName || '–')}<div class="muted mono" style="font-size:11px">${escapeHtml(o.phone || '')}</div></td>
-          <td>${escapeHtml(o.city || '–')}</td>
-          <td>${o.items?.length || 0}</td>
-          <td class="num">${fmtMoney(o.totalAmount)}</td>
-          <td>${fmtDate(o.deliveryDate, { day:'numeric', month:'short' })}${o.deliverySlot ? `<div class="muted" style="font-size:11px">${o.deliverySlot}</div>` : ''}</td>
-          <td>${statusSelect(o)}</td>
-          <td style="white-space:nowrap">
-            <button class="btn btn-ghost btn-sm" onclick="openOrder('${o._id}')">View</button>
-            <button class="btn btn-ghost btn-sm" onclick="quickStatus('${o._id}','${o.status}')">Status</button>
-            <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="cancelOrder('${o._id}','${o.status}')">Cancel</button>
+      document.getElementById('orders-body').innerHTML = orders.map(o => {
+        const items = o.basketItems || o.items || [];
+        const delivDate = o.deliveryDate ? fmtDate(o.deliveryDate, { day:'numeric', month:'short' }) : '–';
+        const slot      = o.deliverySlot ? `<div class="muted" style="font-size:11px">${escapeHtml(o.deliverySlot)}</div>` : '';
+        return `<tr>
+          <td>
+            <div style="font-weight:600">${escapeHtml(o.memberName || '–')}</div>
+            <div class="muted" style="font-size:11px">${escapeHtml(o.wellnessGoal || '')}</div>
           </td>
-        </tr>
-      `).join('');
+          <td>
+            ${escapeHtml(o.familyName || '–')}
+            <div class="muted mono" style="font-size:11px">${escapeHtml(o.phone || '')}</div>
+          </td>
+          <td>
+            <div style="font-size:12px;font-weight:600">${escapeHtml(o.planDisplayName || o.planType || '–')}</div>
+            <div class="muted" style="font-size:11px">Every ${o.deliveryFreqDays || '?'} days</div>
+          </td>
+          <td>${delivDate}${slot}</td>
+          <td class="mono">${items.length}</td>
+          <td>${fmtCost(o.productCost)}</td>
+          <td>${fmtCost(o.packagingCost)}</td>
+          <td>${fmtCost(o.deliveryCost)}</td>
+          <td>${fmtCost(o.profitAmount)}</td>
+          <td><span class="mono" style="font-weight:700;color:var(--green-dark)">₹${(o.totalAmount||0).toFixed(0)}</span></td>
+          <td>${statusSelect(o)}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="openOrder('${o._id}')">View</button>
+          </td>
+        </tr>`;
+      }).join('');
     }
 
     document.getElementById('pagination').innerHTML = `
@@ -113,16 +170,15 @@ async function loadOrders() {
 
     document.querySelectorAll('.status-select').forEach(sel => {
       sel.addEventListener('change', async () => {
-        const id = sel.dataset.id;
-        const newStatus = sel.value;
         try {
-          await adminApi.updateStatus(id, newStatus);
-          showToast('Order status updated', 'success');
+          await adminApi.updateStatus(sel.dataset.id, sel.value);
+          showToast('Status updated', 'success');
         } catch (e) { showToast(e.message, 'error'); }
       });
     });
   } catch (e) {
-    document.getElementById('orders-body').innerHTML = `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+    document.getElementById('orders-body').innerHTML =
+      `<tr><td colspan="12"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -130,75 +186,124 @@ function changePage(d) { state.page += d; loadOrders(); }
 
 async function openOrder(id) {
   const root = document.getElementById('modal-root');
-  root.innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this) this.remove()"><div class="modal wide"><div class="loading-row"><div class="spinner"></div></div></div></div>`;
+  root.innerHTML = `<div class="modal-backdrop" onclick="if(event.target===this)this.remove()">
+    <div class="modal wide"><div class="loading-row"><div class="spinner"></div></div></div></div>`;
   try {
     const { order: o } = await adminApi.getOrder(id);
+    const items = o.basketItems || o.items || [];
+
+    // Cost breakdown
+    const productCost   = o.productCost   ?? items.reduce((s,i) => s+(i.estimatedCost||0), 0);
+    const packagingCost = o.packagingCost ?? null;
+    const deliveryCost  = o.deliveryCost  ?? null;
+    const profitAmount  = o.profitAmount  ?? null;
+    const totalAmount   = o.totalAmount   || 0;
+
+    const costRow = (label, val, bold, color) => val != null
+      ? `<div style="display:flex;justify-content:space-between;padding:5px 0;${bold?'font-weight:700':''}${color?';color:'+color:''}">
+           <span>${label}</span><span class="mono">₹${(+val).toFixed(2)}</span></div>`
+      : '';
+
     root.querySelector('.modal').innerHTML = `
       <div class="modal-head">
-        <h3>${o.orderNo}</h3>
+        <h3>${escapeHtml(o.memberName || 'Order')}</h3>
         <button class="modal-close" onclick="document.getElementById('modal-root').innerHTML=''">✕</button>
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-        <span class="pill pill-${o.status}">${o.status.replace(/_/g,' ')}</span>
-        <span class="muted" style="font-size:12px">Placed ${fmtDate(o.createdAt)}</span>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        ${statusPill(o.status)}
+        <span style="background:var(--green-pale);color:var(--green-dark);padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600">
+          ${escapeHtml(o.planDisplayName || o.planType || '')}
+        </span>
+        <span class="muted" style="font-size:12px">Every ${o.deliveryFreqDays||'?'} days · ${o.durationMonths||'?'} month plan</span>
       </div>
 
-      <div class="grid-2" style="gap:20px">
+      <div class="grid-2" style="gap:20px;margin-bottom:16px">
         <div>
-          <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Customer</div>
-          <div style="font-size:13.5px;line-height:1.7">
-            <b>${escapeHtml(o.familyName || '–')}</b><br/>
-            ${escapeHtml(o.phone || '')}<br/>
-            ${escapeHtml(o.apartmentName || '')}, Flat ${escapeHtml(o.flatNo || '')}${o.towerNo ? ', ' + escapeHtml(o.towerNo) : ''}<br/>
-            ${escapeHtml(o.city || '')}
+          <div class="panel-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:6px">Member</div>
+          <div style="font-size:13.5px;line-height:1.8">
+            <b>${escapeHtml(o.memberName || '–')}</b><br/>
+            ${escapeHtml(o.wellnessGoal || '–')}<br/>
+            <span class="muted" style="font-size:12px">Family: ${escapeHtml(o.familyName || '–')}</span><br/>
+            <span class="muted" style="font-size:12px">${escapeHtml(o.phone || '')}</span>
           </div>
         </div>
         <div>
-          <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Delivery</div>
-          <div style="font-size:13.5px;line-height:1.7">
-            ${fmtDate(o.deliveryDate, { weekday:'short', day:'numeric', month:'short' })}<br/>
+          <div class="panel-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:6px">Delivery</div>
+          <div style="font-size:13.5px;line-height:1.8">
+            <b>${fmtDate(o.deliveryDate, { weekday:'short', day:'numeric', month:'short', year:'numeric' })}</b><br/>
             ${escapeHtml(o.deliverySlot || '–')}<br/>
-            Payment: ${escapeHtml(o.paymentMethod || '–')} (${escapeHtml(o.paymentStatus || '–')})
+            <span class="muted" style="font-size:12px">Payment: ${escapeHtml(o.paymentMethod || '–')}</span>
           </div>
         </div>
       </div>
 
       <div class="divider"></div>
-      <div class="panel-title" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint)">Items (${o.items?.length || 0})</div>
-      <div class="table-wrap">
+      <div class="panel-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:8px">
+        Basket Items (${items.length})
+      </div>
+      <div class="table-wrap" style="margin-bottom:16px">
         <table class="data">
-          <thead><tr><th>Item</th><th>Quantity</th></tr></thead>
+          <thead><tr>
+            <th>Product</th><th>Category</th><th>Qty</th><th>Price/100g</th><th>Cost</th>
+          </tr></thead>
           <tbody>
-            ${(o.items || []).map(it => `<tr><td>${escapeHtml(it.name)}</td><td>${it.quantityG || it.quantity || it.qty || 1} ${escapeHtml(it.unit || 'g')}</td></tr>`).join('') || '<tr><td colspan="2" class="muted">No items recorded</td></tr>'}
+            ${items.length
+              ? items.map(it => `<tr>
+                  <td style="font-weight:600">${escapeHtml(it.name || '–')}</td>
+                  <td><span style="padding:1px 7px;border-radius:4px;background:var(--green-pale);color:var(--green-dark);font-size:11px">${escapeHtml(it.category||'–')}</span></td>
+                  <td class="mono">${it.quantityG||0} g</td>
+                  <td class="mono">₹${(it.pricePer100g||0).toFixed(0)}/100g</td>
+                  <td class="mono" style="font-weight:600">₹${(it.estimatedCost||0).toFixed(2)}</td>
+                </tr>`).join('')
+              : '<tr><td colspan="5" class="muted" style="text-align:center;padding:16px">No items</td></tr>'}
           </tbody>
         </table>
       </div>
 
       <div class="divider"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-weight:700">Total Amount</span>
-        <span class="mono" style="font-size:20px;font-weight:700;color:var(--green)">${fmtMoney(o.totalAmount)}</span>
+      <div class="panel-title" style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-bottom:8px">Cost Breakdown</div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:16px">
+        ${costRow('Product Cost (raw materials)', productCost)}
+        ${costRow('Packaging Cost', packagingCost)}
+        ${costRow('Delivery / Logistics Cost', deliveryCost)}
+        ${costRow('Profit Margin', profitAmount)}
+        <div style="border-top:1.5px solid var(--border);margin:8px 0"></div>
+        ${costRow('Total Order Value', totalAmount, true, 'var(--green-dark)')}
       </div>
 
       <div class="modal-foot">
         <label class="muted" style="font-size:12px;align-self:center;margin-right:6px">Update status:</label>
         <select id="modal-status" style="padding:7px 10px;border-radius:8px;border:1.5px solid var(--border)">
-          ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${s.replace(/_/g,' ')}</option>`).join('')}
+          ${ORDER_STATUSES.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
         </select>
         <button class="btn btn-primary" id="modal-save">Save</button>
+        <button class="btn btn-ghost" style="color:var(--red)" id="modal-cancel-btn">Cancel Order</button>
       </div>
     `;
+
     root.querySelector('#modal-save').addEventListener('click', async () => {
       try {
         await adminApi.updateStatus(id, root.querySelector('#modal-status').value);
-        showToast('Order status updated', 'success');
-        document.getElementById('modal-root').innerHTML = '';
+        showToast('Status updated', 'success');
+        root.innerHTML = '';
         loadOrders();
       } catch (e) { showToast(e.message, 'error'); }
     });
+
+    root.querySelector('#modal-cancel-btn').addEventListener('click', async () => {
+      if (!confirm('Cancel this order? This cannot be undone.')) return;
+      try {
+        await adminApi.updateStatus(id, 'cancelled');
+        showToast('Order cancelled', 'success');
+        root.innerHTML = '';
+        loadOrders();
+      } catch (e) { showToast(e.message, 'error'); }
+    });
+
   } catch (e) {
-    root.querySelector('.modal').innerHTML = `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
+    root.querySelector('.modal').innerHTML =
+      `<div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div>`;
   }
 }
 

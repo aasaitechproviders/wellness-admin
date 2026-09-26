@@ -4,7 +4,7 @@ const API_BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southea
 
 const ROLE_DEFAULTS = {
   admin:     ['dashboard','orders','customers','coupons','apartments','wellness-partners','team','appointments',
-              'approvals','subscription-plans','subscription-durations','plan-types','procurement',
+              'approvals','subscription-plans','subscription-durations','plan-types','procurement','essential-baskets',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
@@ -251,6 +251,12 @@ const adminApi = {
   deleteNutrientCoverageTarget: (id)        => req('DELETE', `/admin/nutrition/nutrient-coverage-targets/${id}`),
 
   // Plan Types (T20 / T30 / T40)
+  // Kitchen Essentials (S / M / L)
+  getEssentialBaskets:   ()         => req('GET',    '/admin/nutrition/essential-baskets'),
+  createEssentialBasket: (body)     => req('POST',   '/admin/nutrition/essential-baskets', body),
+  updateEssentialBasket: (id, body) => req('PUT',    `/admin/nutrition/essential-baskets/${id}`, body),
+  deleteEssentialBasket: (id)       => req('DELETE', `/admin/nutrition/essential-baskets/${id}`),
+
   getPlanTypes:    ()          => req('GET',    '/admin/nutrition/plan-types'),
   createPlanType:  (body)      => req('POST',   '/admin/nutrition/plan-types', body),
   updatePlanType:  (id, body)  => req('PUT',    `/admin/nutrition/plan-types/${id}`, body),

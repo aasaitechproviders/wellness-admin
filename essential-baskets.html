@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Kitchen Essentials · KRISHA LIV Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+  .item-row { display:grid; grid-template-columns: 1fr 120px 90px 36px; gap:8px; align-items:center; margin-bottom:6px; }
+  .item-row select, .item-row input { width:100%; }
+  .item-cost { font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--ink-faint, #888); text-align:right; }
+  .price-box { background:var(--bg-soft, #f6f6f2); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:13px; line-height:1.7; }
+  .price-box b { font-family:'JetBrains Mono',monospace; }
+  .warn { color:#C62828; font-size:11px; }
+</style>
+</head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('essential-baskets');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'essential-baskets',
+  title: 'Kitchen Essentials (Small / Medium / Large)',
+  sub: 'Fixed family add-on basket of daily staples. Same products in every size — only quantities differ. Price is live from product prices; unavailable products are skipped.',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Size</button>`
+});
+
+let items = [], products = [], productMap = {}, profitPct = 0, editId = null, rows = [];
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <span class="muted" style="font-size:12px">Price per delivery = (product cost + packaging + delivery) × (1 + profit %) · duration discount applied at checkout</span>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Order</th><th>Code</th><th>Name</th><th>Items</th><th>Packaging ₹</th><th>Delivery ₹</th><th>Price / delivery</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal wide"><div class="modal-head"><h3 id="mTitle">Add Size</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div style="overflow-y:auto;max-height:70vh"><div class="form-grid">
+  <div class="field"><label>Code * <span class="opt">e.g. ESS_S / ESS_M / ESS_L</span></label><input id="fCode" placeholder="ESS_M" style="text-transform:uppercase"/></div>
+  <div class="field"><label>Name * <span class="opt">shown to customer</span></label><input id="fName" placeholder="Medium"/></div>
+  <div class="field"><label>Display Order</label><input id="fSortOrder" type="number" placeholder="2"/></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field"><label>Packaging Cost ₹ <span class="opt">per delivery</span></label><input id="fPackaging" type="number" min="0" step="0.5" placeholder="0" oninput="renderPrice()"/></div>
+  <div class="field"><label>Delivery Cost ₹ <span class="opt">per delivery</span></label><input id="fDelivery" type="number" min="0" step="0.5" placeholder="0" oninput="renderPrice()"/></div>
+  <div class="field full"><label>Description <span class="opt">shown to customer, e.g. "For 3–4 people"</span></label><input id="fDescription" placeholder="For 3–4 people"/></div>
+
+  <div class="field full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+      <label style="font-weight:700;font-size:13px;margin:0">Items</label>
+      <span class="opt" style="font-size:11px">Product · quantity in grams</span>
+      <div style="flex:1"></div>
+      <select id="copyFrom" style="width:auto"><option value="">Copy products from…</option></select>
+      <button class="btn btn-ghost btn-sm" onclick="copyItems()">Copy</button>
+      <button class="btn btn-ghost btn-sm" onclick="addRow()">+ Add Item</button>
+    </div>
+    <div id="itemRows"></div>
+  </div>
+
+  <div class="field full"><div class="price-box" id="priceBox"></div></div>
+</div></div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+// ── helpers ─────────────────────────────────────────────────────────────────
+const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+const priceOf = p => p ? (p.currentPricePer100g || p.pricePer100g || 0) : 0;
+const isUsable = p => p && p.isActive !== false && p.availability === true;
+function g(id)  { const v = document.getElementById(id)?.value; return (v === '' || v === undefined) ? null : v; }
+function gn(id) { const v = parseFloat(document.getElementById(id)?.value); return isNaN(v) ? 0 : v; }
+
+// Same formula as the backend (priceEssentialsBasket)
+function calcPrice(its, packaging, delivery) {
+  let productCost = 0; const skipped = [];
+  its.forEach(it => {
+    const p = productMap[String(it.productId)];
+    if (!isUsable(p) || !(it.qtyG > 0)) { skipped.push(it.name || p?.name || 'Item'); return; }
+    productCost += r2((it.qtyG / 100) * priceOf(p));
+  });
+  productCost = r2(productCost);
+  const subtotal = productCost + (packaging || 0) + (delivery || 0);
+  const profit = r2(subtotal * profitPct / 100);
+  return { productCost, profit, gross: r2(subtotal + profit), skipped };
+}
+
+// ── load ────────────────────────────────────────────────────────────────────
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="9" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const [d, pd, cfg] = await Promise.all([
+      adminApi.getEssentialBaskets(),
+      adminApi.getProducts({ limit: 1000 }),
+      req('GET', '/pricing-config').catch(() => ({ profitPct: 0 })),
+    ]);
+    items = (d.essentialbaskets || d.items || []).sort((a, b) => (a.sortOrder || 99) - (b.sortOrder || 99));
+    products = (pd.products || pd.items || []).filter(p => p.isActive !== false).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    productMap = {};
+    products.forEach(p => { productMap[String(p._id)] = p; if (p.productId) productMap[String(p.productId)] = p; });
+    profitPct = cfg.profitPct || 0;
+    render();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function render() {
+  document.getElementById('cnt').textContent = `${items.length} sizes · profit ${profitPct}%`;
+  document.getElementById('tbody').innerHTML = items.map(i => {
+    const pr = calcPrice(i.items || [], i.packagingCost, i.deliveryCost);
+    return `<tr>
+      <td class="mono">${i.sortOrder ?? '–'}</td>
+      <td class="mono"><b>${escapeHtml(i.code || '')}</b></td>
+      <td>${escapeHtml(i.name || '')}<div class="muted" style="font-size:11px">${escapeHtml(i.description || '')}</div></td>
+      <td style="font-size:11px">${(i.items || []).map(it => {
+        const p = productMap[String(it.productId)];
+        const ok = isUsable(p);
+        return `<span style="background:${ok ? '#e8f5e9' : '#ffebee'};color:${ok ? '#2e7d32' : '#C62828'};padding:1px 6px;border-radius:4px;margin:1px;display:inline-block">${escapeHtml(it.name || p?.name || '?')} ${it.qtyG}g${ok ? '' : ' ⚠'}</span>`;
+      }).join('') || '–'}</td>
+      <td class="mono">${i.packagingCost ?? 0}</td>
+      <td class="mono">${i.deliveryCost ?? 0}</td>
+      <td class="mono"><b>₹${pr.gross.toFixed(2)}</b>${pr.skipped.length ? `<div class="warn">${pr.skipped.length} skipped</div>` : ''}</td>
+      <td><span class="pill ${i.isActive !== false ? 'pill-active' : 'pill-inactive'}">${i.isActive !== false ? 'Yes' : 'No'}</span></td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="openModal('${i._id}')">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+      </td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9" class="empty">No sizes yet — add Small, Medium and Large.</td></tr>';
+}
+
+// ── modal ───────────────────────────────────────────────────────────────────
+function openModal(id) {
+  const i = id ? items.find(x => x._id === id) : null;
+  editId = i ? i._id : null;
+  document.getElementById('mTitle').textContent = i ? `Edit ${i.name}` : 'Add Size';
+  document.getElementById('fCode').value        = i?.code || '';
+  document.getElementById('fName').value        = i?.name || '';
+  document.getElementById('fSortOrder').value   = i?.sortOrder ?? '';
+  document.getElementById('fIsActive').value    = i?.isActive === false ? 'false' : 'true';
+  document.getElementById('fPackaging').value   = i?.packagingCost ?? '';
+  document.getElementById('fDelivery').value    = i?.deliveryCost ?? '';
+  document.getElementById('fDescription').value = i?.description || '';
+  rows = (i?.items || []).map(it => ({ productId: String(it.productId || ''), name: it.name || '', qtyG: it.qtyG || '' }));
+  if (!rows.length) rows.push({ productId: '', name: '', qtyG: '' });
+  document.getElementById('copyFrom').innerHTML = '<option value="">Copy products from…</option>' +
+    items.filter(x => x._id !== editId).map(x => `<option value="${x._id}">${escapeHtml(x.name)} (${(x.items || []).length} items)</option>`).join('');
+  renderRows();
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+
+function productOptions(selected) {
+  return '<option value="">— select product —</option>' + products.map(p =>
+    `<option value="${p._id}" ${String(p._id) === String(selected) ? 'selected' : ''}>${escapeHtml(p.name)}${isUsable(p) ? '' : ' (unavailable)'} · ₹${priceOf(p)}/100g</option>`
+  ).join('');
+}
+function renderRows() {
+  document.getElementById('itemRows').innerHTML = rows.map((r, idx) => {
+    const p = productMap[r.productId];
+    const cost = p && r.qtyG > 0 ? r2((r.qtyG / 100) * priceOf(p)) : 0;
+    return `<div class="item-row">
+      <select onchange="setRow(${idx},'productId',this.value)">${productOptions(r.productId)}</select>
+      <input type="number" min="0" step="5" placeholder="grams" value="${r.qtyG}" oninput="setRow(${idx},'qtyG',this.value)"/>
+      <div class="item-cost">${cost ? '₹' + cost.toFixed(2) : ''}${p && !isUsable(p) ? '<div class="warn">skipped</div>' : ''}</div>
+      <button class="btn btn-ghost btn-sm" title="Remove" onclick="removeRow(${idx})">✕</button>
+    </div>`;
+  }).join('');
+  renderPrice();
+}
+function setRow(idx, key, val) {
+  if (key === 'qtyG') rows[idx].qtyG = parseFloat(val) || '';
+  else { rows[idx].productId = val; rows[idx].name = productMap[val]?.name || ''; }
+  if (key === 'productId') renderRows(); else renderPrice();
+}
+function addRow()      { rows.push({ productId: '', name: '', qtyG: '' }); renderRows(); }
+function removeRow(i)  { rows.splice(i, 1); if (!rows.length) addRow(); else renderRows(); }
+function copyItems() {
+  const src = items.find(x => x._id === document.getElementById('copyFrom').value);
+  if (!src) { showToast('Pick a size to copy from', 'error'); return; }
+  rows = (src.items || []).map(it => ({ productId: String(it.productId || ''), name: it.name || '', qtyG: it.qtyG || '' }));
+  renderRows();
+  showToast(`Copied ${rows.length} products from ${src.name} — now adjust quantities`, 'success');
+}
+function renderPrice() {
+  const its = rows.filter(r => r.productId).map(r => ({ ...r, qtyG: parseFloat(r.qtyG) || 0 }));
+  const pr = calcPrice(its, gn('fPackaging'), gn('fDelivery'));
+  document.getElementById('priceBox').innerHTML = `
+    Product cost <b>₹${pr.productCost.toFixed(2)}</b> + packaging <b>₹${gn('fPackaging').toFixed(2)}</b> + delivery <b>₹${gn('fDelivery').toFixed(2)}</b>
+    + profit ${profitPct}% <b>₹${pr.profit.toFixed(2)}</b> = <b style="color:#2D6A35">₹${pr.gross.toFixed(2)} per delivery</b>
+    ${pr.skipped.length ? `<div class="warn">Unavailable now, not charged: ${escapeHtml(pr.skipped.join(', '))}</div>` : ''}`;
+}
+
+// ── save / delete ───────────────────────────────────────────────────────────
+async function save() {
+  const code = (g('fCode') || '').toUpperCase().trim();
+  const name = (g('fName') || '').trim();
+  if (!code) { showToast('Code is required', 'error'); return; }
+  if (!name) { showToast('Name is required', 'error'); return; }
+  const its = rows.filter(r => r.productId).map(r => ({ productId: r.productId, name: productMap[r.productId]?.name || r.name, qtyG: parseFloat(r.qtyG) || 0 }));
+  if (!its.length) { showToast('Add at least one product', 'error'); return; }
+  if (its.some(i => !(i.qtyG > 0))) { showToast('Every item needs a quantity in grams', 'error'); return; }
+  if (items.some(x => x.code === code && x._id !== editId)) { showToast(`Code ${code} already exists`, 'error'); return; }
+  const body = {
+    code, name,
+    description:   g('fDescription') || '',
+    sortOrder:     parseInt(g('fSortOrder')) || 0,
+    isActive:      document.getElementById('fIsActive').value === 'true',
+    packagingCost: gn('fPackaging'),
+    deliveryCost:  gn('fDelivery'),
+    items:         its,
+  };
+  try {
+    if (editId) await adminApi.updateEssentialBasket(editId, body);
+    else        await adminApi.createEssentialBasket(body);
+    showToast(editId ? 'Updated' : 'Created', 'success');
+    closeModal(); load();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this size? Customers will no longer be able to choose it (existing orders are not affected).')) return;
+  try { await adminApi.deleteEssentialBasket(id); showToast('Deleted', 'success'); load(); }
+  catch (e) { showToast(e.message, 'error'); }
+}
+load();
+</script></body></html>

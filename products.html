@@ -63,7 +63,7 @@ content.innerHTML=`
         <th>ID</th><th>Name</th><th>Category</th>
         <th>Cal</th><th>Protein</th><th>Fiber</th><th>GI</th>
         <th>Min/Typical/Max (g)</th>
-        <th>Diabetes</th><th>Wt.Loss</th><th>Immunity</th>
+        <th>Diabetes</th><th>Wt.Loss</th><th>Immunity</th><th title="Thyroid Support score · I = Iodine, Se = Selenium data">Thyroid</th>
         <th>Avail</th><th>Review</th><th>Approval</th><th>Status</th><th></th>
       </tr></thead>
       <tbody id="tbody"></tbody>
@@ -165,6 +165,11 @@ content.innerHTML=`
           <div class="field"><label>Vitamin A (µg RAE)</label><input id="fVitA" type="number" step="0.01"/></div>
           <div class="field"><label>Zinc (mg)</label><input id="fZinc" type="number" step="0.01"/></div>
           <div class="field"><label>Sodium (mg)</label><input id="fSodium" type="number" step="0.01"/></div>
+          <div class="field"><label>Iodine (µg)</label><input id="fIodine" type="number" step="0.01" min="0" placeholder="blank = unknown"/></div>
+          <div class="field"><label>Selenium (µg)</label><input id="fSelenium" type="number" step="0.01" min="0" placeholder="blank = unknown"/></div>
+        </div>
+        <div style="margin-top:8px;padding:8px 12px;background:var(--green-pale);border-radius:8px;font-size:11px;color:var(--ink-soft);line-height:1.6">
+          🦋 <b>Iodine</b> and <b>Selenium</b> feed the <b>Thyroid Support</b> score. Leave blank if the value is not known yet (thyroid score stays empty) — enter <b>0</b> if it is known to be negligible (score is calculated).
         </div>
       </div>
 
@@ -316,13 +321,14 @@ function renderStats(items) {
     ${stat(items.length,'Total')}${div()}${stat(active,'Active')}${div()}
     ${stat(items.length-active,'Inactive','#C9A84C')}${div()}
     ${stat(approved,'Approved')}${div()}
+    ${stat(items.filter(thyroidPending).length,'Thyroid Data Pending','#C62828')}${div()}
     ${stat(withImg,'With Image','var(--ink-soft)')}
   </div>`;
 }
 
 /* ── Load & filter ── */
 async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="16" class="loading-row"><span class="spinner"></span></td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="17" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getProducts({ limit: 1000 });
     allProducts = d.products || [];
@@ -349,6 +355,19 @@ function approvalBadge(s) {
   return `<span class="pill ${map[s]||''}">${s||'–'}</span>`;
 }
 
+/* ── Thyroid data (iodine + selenium) ── */
+const hasVal = v => v !== null && v !== undefined && v !== '';
+function thyroidPending(p) {
+  const n = p.nutrition || {};
+  return !hasVal(n.iodine_ug) || !hasVal(n.selenium_ug);
+}
+function thyroidCell(p) {
+  const n = p.nutrition || {};
+  const score = p.wellnessScores?.thyroidSupport;
+  const mark = (ok, lbl) => `<span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:4px;margin-left:2px;${ok ? 'color:#2E7D32;background:#E8F5E9' : 'color:#C62828;background:#FFEBEE'}">${lbl}</span>`;
+  return `${score ?? '–'}<div style="margin-top:2px;white-space:nowrap">${mark(hasVal(n.iodine_ug), 'I')}${mark(hasVal(n.selenium_ug), 'Se')}</div>`;
+}
+
 function render() {
   document.getElementById('countBadge').textContent = `${filtered.length} products`;
   const start = (page - 1) * perPage, slice = filtered.slice(start, start + perPage);
@@ -368,6 +387,7 @@ function render() {
       <td class="num">${p.wellnessScores?.diabetes??'–'}</td>
       <td class="num">${p.wellnessScores?.weightLoss??'–'}</td>
       <td class="num">${p.wellnessScores?.immunity??'–'}</td>
+      <td class="num">${thyroidCell(p)}</td>
       <td><span class="pill ${p.availability?'pill-active':'pill-inactive'}">${p.availability?'Yes':'No'}</span></td>
       <td>${approvalBadge(p.reviewStatus)}</td>
       <td>${approvalBadge(p.approvalStatus)}</td>
@@ -376,7 +396,7 @@ function render() {
         <button class="btn btn-ghost btn-sm" data-idx="${start + i}" onclick="openModal(filtered[this.dataset.idx])">Edit</button>
         <button class="btn btn-danger btn-sm" onclick="del('${p._id}')">Del</button>
       </td>
-    </tr>`).join('') || '<tr><td colspan="16" class="empty">No products found</td></tr>';
+    </tr>`).join('') || '<tr><td colspan="17" class="empty">No products found</td></tr>';
 }
 
 function changePage(d) { page += d; render(); }
@@ -435,6 +455,7 @@ function openModal(p) {
   sv('fPot',      n.potassium_mg  ?? ''); sv('fVitC',     n.vitaminC_mg   ?? '');
   sv('fVitA',     n.vitaminA_ug   ?? ''); sv('fZinc',     n.zinc_mg       ?? '');
   sv('fSodium',   n.sodium_mg     ?? '');
+  sv('fIodine',   n.iodine_ug     ?? ''); sv('fSelenium', n.selenium_ug   ?? '');
 
   // Wellness scores — auto-calculated, read-only display
   sv('sGenWell',    s.generalWellness  ?? ''); sv('sWt',       s.weightLoss      ?? '');
@@ -530,6 +551,7 @@ async function save() {
       zinc_mg:           gn('fZinc'),  sodium_mg:      gn('fSodium'),
       saturatedFat_g:    gn('fSatFat'),unsaturatedFat_g:gn('fUnsatFat'),
       addedSugar_g:      gn('fAddSugar'),
+      iodine_ug:         gn('fIodine'),  selenium_ug:    gn('fSelenium'),
     },
     wellnessScores: {
       generalWellness: gn('sGenWell'),   weightLoss:     gn('sWt'),
@@ -586,7 +608,7 @@ async function recalcProduct() {
 
 async function recalcAll() {
   const btn = document.getElementById('recalcBtn');
-  if (!confirm('Recalculate wellness scores for all 143 products using formulas from DB?')) return;
+  if (!confirm(`Recalculate wellness scores for all ${allProducts.length} products using formulas from DB?`)) return;
   btn.disabled = true; btn.textContent = '⟳ Recalculating…';
   try {
     const r = await adminApi.recalculateScores();

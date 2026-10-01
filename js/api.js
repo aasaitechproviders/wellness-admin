@@ -326,6 +326,10 @@ const adminApi = {
   updateAllergen: (id, body)  => req('PUT', `/admin/nutrition/allergies/${id}`, body),
   deleteAllergen: (id)        => req('DELETE', `/admin/nutrition/allergies/${id}`),
 
+  // Engine Settings (kp_engineSettings) — e.g. fibre g per 1000 kcal
+  getEngineSettings: ()           => req('GET', '/admin/engine-settings'),
+  saveEngineSetting: (key, value) => req('PUT', `/admin/engine-settings/${key}`, { value }),
+
   // Pricing Config
   getPricingConfig:  ()     => req('GET',  '/admin/pricing-config'),
   savePricingConfig: (body) => req('PUT',  '/admin/pricing-config', body),

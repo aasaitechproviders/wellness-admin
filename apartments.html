@@ -152,6 +152,7 @@ content.innerHTML = `
   <div class="tab-bar">
     <button class="tab-btn active" data-tab="cities">🏙️ Cities</button>
     <button class="tab-btn" data-tab="apartments">🏢 Apartments</button>
+    <button class="tab-btn" data-tab="delivery-config">🚚 Delivery Config</button>
   </div>
 
   <div class="tab-pane active" id="pane-cities">
@@ -164,16 +165,66 @@ content.innerHTML = `
         <table class="data">
           <thead><tr>
             <th>Apartment</th>
-            <th>Address / Landmark</th>
+            <th>Builder / Developer</th>
+            <th>Area / Zone</th>
             <th>City</th>
             <th>Manager</th>
-            <th>Delivery Days</th>
-            <th>Slots</th>
             <th>Status</th>
             <th></th>
           </tr></thead>
           <tbody id="apt-body">
-            <tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>
+            <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="pane-delivery-config">
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-head" style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <b>⏰ Delivery Time Slots</b>
+        <span style="font-size:12.5px;color:var(--ink-faint);margin-left:10px">Slots shown to customers at checkout — configurable array</span>
+      </div>
+      <div style="padding:16px 20px">
+        <div id="slot-tags" style="display:flex;flex-wrap:wrap;gap:8px;min-height:36px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="slot-input" class="inp" placeholder="e.g. 6 PM – 8 PM" style="flex:1;max-width:260px" onkeydown="if(event.key==='Enter')addSlot()" />
+          <button class="btn btn-ghost btn-sm" onclick="addSlot()">+ Add</button>
+          <button class="btn btn-primary btn-sm" onclick="saveSlots()">💾 Save Slots</button>
+          <span id="slot-msg" style="font-size:12.5px;color:var(--green)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-head" style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <b>📍 Serviceable Pincodes</b>
+        <span style="font-size:12.5px;color:var(--ink-faint);margin-left:10px">Individual Home delivery available in these 6-digit pincodes</span>
+      </div>
+      <div style="padding:16px 20px">
+        <div id="pin-tags" style="display:flex;flex-wrap:wrap;gap:8px;min-height:36px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="pin-input" class="inp" placeholder="e.g. 641001" maxlength="6" style="flex:1;max-width:200px" onkeydown="if(event.key==='Enter')addPin()" />
+          <button class="btn btn-ghost btn-sm" onclick="addPin()">+ Add</button>
+          <button class="btn btn-primary btn-sm" onclick="savePins()">💾 Save Pincodes</button>
+          <span id="pin-msg" style="font-size:12.5px;color:var(--green)"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head" style="padding:16px 20px;border-bottom:1px solid var(--border)">
+        <b>📬 Delivery Expansion Requests</b>
+        <span style="font-size:12.5px;color:var(--ink-faint);margin-left:10px">Customers who requested delivery to non-serviceable pincodes</span>
+      </div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr>
+            <th>Name / Phone</th><th>Pincode</th><th>Area</th><th>City</th><th>Date</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="req-body">
+            <tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -196,11 +247,15 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 function updateAddBtn() {
   const btn = document.getElementById('top-add-btn');
   if (activeTab === 'cities') {
+    btn.style.display = '';
     btn.textContent = '+ Add City';
     btn.onclick = () => openCityModal(null);
-  } else {
+  } else if (activeTab === 'apartments') {
+    btn.style.display = '';
     btn.textContent = '+ Add Apartment';
     btn.onclick = () => openAptModal(null);
+  } else {
+    btn.style.display = 'none';
   }
 }
 updateAddBtn();
@@ -352,14 +407,14 @@ function openCityModal(id) {
 
 async function loadApartments() {
   document.getElementById('apt-body').innerHTML =
-    `<tr><td colspan="8" class="loading-row"><div class="spinner"></div></td></tr>`;
+    `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
   try {
     const { apartments } = await adminApi.getApartments();
     aptCache = apartments;
     renderAptTable();
   } catch (e) {
     document.getElementById('apt-body').innerHTML =
-      `<tr><td colspan="8"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+      `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
   }
 }
 
@@ -371,10 +426,13 @@ function renderAptTable() {
           <b>${escapeHtml(a.apartmentName)}</b>
           <div class="muted mono" style="font-size:11px">${escapeHtml(a.apartmentId || '')}</div>
         </td>
-        <td style="max-width:180px">
-          ${a.address  ? `<div style="font-size:12.5px">${escapeHtml(a.address)}</div>` : ''}
-          ${a.landmark ? `<div class="muted" style="font-size:11.5px">📍 ${escapeHtml(a.landmark)}</div>` : ''}
-          ${!a.address && !a.landmark ? '<span class="muted">—</span>' : ''}
+        <td>
+          ${a.builderName ? `<div style="font-size:13px;font-weight:500">${escapeHtml(a.builderName)}</div>` : '<span class="muted">—</span>'}
+        </td>
+        <td>
+          ${a.area  ? `<div style="font-size:13px">${escapeHtml(a.area)}</div>` : ''}
+          ${a.zone  ? `<div class="muted" style="font-size:11.5px">Zone: ${escapeHtml(a.zone)}</div>` : ''}
+          ${!a.area && !a.zone ? '<span class="muted">—</span>' : ''}
         </td>
         <td>${escapeHtml(a.city || '–')}</td>
         <td>
@@ -382,8 +440,6 @@ function renderAptTable() {
           ${a.managerPhone ? `<div style="font-size:12px;color:var(--green)">${escapeHtml(a.managerPhone)}</div>` : ''}
           ${!a.managerName && !a.managerPhone ? '<span class="muted">—</span>' : ''}
         </td>
-        <td>${(a.deliveryDays || []).join(', ') || '–'}</td>
-        <td class="muted" style="font-size:12px">${(a.deliverySlots || []).join(', ') || '–'}</td>
         <td><span class="pill ${a.isActive === false ? 'pill-cancelled' : 'pill-delivered'}">${a.isActive === false ? 'Inactive' : 'Active'}</span></td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="viewApartment('${a._id}')">View</button>
@@ -393,7 +449,7 @@ function renderAptTable() {
         </td>
       </tr>
     `).join('')
-    : `<tr><td colspan="8"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;
+    : `<tr><td colspan="7"><div class="empty"><div class="icon">🏢</div>No apartments yet</div></td></tr>`;
 }
 
 async function deactivateApt(id) {
@@ -567,6 +623,20 @@ async function openAptModal(id) {
             ${activeCities.length === 0 ? `<div style="font-size:11.5px;color:var(--red);margin-top:4px">Add an active city first in the Cities tab.</div>` : ''}
           </div>
 
+          <div class="form-sec">🏗️ Builder & Location Details</div>
+          <div class="field">
+            <label>Builder / Developer Name</label>
+            <input name="builderName" value="${escapeHtml(a?.builderName || '')}" placeholder="e.g. Prestige Group" />
+          </div>
+          <div class="field">
+            <label>Area / Locality</label>
+            <input name="area" value="${escapeHtml(a?.area || '')}" placeholder="e.g. Saravanampatti" />
+          </div>
+          <div class="field full">
+            <label>Zone</label>
+            <input name="zone" value="${escapeHtml(a?.zone || '')}" placeholder="e.g. North Zone, Zone A" />
+          </div>
+
           <div class="form-sec">📍 Address Details</div>
           <div class="field full">
             <label>Full Address</label>
@@ -667,6 +737,9 @@ async function openAptModal(id) {
       apartmentName: fd.get('apartmentName'),
       apartmentId:   fd.get('apartmentId')   || undefined,
       city:          fd.get('city'),
+      builderName:   fd.get('builderName')   || undefined,
+      area:          fd.get('area')          || undefined,
+      zone:          fd.get('zone')          || undefined,
       address:       fd.get('address')        || undefined,
       landmark:      fd.get('landmark')       || undefined,
       pincode:       fd.get('pincode')        || undefined,
@@ -726,6 +799,9 @@ function viewApartment(id) {
           <div class="view-section">Basic</div>
           ${row('Apartment ID', a.apartmentId)}
           ${row('City', a.city)}
+          ${row('Builder / Developer', a.builderName)}
+          ${row('Area / Locality', a.area)}
+          ${row('Zone', a.zone)}
           <div class="view-row">
             <span class="view-label">Status</span>
             <span class="pill ${a.isActive===false?'pill-cancelled':'pill-delivered'}">${a.isActive===false?'Inactive':'Active'}</span>
@@ -782,6 +858,181 @@ function viewApartment(id) {
     </div>
   `;
 }
+
+// ════════════════════════════════════════════════════════════════════════════
+// DELIVERY CONFIG
+// ════════════════════════════════════════════════════════════════════════════
+
+let dcSlots = [];
+let dcPins  = [];
+
+async function loadDeliveryConfig() {
+  await Promise.all([loadDeliverySlots(), loadServiceablePincodes(), loadDeliveryRequests()]);
+}
+
+async function loadDeliverySlots() {
+  try {
+    const d = await adminApi.getDeliverySlots();
+    dcSlots = d.slots || [];
+    renderSlotTags();
+  } catch (e) {
+    document.getElementById('slot-msg').textContent = 'Error loading slots: ' + e.message;
+  }
+}
+
+function renderSlotTags() {
+  const el = document.getElementById('slot-tags');
+  if (!el) return;
+  if (!dcSlots.length) {
+    el.innerHTML = '<span style="color:var(--ink-faint);font-size:13px">No slots yet</span>';
+    return;
+  }
+  el.innerHTML = dcSlots.map((s, i) => `
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--green-pale);border:1px solid rgba(45,106,53,.25);border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;color:var(--green)">
+      ${escapeHtml(s)}
+      <button onclick="removeSlot(${i})" style="border:none;background:none;cursor:pointer;color:var(--red);font-size:15px;line-height:1;padding:0" title="Remove">×</button>
+    </span>
+  `).join('');
+}
+
+function addSlot() {
+  const inp = document.getElementById('slot-input');
+  const v = inp.value.trim();
+  if (!v) return;
+  if (dcSlots.includes(v)) { showSlotMsg('Slot already exists', true); return; }
+  dcSlots.push(v);
+  inp.value = '';
+  renderSlotTags();
+}
+
+function removeSlot(i) { dcSlots.splice(i, 1); renderSlotTags(); }
+
+async function saveSlots() {
+  if (!dcSlots.length) { showSlotMsg('Add at least one slot', true); return; }
+  try {
+    await adminApi.saveDeliverySlots({ slots: dcSlots });
+    showSlotMsg('Slots saved ✓');
+  } catch (e) { showSlotMsg(e.message, true); }
+}
+
+function showSlotMsg(txt, err = false) {
+  const el = document.getElementById('slot-msg');
+  if (!el) return;
+  el.textContent = txt;
+  el.style.color = err ? 'var(--red)' : 'var(--green)';
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+async function loadServiceablePincodes() {
+  try {
+    const d = await adminApi.getServiceablePincodes();
+    dcPins = d.pincodes || [];
+    renderPinTags();
+  } catch (e) {
+    document.getElementById('pin-msg').textContent = 'Error loading pincodes: ' + e.message;
+  }
+}
+
+function renderPinTags() {
+  const el = document.getElementById('pin-tags');
+  if (!el) return;
+  if (!dcPins.length) {
+    el.innerHTML = '<span style="color:var(--ink-faint);font-size:13px">No pincodes yet</span>';
+    return;
+  }
+  el.innerHTML = dcPins.map((p, i) => `
+    <span style="display:inline-flex;align-items:center;gap:6px;background:#EEF6FF;border:1px solid #B3D4FF;border-radius:20px;padding:5px 12px;font-size:13px;font-weight:600;color:#1565C0">
+      ${escapeHtml(p)}
+      <button onclick="removePin(${i})" style="border:none;background:none;cursor:pointer;color:var(--red);font-size:15px;line-height:1;padding:0" title="Remove">×</button>
+    </span>
+  `).join('');
+}
+
+function addPin() {
+  const inp = document.getElementById('pin-input');
+  const v = inp.value.trim();
+  if (!v) return;
+  if (!/^\d{6}$/.test(v)) { showPinMsg('Must be exactly 6 digits', true); return; }
+  if (dcPins.includes(v)) { showPinMsg('Pincode already added', true); return; }
+  dcPins.push(v);
+  inp.value = '';
+  renderPinTags();
+}
+
+function removePin(i) { dcPins.splice(i, 1); renderPinTags(); }
+
+async function savePins() {
+  try {
+    await adminApi.saveServiceablePincodes({ pincodes: dcPins });
+    showPinMsg('Pincodes saved ✓');
+  } catch (e) { showPinMsg(e.message, true); }
+}
+
+function showPinMsg(txt, err = false) {
+  const el = document.getElementById('pin-msg');
+  if (!el) return;
+  el.textContent = txt;
+  el.style.color = err ? 'var(--red)' : 'var(--green)';
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+async function loadDeliveryRequests() {
+  const tbody = document.getElementById('req-body');
+  if (!tbody) return;
+  tbody.innerHTML = `<tr><td colspan="7" class="loading-row"><div class="spinner"></div></td></tr>`;
+  try {
+    const d = await adminApi.getDeliveryRequests();
+    const list = d.requests || [];
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">📬</div>No delivery requests yet</div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = list.map(r => `
+      <tr id="req-row-${r._id}">
+        <td>
+          <div style="font-weight:600">${escapeHtml(r.name || '—')}</div>
+          <div style="font-size:11.5px;color:var(--green)">${escapeHtml(r.phone || '')}</div>
+        </td>
+        <td><strong>${escapeHtml(r.pincode || '—')}</strong></td>
+        <td>${escapeHtml(r.area || '—')}</td>
+        <td>${escapeHtml(r.city || '—')}</td>
+        <td style="font-size:12px;color:var(--ink-faint)">${r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '—'}</td>
+        <td><span class="pill ${r.status === 'resolved' ? 'pill-delivered' : 'pill-cancelled'}">${r.status || 'pending'}</span></td>
+        <td>
+          ${r.status !== 'resolved'
+            ? `<button class="btn btn-ghost btn-sm" style="color:var(--green)" onclick="resolveDeliveryRequest('${r._id}')">Mark Resolved</button>`
+            : '—'}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty"><div class="icon">⚠️</div>${escapeHtml(e.message)}</div></td></tr>`;
+  }
+}
+
+async function resolveDeliveryRequest(id) {
+  try {
+    await adminApi.resolveDeliveryRequest(id);
+    const row = document.getElementById(`req-row-${id}`);
+    if (row) {
+      const pill = row.querySelector('.pill');
+      if (pill) { pill.className = 'pill pill-delivered'; pill.textContent = 'resolved'; }
+      const btn = row.querySelector('button');
+      if (btn) btn.outerHTML = '—';
+    }
+    showToast('Request resolved', 'success');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// Load delivery config when that tab is first clicked
+let deliveryConfigLoaded = false;
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.dataset.tab === 'delivery-config') {
+    btn.addEventListener('click', () => {
+      if (!deliveryConfigLoaded) { deliveryConfigLoaded = true; loadDeliveryConfig(); }
+    });
+  }
+});
 
 // ── Initial load ───────────────────────────────────────────────────────────────
 // Load both in parallel

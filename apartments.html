@@ -873,7 +873,7 @@ async function loadDeliveryConfig() {
 async function loadDeliverySlots() {
   try {
     const d = await adminApi.getDeliverySlots();
-    dcSlots = d.slots || [];
+    dcSlots = d.deliverySlots || d.slots || [];
     renderSlotTags();
   } catch (e) {
     document.getElementById('slot-msg').textContent = 'Error loading slots: ' + e.message;

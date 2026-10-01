@@ -16,6 +16,20 @@ const content = renderShell({
 let items = [], editId = null;
 
 content.innerHTML = `
+<div class="panel" style="margin-bottom:14px">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 16px">
+    <div style="flex:1;min-width:260px">
+      <div style="font-weight:700;font-size:14px">Fibre calculation</div>
+      <div class="muted" style="font-size:12px;line-height:1.6;margin-top:2px">
+        Fibre g/day = (member's adjusted TDEE ÷ 1000) × <b>reference</b> × goal <b>Fibre %</b>.
+        Falls back to the goal's fixed Fibre (g/day) when Fibre % is empty or the member has no height/weight.
+      </div>
+    </div>
+    <label style="font-size:12px;font-weight:600">Reference (g per 1000 kcal)</label>
+    <input id="fibreRef" type="number" step="0.5" min="1" max="50" style="width:90px"/>
+    <button class="btn btn-primary btn-sm" onclick="saveFibreRef()">Save</button>
+  </div>
+</div>
 <div class="panel">
   <div class="toolbar">
     <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
@@ -24,7 +38,7 @@ content.innerHTML = `
   </div>
   <div class="table-wrap"><table class="data">
     <thead><tr>
-      <th>Goal Code</th><th>Goal Name</th><th>Cal Multiplier</th><th>Min–Max Kcal</th><th>TDEE Adj%</th><th>Energy Method</th><th>Active</th><th></th>
+      <th>Goal Code</th><th>Code</th><th>Goal Name</th><th>P / C / F %</th><th>Cal Multiplier</th><th>Min–Max Kcal</th><th>TDEE Adj%</th><th>Fibre %</th><th title="Fibre g/day for a member whose adjusted TDEE is 2000 kcal">Fibre @2000 kcal</th><th>Active</th><th></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table></div>
@@ -35,6 +49,7 @@ content.innerHTML = `
 <div style="overflow-y:auto;max-height:68vh"><div class="form-grid">
   <div class="field"><label>Goal Code *</label><input id="fGoalCode" placeholder="WG001"/></div>
   <div class="field"><label>Goal Name</label><input id="fGoalName" placeholder="Weight Loss"/></div>
+  <div class="field"><label>Nutritionist Code</label><input id="fNutritionistCode" placeholder="WL" maxlength="4"/></div>
 
   <div class="field full" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
     <label style="font-weight:700;font-size:13px">Macros</label>
@@ -43,7 +58,9 @@ content.innerHTML = `
   <div class="field"><label>Carbohydrate (%)</label><input id="fCarbohydratePct" type="number" step="0.1" placeholder="40"/></div>
   <div class="field"><label>Fat (%)</label><input id="fFatPct" type="number" step="0.1" placeholder="30"/></div>
   <div class="field"><label>Calorie Multiplier</label><input id="fCalorieMultiplier" type="number" step="0.01" placeholder="1.0"/></div>
-  <div class="field"><label>Fibre (g/day)</label><input id="fFibreGPerDay" type="number" step="0.5" placeholder="30"/></div>
+  <div class="field"><label>Fibre % <span class="opt">of the kcal-based reference</span></label><input id="fFibrePct" type="number" step="0.1" placeholder="100" oninput="fibreHint()"/></div>
+  <div class="field"><label>Fibre fallback (g/day) <span class="opt">used when Fibre % is empty</span></label><input id="fFibreGPerDay" type="number" step="0.5" placeholder="30"/></div>
+  <div class="field full"><div id="fibreHint" class="muted" style="font-size:12px;background:var(--green-pale);border-radius:8px;padding:8px 10px"></div></div>
   <div class="field"><label>Min Kcal/day</label><input id="fMinKcal" type="number" placeholder="1200"/></div>
   <div class="field"><label>Max Kcal/day</label><input id="fMaxKcal" type="number" placeholder="3500"/></div>
   <div class="field"><label>Water (L/day)</label><input id="fWaterLPerDay" type="number" step="0.1" placeholder="2.5"/></div>
@@ -65,8 +82,37 @@ content.innerHTML = `
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
 
+let fibreRef = 14;
+const fibreAt = (kcal, pct) => (pct > 0 ? +(kcal / 1000 * fibreRef * pct / 100).toFixed(1) : null);
+
+async function loadSettings() {
+  try {
+    const d = await adminApi.getEngineSettings();
+    const st = (d.settings || []).find(x => x.key === 'fibreGPer1000Kcal');
+    if (st) fibreRef = Number(st.value) || 14;
+  } catch (e) { showToast('Could not load fibre reference — using 14', 'error'); }
+  document.getElementById('fibreRef').value = fibreRef;
+}
+
+async function saveFibreRef() {
+  const v = parseFloat(document.getElementById('fibreRef').value);
+  if (!(v >= 1 && v <= 50)) { showToast('Enter a value between 1 and 50', 'error'); return; }
+  if (!confirm(`Change fibre reference to ${v} g per 1000 kcal? This affects every new basket.`)) return;
+  try {
+    await adminApi.saveEngineSetting('fibreGPer1000Kcal', v);
+    fibreRef = v; showToast('Fibre reference saved', 'success'); render();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function fibreHint() {
+  const pct = parseFloat(document.getElementById('fFibrePct').value);
+  const el = document.getElementById('fibreHint');
+  if (!(pct > 0)) { el.innerHTML = 'No Fibre % — the fixed fallback g/day will be used.'; return; }
+  el.innerHTML = `At ${fibreRef} g per 1000 kcal × ${pct}% → <b>${fibreAt(1500, pct)} g</b> @1500 kcal · <b>${fibreAt(2000, pct)} g</b> @2000 kcal · <b>${fibreAt(2500, pct)} g</b> @2500 kcal (plus any condition fibre boost)`;
+}
+
 async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="11" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getGoalMacroRules();
     items = d.items || [];
@@ -80,17 +126,20 @@ function render() {
   document.getElementById('cnt').textContent = `${f.length} rules`;
   document.getElementById('tbody').innerHTML = f.map(i => `<tr>
     <td class="mono"><b>${escapeHtml(i.goalCode||'')}</b></td>
+    <td class="mono">${escapeHtml(i.nutritionistCode||'–')}</td>
     <td>${escapeHtml(i.goalName||'')}</td>
+    <td class="mono" style="font-size:12px">${i.macros?.proteinPct??'–'} / ${i.macros?.carbohydratePct??'–'} / ${i.macros?.fatPct??'–'}</td>
     <td class="mono">${i.macros?.calorieMultiplier ?? '–'}</td>
     <td class="mono" style="font-size:12px">${i.macros?.minKcal??'–'} – ${i.macros?.maxKcal??'–'}</td>
     <td class="mono">${i.tdeeAdjPct != null ? i.tdeeAdjPct+'%' : '–'}</td>
-    <td style="font-size:12px">${escapeHtml(i.energyMethod||'–')}</td>
+    <td class="mono">${i.macros?.fibrePct != null ? i.macros.fibrePct+'%' : '<span class="muted">fixed</span>'}</td>
+    <td class="mono">${i.macros?.fibrePct > 0 ? fibreAt(2000, i.macros.fibrePct)+' g' : (i.macros?.fibreGPerDay ?? '–')+' g'}</td>
     <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
     <td>
       <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
       <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
     </td>
-  </tr>`).join('') || '<tr><td colspan="8" class="empty">No goal macro rules found.</td></tr>';
+  </tr>`).join('') || '<tr><td colspan="11" class="empty">No goal macro rules found.</td></tr>';
 }
 
 function openModal(i) {
@@ -98,6 +147,8 @@ function openModal(i) {
   document.getElementById('mTitle').textContent = i ? 'Edit Goal Macro Rule' : 'Add Goal Macro Rule';
   document.getElementById('fGoalCode').value            = i?.goalCode || '';
   document.getElementById('fGoalName').value            = i?.goalName || '';
+  document.getElementById('fNutritionistCode').value    = i?.nutritionistCode || '';
+  document.getElementById('fFibrePct').value            = i?.macros?.fibrePct ?? '';
   document.getElementById('fProteinPct').value          = i?.macros?.proteinPct ?? '';
   document.getElementById('fCarbohydratePct').value     = i?.macros?.carbohydratePct ?? '';
   document.getElementById('fFatPct').value              = i?.macros?.fatPct ?? '';
@@ -112,6 +163,7 @@ function openModal(i) {
   document.getElementById('fRuleStatus').value          = i?.ruleStatus || 'Approved';
   document.getElementById('fIsActive').value            = i?.isActive === false ? 'false' : 'true';
   document.getElementById('fNutritionistComments').value= i?.nutritionistComments || '';
+  fibreHint();
   document.getElementById('modal').style.display = 'flex';
 }
 function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
@@ -122,14 +174,18 @@ function gi(id) { const v = parseInt(document.getElementById(id)?.value); return
 async function save() {
   const goalCode = g('fGoalCode');
   if (!goalCode) { showToast('Goal Code is required', 'error'); return; }
+  const mSum = (gn('fProteinPct')||0) + (gn('fCarbohydratePct')||0) + (gn('fFatPct')||0);
+  if (mSum && Math.abs(mSum - 100) > 0.5 && !confirm(`Protein + Carbs + Fat = ${mSum}% (should be 100%). Save anyway?`)) return;
   const body = {
     goalCode,
     goalName:             g('fGoalName'),
+    nutritionistCode:     (g('fNutritionistCode') || '').toUpperCase() || null,
     macros: {
       proteinPct:         gn('fProteinPct'),
       carbohydratePct:    gn('fCarbohydratePct'),
       fatPct:             gn('fFatPct'),
       calorieMultiplier:  gn('fCalorieMultiplier'),
+      fibrePct:           gn('fFibrePct'),
       fibreGPerDay:       gn('fFibreGPerDay'),
       minKcal:            gi('fMinKcal'),
       maxKcal:            gi('fMaxKcal'),
@@ -155,5 +211,5 @@ async function del(id) {
   try { await adminApi.deleteGoalMacroRule(id); showToast('Deleted', 'success'); load(); }
   catch(e) { showToast(e.message, 'error'); }
 }
-load();
+loadSettings().then(load);
 </script></body></html>

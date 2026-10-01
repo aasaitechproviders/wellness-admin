@@ -1,110 +1,330 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Subscription Durations · KRISHA PURE Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/admin.css"/></head><body>
-<script src="js/api.js"></script><script>Auth.guardMenu('subscription-durations');</script>
-<script src="js/sidebar.js"></script>
-<script>
-const content = renderShell({
-  active: 'subscription-durations',
-  title: 'Subscription Durations',
-  sub: 'Commitment duration options (1 month, 3 months etc.) with discount percentages shown at checkout',
-  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Duration</button>`
-});
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subscription Durations — Krisha Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #1a1a1a; }
+    header { background: #1b5e20; color: #fff; padding: 16px 24px; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 18px; font-weight: 600; }
+    header span { font-size: 13px; opacity: .7; margin-left: auto; }
+    .page { max-width: 860px; margin: 32px auto; padding: 0 16px; }
+    h2 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.08); overflow: hidden; margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead th { background: #f0f4f0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #555; padding: 10px 14px; text-align: left; }
+    tbody tr { border-top: 1px solid #f0f0f0; }
+    tbody tr:hover { background: #fafafa; }
+    td { padding: 12px 14px; font-size: 14px; }
+    td.label-col { font-weight: 600; }
+    .badge-default { display: inline-block; background: #e8f5e9; color: #2e7d32; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+    .btn { border: none; border-radius: 8px; font-size: 13px; font-weight: 600; padding: 6px 14px; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .82; }
+    .btn-default { background: #e8f5e9; color: #2e7d32; }
+    .btn-default.is-already { background: #c8e6c9; color: #1b5e20; cursor: default; }
+    .btn-edit   { background: #e3f2fd; color: #1565c0; }
+    .btn-delete { background: #fdecea; color: #c62828; }
+    .btn-add    { background: #2e7d32; color: #fff; padding: 9px 20px; font-size: 14px; border-radius: 10px; }
+    .actions { display: flex; gap: 6px; }
+    /* Add form */
+    .add-form { background: #fff; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 20px 24px; }
+    .add-form h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 14px; }
+    label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 4px; }
+    input[type=text], input[type=number] {
+      width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 14px; outline: none;
+    }
+    input:focus { border-color: #2e7d32; box-shadow: 0 0 0 2px rgba(46,125,50,.12); }
+    .check-row { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .check-row input { width: auto; }
+    .form-footer { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+    #msg { font-size: 13px; color: #2e7d32; }
+    #msg.err { color: #c62828; }
+    /* Edit modal */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; align-items: center; justify-content: center; }
+    .modal-backdrop.open { display: flex; }
+    .modal { background: #fff; border-radius: 14px; padding: 24px; width: 420px; max-width: 95vw; }
+    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+    .modal .form-row { grid-template-columns: 1fr 1fr; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+    .btn-cancel { background: #f5f5f5; color: #333; }
+    .btn-save   { background: #2e7d32; color: #fff; }
+    /* Loading */
+    .loading { text-align: center; padding: 32px; color: #888; font-size: 14px; }
+  </style>
+</head>
+<body>
 
-let items = [], editId = null;
+<header>
+  <span>🌿</span>
+  <h1>Krisha Admin — Subscription Durations</h1>
+  <span id="adminUser"></span>
+</header>
 
-content.innerHTML = `
-<div class="panel">
-  <div class="toolbar">
-    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
-    <div class="spacer"></div>
-    <span id="cnt" class="muted" style="font-size:12px"></span>
+<div class="page">
+  <h2>Subscription Durations</h2>
+
+  <div class="card">
+    <table id="durTable">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Duration (months)</th>
+          <th>Discount %</th>
+          <th>Sort Order</th>
+          <th>Status</th>
+          <th>Default</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="durBody">
+        <tr><td colspan="7" class="loading">Loading…</td></tr>
+      </tbody>
+    </table>
   </div>
-  <div class="table-wrap"><table class="data">
-    <thead><tr>
-      <th>Sort</th><th>Label</th><th>Duration (Months)</th><th>Discount %</th><th>Active</th><th></th>
-    </tr></thead>
-    <tbody id="tbody"></tbody>
-  </table></div>
+
+  <div class="add-form">
+    <h3>Add New Duration</h3>
+    <div class="form-row">
+      <div>
+        <label>Label *</label>
+        <input type="text" id="f_label" placeholder="e.g. 1 Month" />
+      </div>
+      <div>
+        <label>Duration (months) *</label>
+        <input type="number" id="f_months" placeholder="1" min="1" />
+      </div>
+      <div>
+        <label>Discount %</label>
+        <input type="number" id="f_discount" placeholder="0" min="0" max="100" />
+      </div>
+      <div>
+        <label>Sort Order</label>
+        <input type="number" id="f_sort" placeholder="1" min="1" />
+      </div>
+    </div>
+    <div class="form-row" style="grid-template-columns: 1fr 1fr; margin-bottom: 16px;">
+      <div class="check-row">
+        <input type="checkbox" id="f_active" checked />
+        <label for="f_active" style="margin:0;">Active</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="f_isDefault" />
+        <label for="f_isDefault" style="margin:0;">Set as Default</label>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="btn btn-add" onclick="addDuration()">Add Duration</button>
+      <span id="msg"></span>
+    </div>
+  </div>
 </div>
 
-<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
-<div class="modal"><div class="modal-head"><h3 id="mTitle">Add Duration</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
-<div class="form-grid" style="padding:4px 0 12px">
-  <div class="field"><label>Label * <span class="opt">e.g. 3 Months</span></label><input id="fLabel" placeholder="3 Months"/></div>
-  <div class="field"><label>Duration (Months) *</label><input id="fDurationMonths" type="number" min="1" placeholder="3"/></div>
-  <div class="field"><label>Discount % <span class="opt">0 = no discount</span></label><input id="fDiscountPct" type="number" min="0" max="100" placeholder="5"/></div>
-  <div class="field"><label>Sort Order</label><input id="fSortOrder" type="number" min="1" placeholder="1"/></div>
-  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+<!-- Edit Modal -->
+<div class="modal-backdrop" id="editModal">
+  <div class="modal">
+    <h3>Edit Duration</h3>
+    <input type="hidden" id="e_id" />
+    <div class="form-row">
+      <div>
+        <label>Label</label>
+        <input type="text" id="e_label" />
+      </div>
+      <div>
+        <label>Duration (months)</label>
+        <input type="number" id="e_months" min="1" />
+      </div>
+      <div>
+        <label>Discount %</label>
+        <input type="number" id="e_discount" min="0" max="100" />
+      </div>
+      <div>
+        <label>Sort Order</label>
+        <input type="number" id="e_sort" min="1" />
+      </div>
+    </div>
+    <div class="check-row" style="margin-top: 4px;">
+      <input type="checkbox" id="e_active" />
+      <label for="e_active" style="margin:0;">Active</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-save" onclick="saveDuration()">Save</button>
+    </div>
+  </div>
 </div>
-<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
-</div></div>`;
 
-async function load() {
-  document.getElementById('tbody').innerHTML = '<tr><td colspan="6" class="loading-row"><span class="spinner"></span></td></tr>';
-  try {
-    const d = await adminApi.getSubscriptionDurations();
-    items = (d.subscriptionDurations || d.durations || d.items || []).sort((a,b)=>(a.sortOrder||99)-(b.sortOrder||99));
-    render();
-  } catch(e) { showToast(e.message, 'error'); }
-}
+<script>
+  const BASE = 'https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws';
+  let token = localStorage.getItem('kp_admin_token') || '';
 
-function render() {
-  const q = (document.getElementById('srch').value||'').toLowerCase();
-  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
-  document.getElementById('cnt').textContent = `${f.length} durations`;
-  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
-    <td class="mono">${i.sortOrder??'–'}</td>
-    <td><b>${escapeHtml(i.label||'')}</b></td>
-    <td class="mono">${i.durationMonths??'–'} months</td>
-    <td class="mono">${i.discountPct != null ? i.discountPct+'%' : '0%'}</td>
-    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
-    <td>
-      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
-      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
-    </td>
-  </tr>`).join('') || '<tr><td colspan="6" class="empty">No durations found.</td></tr>';
-}
+  // ── Auth prompt if no token ──────────────────────────────────────────────
+  async function ensureAuth() {
+    if (token) return true;
+    const user = prompt('Admin username:');
+    const pass = prompt('Admin password:');
+    if (!user || !pass) return false;
+    try {
+      const res  = await fetch(`${BASE}/admin/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: user, password: pass }),
+      });
+      const data = await res.json();
+      if (!data.success) { alert('Login failed: ' + (data.message || 'Unknown error')); return false; }
+      token = data.token;
+      localStorage.setItem('kp_admin_token', token);
+      document.getElementById('adminUser').textContent = user;
+      return true;
+    } catch (e) { alert('Login error: ' + e.message); return false; }
+  }
 
-function openModal(i) {
-  editId = i ? i._id : null;
-  document.getElementById('mTitle').textContent = i ? 'Edit Duration' : 'Add Duration';
-  document.getElementById('fLabel').value         = i?.label || '';
-  document.getElementById('fDurationMonths').value= i?.durationMonths ?? '';
-  document.getElementById('fDiscountPct').value   = i?.discountPct ?? 0;
-  document.getElementById('fSortOrder').value     = i?.sortOrder ?? '';
-  document.getElementById('fIsActive').value      = i?.isActive === false ? 'false' : 'true';
-  document.getElementById('modal').style.display = 'flex';
-}
-function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
-function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
+  async function apiCall(method, path, body) {
+    const res  = await fetch(`${BASE}/admin${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Request failed');
+    return data;
+  }
 
-async function save() {
-  const label          = g('fLabel');
-  const durationMonths = parseInt(document.getElementById('fDurationMonths').value);
-  if (!label)               { showToast('Label is required', 'error'); return; }
-  if (isNaN(durationMonths)){ showToast('Duration months is required', 'error'); return; }
-  const body = {
-    label,
-    durationMonths,
-    discountPct: parseFloat(document.getElementById('fDiscountPct').value) || 0,
-    sortOrder:   parseInt(document.getElementById('fSortOrder').value) || 99,
-    isActive:    document.getElementById('fIsActive').value === 'true',
-  };
-  try {
-    if (editId) await adminApi.updateSubscriptionDuration(editId, body);
-    else        await adminApi.createSubscriptionDuration(body);
-    showToast(editId ? 'Updated' : 'Created', 'success');
-    closeModal(); load();
-  } catch(e) { showToast(e.message, 'error'); }
-}
+  // ── Load table ────────────────────────────────────────────────────────────
+  async function loadDurations() {
+    const tbody = document.getElementById('durBody');
+    try {
+      const data = await apiCall('GET', '/subscription-durations');
+      const list = data.subscriptionDurations || [];
+      if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">No durations found.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = list.map(d => `
+        <tr id="row-${d._id}">
+          <td class="label-col">${esc(d.label)}</td>
+          <td>${d.durationMonths}</td>
+          <td>${d.discountPct ?? 0}%</td>
+          <td>${d.sortOrder ?? '—'}</td>
+          <td>${d.isActive ? '✅ Active' : '⛔ Inactive'}</td>
+          <td>${d.isDefault ? '<span class="badge-default">DEFAULT</span>' : ''}</td>
+          <td>
+            <div class="actions">
+              <button class="btn btn-default ${d.isDefault ? 'is-already' : ''}"
+                      onclick="${d.isDefault ? '' : `setDefault('${d._id}')`}"
+                      title="${d.isDefault ? 'Already default' : 'Set as default'}">
+                ${d.isDefault ? '★ Default' : '☆ Set Default'}
+              </button>
+              <button class="btn btn-edit" onclick="openEdit(${JSON.stringify(d).replace(/"/g,'&quot;')})">Edit</button>
+              <button class="btn btn-delete" onclick="deleteDuration('${d._id}', '${esc(d.label)}')">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="7" class="loading" style="color:#c62828;">Error: ${e.message}</td></tr>`;
+    }
+  }
 
-async function del(id) {
-  if (!confirm('Delete this duration option?')) return;
-  try { await adminApi.deleteSubscriptionDuration(id); showToast('Deleted', 'success'); load(); }
-  catch(e) { showToast(e.message, 'error'); }
-}
-load();
-</script></body></html>
+  // ── Set Default ───────────────────────────────────────────────────────────
+  async function setDefault(id) {
+    if (!confirm('Set this as the default subscription plan?')) return;
+    try {
+      await apiCall('PATCH', `/subscription-durations/${id}/set-default`);
+      showMsg('Default updated ✓');
+      loadDurations();
+    } catch (e) { showMsg(e.message, true); }
+  }
+
+  // ── Add ───────────────────────────────────────────────────────────────────
+  async function addDuration() {
+    const label    = document.getElementById('f_label').value.trim();
+    const months   = document.getElementById('f_months').value;
+    const discount = document.getElementById('f_discount').value || '0';
+    const sort     = document.getElementById('f_sort').value || '99';
+    const active   = document.getElementById('f_active').checked;
+    const isDefault = document.getElementById('f_isDefault').checked;
+    if (!label || !months) { showMsg('Label and duration are required', true); return; }
+    try {
+      await apiCall('POST', '/subscription-durations', {
+        label, durationMonths: +months, discountPct: +discount, sortOrder: +sort, isActive: active, isDefault,
+      });
+      showMsg('Duration added ✓');
+      document.getElementById('f_label').value = '';
+      document.getElementById('f_months').value = '';
+      document.getElementById('f_discount').value = '';
+      document.getElementById('f_sort').value = '';
+      document.getElementById('f_isDefault').checked = false;
+      loadDurations();
+    } catch (e) { showMsg(e.message, true); }
+  }
+
+  // ── Edit Modal ─────────────────────────────────────────────────────────────
+  function openEdit(d) {
+    document.getElementById('e_id').value      = d._id;
+    document.getElementById('e_label').value   = d.label;
+    document.getElementById('e_months').value  = d.durationMonths;
+    document.getElementById('e_discount').value= d.discountPct ?? 0;
+    document.getElementById('e_sort').value    = d.sortOrder ?? 99;
+    document.getElementById('e_active').checked= d.isActive !== false;
+    document.getElementById('editModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('editModal').classList.remove('open');
+  }
+
+  async function saveDuration() {
+    const id       = document.getElementById('e_id').value;
+    const label    = document.getElementById('e_label').value.trim();
+    const months   = document.getElementById('e_months').value;
+    const discount = document.getElementById('e_discount').value;
+    const sort     = document.getElementById('e_sort').value;
+    const active   = document.getElementById('e_active').checked;
+    if (!label || !months) { alert('Label and duration are required'); return; }
+    try {
+      await apiCall('PUT', `/subscription-durations/${id}`, {
+        label, durationMonths: +months, discountPct: +discount, sortOrder: +sort, isActive: active,
+      });
+      closeModal();
+      showMsg('Duration updated ✓');
+      loadDurations();
+    } catch (e) { alert('Error: ' + e.message); }
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+  async function deleteDuration(id, label) {
+    if (!confirm(`Delete "${label}"? This cannot be undone.`)) return;
+    try {
+      await apiCall('DELETE', `/subscription-durations/${id}`);
+      showMsg('Deleted ✓');
+      loadDurations();
+    } catch (e) { showMsg(e.message, true); }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function showMsg(text, isErr = false) {
+    const el = document.getElementById('msg');
+    el.textContent = text;
+    el.className   = isErr ? 'err' : '';
+    setTimeout(() => { el.textContent = ''; }, 4000);
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('editModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+  });
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  (async () => {
+    const ok = await ensureAuth();
+    if (ok) loadDurations();
+  })();
+</script>
+</body>
+</html>

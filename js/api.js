@@ -334,6 +334,14 @@ const adminApi = {
   getPricingConfig:  ()     => req('GET',  '/admin/pricing-config'),
   savePricingConfig: (body) => req('PUT',  '/admin/pricing-config', body),
   calculatePrice:    (body) => req('POST', '/pricing-config/calculate', body),
+
+  // Delivery Config
+  getDeliverySlots:          ()     => req('GET', '/admin/delivery-slots'),
+  saveDeliverySlots:         (body) => req('PUT', '/admin/delivery-slots', body),
+  getServiceablePincodes:    ()     => req('GET', '/admin/serviceable-pincodes'),
+  saveServiceablePincodes:   (body) => req('PUT', '/admin/serviceable-pincodes', body),
+  getDeliveryRequests:       ()     => req('GET', '/admin/delivery-requests'),
+  resolveDeliveryRequest:    (id)   => req('PATCH', `/admin/delivery-requests/${id}/resolve`),
 };
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

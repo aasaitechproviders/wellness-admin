@@ -32,7 +32,7 @@ const content = renderShell({
 });
 
 let items = [], allGoals = [], editId = null, selectedGoalCodes = [];
-let dropdownVisible = false, goalPickerEl = null;
+let dropdownVisible = false, goalPickerEl = null, itemMap = {};
 
 content.innerHTML = `
 <div class="panel">
@@ -165,6 +165,7 @@ async function load() {
       adminApi.getWellnessGoals({ limit: 200 }).catch(() => ({ goals: [] }))
     ]);
     items    = d.conditions || d.items || [];
+    itemMap  = Object.fromEntries(items.map(i => [i._id, i]));
     allGoals = (gd.goals || gd.items || []).sort((a, b) => (a.goalCode||'').localeCompare(b.goalCode||''));
     render();
   } catch(e) { showToast(e.message, 'error'); }
@@ -191,7 +192,7 @@ function render() {
     <td><span class="pill ${i.autoPlanEligible==='Yes'?'pill-active':'pill-inactive'}">${escapeHtml(i.autoPlanEligible||'')}</span></td>
     <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Active':'Inactive'}</span></td>
     <td>
-      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="openModal(itemMap['${i._id}'])">Edit</button>
       <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
     </td>
   </tr>`;

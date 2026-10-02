@@ -2,7 +2,25 @@
 <title>Health Conditions · KRISHA PURE Admin</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
-<link rel="stylesheet" href="css/admin.css"/></head><body>
+<link rel="stylesheet" href="css/admin.css"/>
+<style>
+/* ── Suggested Goals multi-select ── */
+.goal-picker{border:1px solid var(--border,#ddd);border-radius:8px;padding:6px 8px;min-height:38px;cursor:text;background:#fff;display:flex;flex-wrap:wrap;gap:4px;align-items:center;}
+.goal-tag{display:inline-flex;align-items:center;gap:4px;background:#e8f4fd;color:#1a6fa8;border-radius:20px;padding:2px 10px 2px 10px;font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:600;}
+.goal-tag-first{background:#d0ebff;color:#0e5fa3;border:1px solid #a8d4f5;}
+.goal-tag .rm{cursor:pointer;font-size:14px;line-height:1;color:#5a8fb3;margin-left:2px;}
+.goal-tag .rm:hover{color:#c0392b;}
+.goal-picker-input{border:none;outline:none;font-size:13px;min-width:100px;flex:1;background:transparent;padding:2px 4px;}
+.goal-dropdown{position:absolute;z-index:9999;background:#fff;border:1px solid var(--border,#ddd);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;width:320px;}
+.goal-dropdown-item{padding:8px 14px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;}
+.goal-dropdown-item:hover{background:#f5f9ff;}
+.goal-dropdown-item .gcode{font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;min-width:48px;}
+.goal-dropdown-item .gname{flex:1;}
+.goal-dropdown-item .inactive-badge{font-size:10px;color:#e67e22;background:#fef5e7;border-radius:10px;padding:1px 7px;}
+.goal-hint{font-size:11px;color:#888;margin-top:4px;}
+.goal-order-note{font-size:11px;color:#1a6fa8;margin-top:4px;font-style:italic;}
+</style>
+</head><body>
 <script src="js/api.js"></script><script>Auth.guardMenu('health-conditions');</script>
 <script src="js/sidebar.js"></script>
 <script>
@@ -13,7 +31,8 @@ const content = renderShell({
   actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Condition</button>`
 });
 
-let items = [], editId = null;
+let items = [], allGoals = [], editId = null, selectedGoalCodes = [];
+let dropdownVisible = false, goalPickerEl = null;
 
 content.innerHTML = `
 <div class="panel">
@@ -24,7 +43,7 @@ content.innerHTML = `
   </div>
   <div class="table-wrap"><table class="data">
     <thead><tr>
-      <th>Code</th><th>Condition Name</th><th>Category</th><th>Suggested Goal</th><th>Clinical Review</th><th>Auto Plan</th><th>Status</th><th></th>
+      <th>Code</th><th>Condition Name</th><th>Category</th><th>Suggested Goals</th><th>Clinical Review</th><th>Auto Plan</th><th>Status</th><th></th>
     </tr></thead>
     <tbody id="tbody"></tbody>
   </table></div>
@@ -38,7 +57,16 @@ content.innerHTML = `
   <div class="field"><label>Display Name</label><input id="fDisplayName" placeholder="Diabetes Mellitus"/></div>
   <div class="field"><label>Category</label><input id="fCategory" placeholder="Metabolic"/></div>
   <div class="field full"><label>Description</label><textarea id="fDescription" rows="2"></textarea></div>
-  <div class="field"><label>Suggested Goal Code <span class="opt">e.g. WG005</span></label><input id="fSuggestedGoalCode" placeholder="WG005"/></div>
+  <div class="field full" style="position:relative">
+    <label>Suggested Goal Codes <span class="opt">First active goal wins — drag to reorder priority</span></label>
+    <div class="goal-picker" id="goalPicker" onclick="focusGoalInput(event)">
+      <input id="goalInput" class="goal-picker-input" placeholder="Type to search goals…" autocomplete="off"
+        oninput="filterGoalDropdown(this.value)" onkeydown="goalKeydown(event)" onfocus="showGoalDropdown()"/>
+    </div>
+    <div id="goalDropdown" class="goal-dropdown" style="display:none"></div>
+    <p class="goal-hint">Select one or more wellness goals. The engine tries each in order and uses the first active one.</p>
+    <p class="goal-order-note" id="goalOrderNote" style="display:none">🔵 First (blue) = highest priority</p>
+  </div>
   <div class="field"><label>Severity Applicable</label><select id="fSeverityApplicable"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
   <div class="field"><label>Clinical Review Required</label><select id="fClinicalReviewRequired"><option>No</option><option>Yes</option><option>Conditional</option></select></div>
   <div class="field"><label>Auto Plan Eligible</label><select id="fAutoPlanEligible"><option>Yes</option><option>No</option><option>Conditional</option></select></div>
@@ -51,11 +79,93 @@ content.innerHTML = `
 <div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
 </div></div>`;
 
+/* ── Goal picker helpers ── */
+function renderGoalTags() {
+  const picker = document.getElementById('goalPicker');
+  const input  = document.getElementById('goalInput');
+  if (!picker || !input) return;
+  // Remove existing tags
+  picker.querySelectorAll('.goal-tag').forEach(t => t.remove());
+  selectedGoalCodes.forEach((code, idx) => {
+    const g = allGoals.find(g => g.goalCode === code);
+    const label = g ? `${code} · ${g.goalName || g.displayName || ''}` : code;
+    const inactive = g && !g.isActive;
+    const tag = document.createElement('span');
+    tag.className = 'goal-tag' + (idx === 0 ? ' goal-tag-first' : '');
+    tag.title = inactive ? `${code} — Inactive (will be skipped by engine)` : code;
+    tag.innerHTML = `${escapeHtml(label)}${inactive?' <span style="color:#e67e22;font-size:10px">(inactive)</span>':''}<span class="rm" onclick="removeGoal('${code}')">×</span>`;
+    picker.insertBefore(tag, input);
+  });
+  const note = document.getElementById('goalOrderNote');
+  if (note) note.style.display = selectedGoalCodes.length > 1 ? '' : 'none';
+}
+
+function removeGoal(code) {
+  selectedGoalCodes = selectedGoalCodes.filter(c => c !== code);
+  renderGoalTags();
+}
+
+function focusGoalInput(e) {
+  const input = document.getElementById('goalInput');
+  if (input && e.target !== input) { input.focus(); showGoalDropdown(); }
+}
+
+function showGoalDropdown() {
+  filterGoalDropdown(document.getElementById('goalInput')?.value || '');
+}
+
+function filterGoalDropdown(q) {
+  const dd = document.getElementById('goalDropdown');
+  if (!dd) return;
+  q = q.toLowerCase();
+  const available = allGoals.filter(g => !selectedGoalCodes.includes(g.goalCode));
+  const filtered = q
+    ? available.filter(g => (g.goalCode||'').toLowerCase().includes(q) || (g.goalName||'').toLowerCase().includes(q) || (g.displayName||'').toLowerCase().includes(q))
+    : available;
+  if (!filtered.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = filtered.map(g => `
+    <div class="goal-dropdown-item" onclick="selectGoal('${g.goalCode}')">
+      <span class="gcode">${escapeHtml(g.goalCode||'')}</span>
+      <span class="gname">${escapeHtml(g.goalName || g.displayName || '')}</span>
+      ${!g.isActive ? '<span class="inactive-badge">Inactive</span>' : ''}
+    </div>`).join('');
+  dd.style.display = '';
+}
+
+function selectGoal(code) {
+  if (!selectedGoalCodes.includes(code)) selectedGoalCodes.push(code);
+  const input = document.getElementById('goalInput');
+  if (input) { input.value = ''; input.focus(); }
+  document.getElementById('goalDropdown').style.display = 'none';
+  renderGoalTags();
+}
+
+function goalKeydown(e) {
+  if (e.key === 'Escape') { document.getElementById('goalDropdown').style.display = 'none'; }
+  if (e.key === 'Backspace' && !e.target.value && selectedGoalCodes.length) {
+    selectedGoalCodes.pop();
+    renderGoalTags();
+  }
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('#goalPicker') && !e.target.closest('#goalDropdown')) {
+    const dd = document.getElementById('goalDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+/* ── Load ── */
 async function load() {
   document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
-    const d = await adminApi.getHealthConditions();
-    items = d.conditions || d.items || [];
+    const [d, gd] = await Promise.all([
+      adminApi.getHealthConditions(),
+      adminApi.getWellnessGoals({ limit: 200 }).catch(() => ({ goals: [] }))
+    ]);
+    items    = d.conditions || d.items || [];
+    allGoals = (gd.goals || gd.items || []).sort((a, b) => (a.goalCode||'').localeCompare(b.goalCode||''));
     render();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -64,11 +174,19 @@ function render() {
   const q = (document.getElementById('srch').value||'').toLowerCase();
   const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
   document.getElementById('cnt').textContent = `${f.length} conditions`;
-  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+  document.getElementById('tbody').innerHTML = f.map(i => {
+    // Support both new array and legacy single string
+    const codes = Array.isArray(i.suggestedGoalCodes) && i.suggestedGoalCodes.length
+      ? i.suggestedGoalCodes
+      : i.suggestedGoalCode ? [i.suggestedGoalCode] : [];
+    const goalCell = codes.length
+      ? codes.map((c,idx) => `<span class="mono" style="font-size:11px;${idx===0?'font-weight:700;color:#1a6fa8':''}">${escapeHtml(c)}</span>`).join('<span style="color:#aaa;margin:0 2px">›</span>')
+      : '<span class="muted">–</span>';
+    return `<tr>
     <td class="mono"><b>${escapeHtml(i.conditionCode||'')}</b></td>
     <td>${escapeHtml(i.conditionName||'')}</td>
     <td style="font-size:12px">${escapeHtml(i.category||'')}</td>
-    <td class="mono" style="font-size:12px">${escapeHtml(i.suggestedGoalCode||'–')}</td>
+    <td>${goalCell}</td>
     <td><span class="pill ${i.clinicalReviewRequired==='Yes'?'pill-warn':i.clinicalReviewRequired==='Conditional'?'pill-placed':'pill-inactive'}">${escapeHtml(i.clinicalReviewRequired||'No')}</span></td>
     <td><span class="pill ${i.autoPlanEligible==='Yes'?'pill-active':'pill-inactive'}">${escapeHtml(i.autoPlanEligible||'')}</span></td>
     <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Active':'Inactive'}</span></td>
@@ -76,18 +194,23 @@ function render() {
       <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
       <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
     </td>
-  </tr>`).join('') || '<tr><td colspan="8" class="empty">No health conditions found.</td></tr>';
+  </tr>`;
+  }).join('') || '<tr><td colspan="8" class="empty">No health conditions found.</td></tr>';
 }
 
 function openModal(i) {
   editId = i ? i._id : null;
+  // Resolve selectedGoalCodes from new array field or legacy single field
+  selectedGoalCodes = Array.isArray(i?.suggestedGoalCodes) && i.suggestedGoalCodes.length
+    ? [...i.suggestedGoalCodes]
+    : i?.suggestedGoalCode ? [i.suggestedGoalCode] : [];
+
   document.getElementById('mTitle').textContent = i ? 'Edit Health Condition' : 'Add Health Condition';
   document.getElementById('fConditionCode').value         = i?.conditionCode || '';
   document.getElementById('fConditionName').value         = i?.conditionName || '';
   document.getElementById('fDisplayName').value           = i?.displayName || '';
   document.getElementById('fCategory').value              = i?.category || '';
   document.getElementById('fDescription').value           = i?.description || '';
-  document.getElementById('fSuggestedGoalCode').value     = i?.suggestedGoalCode || '';
   document.getElementById('fSeverityApplicable').value    = i?.severityApplicable || 'No';
   document.getElementById('fClinicalReviewRequired').value= i?.clinicalReviewRequired || 'No';
   document.getElementById('fAutoPlanEligible').value      = i?.autoPlanEligible || 'Yes';
@@ -96,9 +219,15 @@ function openModal(i) {
   document.getElementById('fNutritionistApproved').value  = i?.nutritionistApproved || 'Yes';
   document.getElementById('fIsActive').value              = i?.isActive === false ? 'false' : 'true';
   document.getElementById('fNutritionistComments').value  = i?.nutritionistComments || '';
+  renderGoalTags();
+  document.getElementById('goalDropdown').style.display = 'none';
+  document.getElementById('goalInput').value = '';
   document.getElementById('modal').style.display = 'flex';
 }
-function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+  editId = null; selectedGoalCodes = [];
+}
 function g(id) { const v = document.getElementById(id)?.value; return (v===''||v===undefined) ? null : v; }
 
 async function save() {
@@ -110,7 +239,10 @@ async function save() {
     displayName:            g('fDisplayName'),
     category:               g('fCategory'),
     description:            g('fDescription'),
-    suggestedGoalCode:      g('fSuggestedGoalCode'),
+    // Array field (new) — engine loops through, first active goal wins
+    suggestedGoalCodes:     selectedGoalCodes.length ? selectedGoalCodes : null,
+    // Legacy single field — kept as first entry for backward compat with older app versions
+    suggestedGoalCode:      selectedGoalCodes.length ? selectedGoalCodes[0] : null,
     severityApplicable:     g('fSeverityApplicable'),
     clinicalReviewRequired: g('fClinicalReviewRequired'),
     autoPlanEligible:       g('fAutoPlanEligible'),

@@ -1,0 +1,124 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Diet Types · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('diet-types');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'diet-types',
+  title: 'Diet Types',
+  sub: 'Configure the diet categories shown to customers during profile setup — controls basket product filtering (Veg / Eggetarian / Non-Veg)',
+  actions: `<button class="btn btn-primary" onclick="openModal()">+ Add Diet Type</button>`
+});
+
+let items = [], editId = null;
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search…" oninput="render()"/>
+    <div class="spacer"></div>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Emoji</th><th>ID (system key)</th><th>Label</th><th>Description</th><th>Order</th><th>Active</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>
+
+<div class="modal-backdrop" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+<div class="modal"><div class="modal-head"><h3 id="mTitle">Add Diet Type</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+<div class="form-grid" style="padding:4px 0 12px">
+  <div class="field"><label>System ID <span style="color:#C62828">*</span> <span style="font-weight:400;font-size:11px;color:var(--ink-faint)">(e.g. Veg, Eggetarian, Non-Veg — used in code)</span></label>
+    <input id="fId" placeholder="Eggetarian"/></div>
+  <div class="field"><label>Display Label <span style="color:#C62828">*</span></label>
+    <input id="fLabel" placeholder="Eggetarian"/></div>
+  <div class="field"><label>Emoji</label><input id="fEmoji" placeholder="🥚" style="font-size:20px;width:60px"/></div>
+  <div class="field"><label>Sort Order</label><input id="fOrder" type="number" placeholder="2" min="1"/></div>
+  <div class="field"><label>Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
+  <div class="field full"><label>Description <span style="font-weight:400;color:var(--ink-faint)">(shown to customer)</span></label>
+    <textarea id="fDesc" rows="2" placeholder="Includes vegetarian products and egg-based products"></textarea></div>
+</div>
+<div class="modal-foot"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="save()">Save</button></div>
+</div></div>`;
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getDietTypes();
+    items = d.items || d.dietTypes || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function render() {
+  const q = (document.getElementById('srch').value||'').toLowerCase();
+  const f = items.filter(i => !q || JSON.stringify(i).toLowerCase().includes(q));
+  document.getElementById('cnt').textContent = `${f.length} diet type${f.length!==1?'s':''}`;
+  const DIET_COLORS = { 'Veg': '#2D6A35', 'Eggetarian': '#7B5E2A', 'Non-Veg': '#C62828' };
+  document.getElementById('tbody').innerHTML = f.map(i => `<tr>
+    <td style="font-size:22px;text-align:center">${escapeHtml(i.emoji||'')}</td>
+    <td><code style="font-size:12px;padding:2px 6px;background:var(--surface-raised);border-radius:4px;color:${DIET_COLORS[i.id]||'var(--ink)'}">${escapeHtml(i.id||'')}</code></td>
+    <td><b>${escapeHtml(i.label||'')}</b></td>
+    <td style="font-size:12px;color:var(--ink-soft);max-width:260px">${escapeHtml(i.description||'–')}</td>
+    <td style="text-align:center">${i.order||'–'}</td>
+    <td><span class="pill ${i.isActive?'pill-active':'pill-inactive'}">${i.isActive?'Yes':'No'}</span></td>
+    <td>
+      <button class="btn btn-ghost btn-sm" onclick='openModal(${JSON.stringify(i)})'>Edit</button>
+      <button class="btn btn-danger btn-sm" onclick="del('${i._id}')">Del</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="7" class="empty">No diet types found. Add Veg, Eggetarian and Non-Veg to get started.</td></tr>';
+}
+
+function openModal(i) {
+  editId = i?._id || null;
+  document.getElementById('mTitle').textContent = editId ? 'Edit Diet Type' : 'Add Diet Type';
+  document.getElementById('fId').value       = i?.id          || '';
+  document.getElementById('fLabel').value    = i?.label       || '';
+  document.getElementById('fEmoji').value    = i?.emoji       || '';
+  document.getElementById('fOrder').value    = i?.order       || '';
+  document.getElementById('fDesc').value     = i?.description || '';
+  const sel = document.getElementById('fIsActive');
+  sel.value = (i?.isActive === false) ? 'false' : 'true';
+  document.getElementById('modal').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal').style.display = 'none'; editId = null; }
+
+async function save() {
+  const idVal = document.getElementById('fId').value.trim();
+  const label = document.getElementById('fLabel').value.trim();
+  if (!idVal) { showToast('System ID is required', 'error'); return; }
+  if (!label) { showToast('Label is required', 'error'); return; }
+  const body = {
+    id:          idVal,
+    label,
+    emoji:       document.getElementById('fEmoji').value.trim(),
+    order:       parseInt(document.getElementById('fOrder').value) || 99,
+    description: document.getElementById('fDesc').value.trim(),
+    isActive:    document.getElementById('fIsActive').value === 'true',
+  };
+  try {
+    if (editId) await adminApi.updateDietType(editId, body);
+    else        await adminApi.createDietType(body);
+    showToast('Saved ✓', 'success');
+    closeModal();
+    await load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+async function del(id) {
+  if (!confirm('Delete this diet type? Products tagged with it will fall back to "Veg" in basket filtering.')) return;
+  try {
+    await adminApi.deleteDietType(id);
+    showToast('Deleted', 'success');
+    await load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script>
+</body></html>

@@ -326,6 +326,12 @@ const adminApi = {
   updateAllergen: (id, body)  => req('PUT', `/admin/nutrition/allergies/${id}`, body),
   deleteAllergen: (id)        => req('DELETE', `/admin/nutrition/allergies/${id}`),
 
+  // Diet Types (kp_dietTypes)
+  getDietTypes:    (p)         => req('GET', `/admin/nutrition/diet-types${qs(p)}`),
+  createDietType:  (body)      => req('POST', '/admin/nutrition/diet-types', body),
+  updateDietType:  (id, body)  => req('PUT', `/admin/nutrition/diet-types/${id}`, body),
+  deleteDietType:  (id)        => req('DELETE', `/admin/nutrition/diet-types/${id}`),
+
   // Engine Settings (kp_engineSettings) — e.g. fibre g per 1000 kcal
   getEngineSettings: ()           => req('GET', '/admin/engine-settings'),
   saveEngineSetting: (key, value) => req('PUT', `/admin/engine-settings/${key}`, { value }),

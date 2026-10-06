@@ -291,10 +291,11 @@ const adminApi = {
   getProcurementOrders:      (date)     => req('GET',  `/admin/procurement/orders${date ? `?date=${date}` : ''}`),
 
   // Subscription Durations (kp_subscriptionDurations)
-  getSubscriptionDurations:    ()         => req('GET',    '/admin/subscription-durations'),
-  createSubscriptionDuration:  (body)     => req('POST',   '/admin/subscription-durations', body),
-  updateSubscriptionDuration:  (id, body) => req('PUT',    `/admin/subscription-durations/${id}`, body),
-  deleteSubscriptionDuration:  (id)       => req('DELETE', `/admin/subscription-durations/${id}`),
+  getSubscriptionDurations:       ()         => req('GET',    '/admin/subscription-durations'),
+  createSubscriptionDuration:     (body)     => req('POST',   '/admin/subscription-durations', body),
+  updateSubscriptionDuration:     (id, body) => req('PUT',    `/admin/subscription-durations/${id}`, body),
+  deleteSubscriptionDuration:     (id)       => req('DELETE', `/admin/subscription-durations/${id}`),
+  setDefaultSubscriptionDuration: (id)       => req('PATCH',  `/admin/subscription-durations/${id}/set-default`),
 
   // Product Categories (kp_productCategories)
   getProductCategories:    (p)         => req('GET',    `/admin/nutrition/product-categories${qs(p)}`),

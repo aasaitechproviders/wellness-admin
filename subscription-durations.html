@@ -47,7 +47,7 @@ async function load() {
   document.getElementById('tbody').innerHTML = '<tr><td colspan="7" class="loading-row"><span class="spinner"></span></td></tr>';
   try {
     const d = await adminApi.getSubscriptionDurations();
-    items = d.durations || d.items || [];
+    items = d.subscriptionDurations || d.durations || d.items || [];
     render();
   } catch(e) { showToast(e.message, 'error'); }
 }
@@ -109,7 +109,7 @@ async function save() {
 async function setDefault(id) {
   if (!confirm('Set this as the default subscription duration?')) return;
   try {
-    await adminApi.updateSubscriptionDuration(id, { isDefault: true });
+    await adminApi.setDefaultSubscriptionDuration(id);
     showToast('Default updated', 'success'); load();
   } catch(e) { showToast(e.message, 'error'); }
 }

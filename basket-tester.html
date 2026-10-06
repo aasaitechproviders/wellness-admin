@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Krisha LIV — Basket Curation Tester</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --green: #2e7d32;
+    --green-light: #e8f5e9;
+    --green-mid: #4caf50;
+    --orange: #e65100;
+    --red: #c62828;
+    --bg: #f5f7f5;
+    --card: #ffffff;
+    --border: #dde8dd;
+    --text: #1a1a1a;
+    --text-muted: #666;
+    --radius: 10px;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  .header { background: var(--green); color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header span { font-size: 12px; opacity: .75; }
+
+  .layout { display: grid; grid-template-columns: 340px 1fr; gap: 0; min-height: calc(100vh - 52px); }
+  .sidebar { background: var(--card); border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; }
+  .main { padding: 20px; overflow-x: auto; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--green); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+
+  label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; margin-top: 10px; }
+  label:first-child { margin-top: 0; }
+  input, select { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: #fafafa; color: var(--text); outline: none; transition: border .15s; }
+  input:focus, select:focus { border-color: var(--green-mid); background: #fff; }
+
+  .check-grid { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: #fafafa; }
+  .check-item { display: flex; align-items: flex-start; gap: 8px; padding: 4px 6px; border-radius: 4px; cursor: pointer; transition: background .1s; }
+  .check-item:hover { background: var(--green-light); }
+  .check-item input[type=checkbox] { width: 15px; height: 15px; margin-top: 1px; accent-color: var(--green); flex-shrink: 0; }
+  .check-item span { font-size: 12px; line-height: 1.4; }
+  .check-none { background: #fff8e1; border: 1px dashed #f9a825; border-radius: 4px; margin-bottom: 2px; }
+  .check-all-row { display: flex; gap: 8px; margin-bottom: 6px; }
+  .check-all { font-size: 11px; color: var(--green); cursor: pointer; text-decoration: underline; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--green); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #1b5e20; }
+  .btn-export { background: #1565c0; color: #fff; }
+  .btn-export:hover:not(:disabled) { background: #0d47a1; }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+
+  .status-bar { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-idle { background: #bbb; }
+  .dot-running { background: var(--orange); animation: pulse 1s infinite; }
+  .dot-done { background: var(--green-mid); }
+  .dot-error { background: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-text { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
+  .progress-bar-wrap { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 12px; }
+  .progress-bar-fill { height: 100%; background: var(--green-mid); border-radius: 3px; transition: width .3s; }
+
+  /* Log panel */
+  #log-panel { background: #1a1a2e; color: #a8ff78; font-family: monospace; font-size: 11px; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; max-height: 120px; overflow-y: auto; display: none; }
+  #log-panel.show { display: block; }
+  .log-line { margin-bottom: 2px; }
+  .log-ok   { color: #a8ff78; }
+  .log-warn { color: #ffd166; }
+  .log-err  { color: #ef233c; }
+
+  .tbl-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 1100px; background: var(--card); }
+  thead th { background: var(--green); color: #fff; padding: 9px 11px; font-size: 11px; font-weight: 700; text-align: left; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:hover { background: var(--green-light); }
+  tbody td { padding: 8px 11px; font-size: 12px; vertical-align: top; }
+  td.mono { font-family: monospace; font-size: 11px; }
+  td.plan-t20 { border-left: 3px solid #4caf50; }
+  td.plan-t30 { border-left: 3px solid #ff9800; }
+  td.plan-t40 { border-left: 3px solid #9c27b0; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+  .badge-t20 { background: #e8f5e9; color: #2e7d32; }
+  .badge-t30 { background: #fff3e0; color: #e65100; }
+  .badge-t40 { background: #f3e5f5; color: #6a1b9a; }
+  .badge-err { background: #ffebee; color: #c62828; font-size: 11px; font-weight: 400; font-family: monospace; }
+  .products-list { display: flex; flex-direction: column; gap: 2px; }
+  .prod-row { display: flex; justify-content: space-between; gap: 8px; }
+  .prod-name { font-size: 11px; }
+  .prod-qty { color: var(--green); font-weight: 600; font-size: 11px; min-width: 50px; text-align: right; }
+  .score-pill { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+  .filter-bar select, .filter-bar input { width: auto; padding: 6px 10px; font-size: 12px; }
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
+  .results-title { font-size: 15px; font-weight: 700; }
+
+  #toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; display: none; z-index: 999; max-width: 340px; box-shadow: 0 4px 12px rgba(0,0,0,.3); }
+  #toast.show { display: block; }
+  #toast.success { background: var(--green); }
+  #toast.error   { background: var(--red); }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>🌿 Krisha LIV — Basket Curation Tester</h1>
+    <span>Simulates all Condition × Goal × Plan permutations and shows basket output</span>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ════════ SIDEBAR ════════ -->
+  <div class="sidebar">
+
+    <div class="card">
+      <div class="card-title">⚙️ Config</div>
+      <label>API Base URL</label>
+      <input id="cfg-url" value="https://hf7d5uklwbvj2syjjromiyrkxy0mlcqp.lambda-url.ap-southeast-2.on.aws"/>
+      <label>Test Phone Number (10 digits)</label>
+      <input id="cfg-phone" type="tel" maxlength="10" placeholder="9XXXXXXXXX"/>
+      <label style="margin-top:8px">
+        <input type="checkbox" id="cfg-debug" style="width:auto;margin-right:6px"/>
+        Show debug log
+      </label>
+    </div>
+
+    <div class="card">
+      <div class="card-title">👤 Member Profile</div>
+      <label>Date of Birth</label>
+      <input id="m-dob" type="date"/>
+      <label>Sex</label>
+      <select id="m-sex">
+        <option value="Male">Male</option>
+        <option value="Female">Female</option>
+      </select>
+      <label>Height (cm)</label>
+      <input id="m-height" type="number" placeholder="165" min="50" max="250"/>
+      <label>Weight (kg)</label>
+      <input id="m-weight" type="number" placeholder="65" min="10" max="300"/>
+      <label>Activity Level</label>
+      <select id="m-activity"><option value="">Loading…</option></select>
+      <label>Diet Type</label>
+      <select id="m-diet">
+        <option value="Veg">Veg</option>
+        <option value="Eggetarian">Eggetarian</option>
+        <option value="Non-Veg">Non-Veg</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🩺 Health Conditions <small style="font-weight:400;text-transform:none;font-size:10px">(non-clinical only)</small></div>
+      <div class="check-all-row">
+        <span class="check-all" onclick="selectAll('cond',true)">Select all</span>
+        <span class="check-all" onclick="selectAll('cond',false)">Clear</span>
+      </div>
+      <div class="check-grid" id="cond-list"><div style="color:var(--text-muted);font-size:12px">Loading…</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🎯 Wellness Goals</div>
+      <div class="check-all-row">
+        <span class="check-all" onclick="selectAll('goal',true)">Select all</span>
+        <span class="check-all" onclick="selectAll('goal',false)">Clear</span>
+      </div>
+      <div class="check-grid" id="goal-list"><div style="color:var(--text-muted);font-size:12px">Loading…</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📦 Plan Types</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <label class="check-item" style="cursor:pointer">
+          <input type="checkbox" id="plan-t20" checked onchange="updatePermCount()"/>
+          <span>🌱 <strong>T20</strong> — LIV Care (30%)</span>
+        </label>
+        <label class="check-item" style="cursor:pointer">
+          <input type="checkbox" id="plan-t30" checked onchange="updatePermCount()"/>
+          <span>⚖️ <strong>T30</strong> — LIV Balance (40%)</span>
+        </label>
+        <label class="check-item" style="cursor:pointer">
+          <input type="checkbox" id="plan-t40" checked onchange="updatePermCount()"/>
+          <span>👑 <strong>T40</strong> — LIV Premium (50%)</span>
+        </label>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-run" onclick="runAll()" style="width:100%;justify-content:center;font-size:14px;padding:12px">
+      ▶ Run Permutations
+    </button>
+    <p id="permutation-count" style="text-align:center;font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5"></p>
+  </div>
+
+  <!-- ════════ MAIN ════════ -->
+  <div class="main">
+
+    <div class="status-bar" id="status-bar">
+      <div class="status-dot dot-idle" id="status-dot"></div>
+      <div class="status-text" id="status-text">Ready. Fill the form and click Run.</div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <span id="status-count" style="font-size:12px;color:var(--text-muted)"></span>
+        <button class="btn btn-export btn-sm" id="btn-export" onclick="exportExcel()" disabled>⬇ Export Excel</button>
+      </div>
+    </div>
+
+    <div class="progress-bar-wrap" id="prog-wrap" style="display:none">
+      <div class="progress-bar-fill" id="prog-bar" style="width:0%"></div>
+    </div>
+
+    <div id="log-panel"></div>
+
+    <div id="results-area">
+      <div class="empty">
+        <div class="empty-icon">🌿</div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:6px">No results yet</div>
+        <div>Configure the member profile, pick conditions &amp; goals, then click Run.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let TOKEN      = null;
+let FAMILY_ID  = null;
+let allResults = [];
+let running    = false;
+
+// Raw condition objects from API {conditionName, displayName, clinicalReviewRequired, ...}
+let conditionObjects = [];
+
+const BASE  = () => document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
+const DEBUG = () => document.getElementById('cfg-debug').checked;
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+function log(msg, type='ok') {
+  if (!DEBUG()) return;
+  const panel = document.getElementById('log-panel');
+  panel.classList.add('show');
+  const line = document.createElement('div');
+  line.className = `log-line log-${type}`;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  panel.appendChild(line);
+  panel.scrollTop = panel.scrollHeight;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 4000);
+}
+
+// ── API helper ────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  const res = await fetch(`${BASE()}${path}`, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let data;
+  try { data = await res.json(); } catch(e) { throw new Error(`HTTP ${res.status} — non-JSON response`); }
+  if (!data.success) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function ensureAuth() {
+  const phone = document.getElementById('cfg-phone').value.trim();
+  if (!/^\d{10}$/.test(phone)) throw new Error('Enter a valid 10-digit phone number');
+
+  setStatus('running', 'Logging in…');
+  log(`POST /auth/login { phone: "${phone}" }`);
+  const loginData = await api('POST', '/auth/login', { phone });
+  TOKEN     = loginData.token;
+  FAMILY_ID = loginData.family?._id;
+  log(`Logged in → familyId: ${FAMILY_ID}, familyName: "${loginData.family?.familyName}"`, 'ok');
+
+  // Register "Test Family" if name not set
+  if (!loginData.family?.familyName) {
+    setStatus('running', 'Registering Test Family…');
+    log('Family name not set — calling /family/register');
+    await api('POST', '/family/register', {
+      familyName: 'Test Family',
+      city: 'Coimbatore',
+      deliveryType: 'individual',
+      area: 'Test Area',
+      flatNo: '1',
+      pincode: '641001',
+    }).catch(e => log('Register family failed (may be ok): ' + e.message, 'warn'));
+  }
+}
+
+// ── Load dropdowns ────────────────────────────────────────────────────────────
+async function loadSetupData() {
+  try {
+    const [actRes, condRes, goalRes] = await Promise.all([
+      fetch(`${BASE()}/setup/activity-levels`).then(r => r.json()).catch(() => ({})),
+      fetch(`${BASE()}/setup/health-conditions`).then(r => r.json()).catch(() => ({})),
+      fetch(`${BASE()}/wellness/goals`).then(r => r.json()).catch(() => ({})),
+    ]);
+
+    // Activity levels
+    // DB doc shape: { activityLevel: "Moderately Active", displayName: "Moderately Active", description: "..." }
+    // The basket engine looks up member.activityLevel by the activityLevel field — use that as option value.
+    const actSel = document.getElementById('m-activity');
+    const levels = actRes.activityLevels || actRes.levels || [];
+    if (levels.length) {
+      actSel.innerHTML = levels.map(l => {
+        const val   = l.activityLevel || l.code || (typeof l === 'string' ? l : '');
+        const label = l.displayName   || l.activityLevel || l.name || val;
+        const desc  = l.description   ? ` — ${l.description}` : '';
+        return `<option value="${escAttr(val)}">${escHtml(label)}${escHtml(desc)}</option>`;
+      }).join('');
+    } else {
+      actSel.innerHTML = ['Sedentary','Lightly Active','Moderately Active','Very Active','Extra Active']
+        .map(v => `<option value="${v}">${v}</option>`).join('');
+    }
+
+    // Health conditions — keep full objects, filter non-clinical
+    const rawConds = condRes.conditions || condRes.healthConditions || [];
+    conditionObjects = rawConds.filter(c => {
+      const cr = (c.clinicalReviewRequired || '').trim().toLowerCase();
+      return cr !== 'yes';
+    });
+
+    renderCondList();
+
+    // Wellness goals
+    const goals = (goalRes.goals || [])
+      .map(g => g.displayName || g.name || g)
+      .filter(Boolean).sort();
+    renderCheckList('goal-list', 'goal', goals);
+
+    updatePermCount();
+  } catch(e) {
+    toast('Failed to load setup data: ' + e.message, 'error');
+  }
+}
+
+function renderCondList() {
+  const el = document.getElementById('cond-list');
+  // "(None)" option always at top — yellow highlight
+  const noneItem = `<label class="check-item check-none">
+    <input type="checkbox" class="cond-cb" value="__none__" onchange="updatePermCount()"/>
+    <span>🚫 <strong>No Condition</strong> — test without any health condition</span>
+  </label>`;
+
+  const items = conditionObjects.map(c => {
+    const name = c.conditionName || c.displayName || c.name || '';
+    const tag  = c.clinicalReviewRequired === 'Conditional' ? ' <em style="color:#e65100;font-size:10px">(conditional)</em>' : '';
+    return `<label class="check-item">
+      <input type="checkbox" class="cond-cb" value="${escAttr(name)}" onchange="updatePermCount()"/>
+      <span>${escHtml(name)}${tag}</span>
+    </label>`;
+  });
+
+  el.innerHTML = noneItem + items.join('');
+}
+
+function renderCheckList(containerId, prefix, items) {
+  const el = document.getElementById(containerId);
+  if (!items.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px">None found</div>'; return; }
+  el.innerHTML = items.map(item =>
+    `<label class="check-item">
+      <input type="checkbox" class="${prefix}-cb" value="${escAttr(item)}" onchange="updatePermCount()"/>
+      <span>${escHtml(item)}</span>
+    </label>`
+  ).join('');
+}
+
+function selectAll(prefix, on) {
+  document.querySelectorAll(`.${prefix}-cb`).forEach(cb => cb.checked = on);
+  updatePermCount();
+}
+
+function updatePermCount() {
+  const conds = [...document.querySelectorAll('.cond-cb:checked')].map(c => c.value);
+  const goals = [...document.querySelectorAll('.goal-cb:checked')].map(c => c.value);
+  const plans = ['t20','t30','t40'].filter(p => document.getElementById('plan-'+p)?.checked);
+  const total = conds.length * goals.length * plans.length;
+  document.getElementById('permutation-count').textContent = total
+    ? `${conds.length} condition${conds.length>1?'s':''} × ${goals.length} goal${goals.length>1?'s':''} × ${plans.length} plan${plans.length>1?'s':''} = ${total} API calls`
+    : '';
+}
+
+// ── Run all ───────────────────────────────────────────────────────────────────
+async function runAll() {
+  if (running) return;
+
+  const dob    = document.getElementById('m-dob').value;
+  const sex    = document.getElementById('m-sex').value;
+  const height = document.getElementById('m-height').value;
+  const weight = document.getElementById('m-weight').value;
+  const actLvl = document.getElementById('m-activity').value;
+  const diet   = document.getElementById('m-diet').value;
+
+  if (!dob)    return toast('Enter date of birth', 'error');
+  if (!height) return toast('Enter height', 'error');
+  if (!weight) return toast('Enter weight', 'error');
+  if (!actLvl) return toast('Select activity level', 'error');
+
+  const condValues = [...document.querySelectorAll('.cond-cb:checked')].map(c => c.value);
+  const goalValues = [...document.querySelectorAll('.goal-cb:checked')].map(c => c.value);
+  const planCodes  = ['T20','T30','T40'].filter(p => document.getElementById('plan-'+p.toLowerCase())?.checked);
+
+  if (!condValues.length) return toast('Select at least one health condition (or "No Condition")', 'error');
+  if (!goalValues.length) return toast('Select at least one wellness goal', 'error');
+  if (!planCodes.length)  return toast('Select at least one plan type', 'error');
+
+  // Build permutations
+  const permutations = [];
+  for (const cv of condValues)
+    for (const gv of goalValues)
+      for (const plan of planCodes)
+        permutations.push({ condValue: cv, goalValue: gv, plan });
+
+  running = true;
+  allResults = [];
+  document.getElementById('btn-run').disabled    = true;
+  document.getElementById('btn-export').disabled = true;
+  document.getElementById('prog-wrap').style.display = 'block';
+  document.getElementById('log-panel').innerHTML = '';
+  setProgress(0, permutations.length);
+  renderResults([]);
+
+  try {
+    await ensureAuth();
+  } catch(e) {
+    running = false;
+    document.getElementById('btn-run').disabled = false;
+    setStatus('error', 'Auth failed: ' + e.message);
+    toast(e.message, 'error');
+    return;
+  }
+
+  let done = 0;
+  for (const perm of permutations) {
+    const condLabel = perm.condValue === '__none__' ? '(No Condition)' : perm.condValue;
+    setStatus('running', `${done+1}/${permutations.length} — ${condLabel} × ${perm.goalValue} × ${perm.plan}`);
+    const result = await runOne({ dob, sex, height, weight, actLvl, diet, ...perm });
+    allResults.push(result);
+    done++;
+    setProgress(done, permutations.length);
+    renderResults(allResults);
+  }
+
+  running = false;
+  document.getElementById('btn-run').disabled = false;
+  document.getElementById('btn-export').disabled = false;
+  const errCount  = allResults.filter(r => r.status === 'error').length;
+  const emptyCount = allResults.filter(r => r.status === 'empty').length;
+  const okCount   = allResults.filter(r => r.status === 'ok').length;
+  setStatus('done', `Done — ${okCount} baskets ✓ · ${emptyCount} empty · ${errCount} errors`);
+  toast(`Completed ${done} permutations`, 'success');
+}
+
+async function runOne({ dob, sex, height, weight, actLvl, diet, condValue, goalValue, plan }) {
+  // condValue is either '__none__' or the exact conditionName string from the DB
+  const condLabel = condValue === '__none__' ? '(No Condition)' : condValue;
+  const healthConditions = condValue === '__none__' ? [] : [condValue];
+
+  try {
+    const memberBody = {
+      name:             `Test_${plan}_${Date.now()}`,
+      dob,
+      gender:           sex,
+      relationship:     'Self',
+      height:           parseFloat(height),
+      weight:           parseFloat(weight),
+      activityLevel:    actLvl,
+      dietType:         diet,
+      healthConditions,
+      wellnessGoals:    [goalValue],
+      lifestyleCode:    [],
+    };
+
+    log(`Adding member: cond=[${healthConditions.join(',')||'none'}] goal=[${goalValue}] plan=${plan}`);
+    const addRes  = await api('POST', `/family/${FAMILY_ID}/members`, memberBody);
+    const memberId = addRes.member?.memberId;
+    if (!memberId) throw new Error('addMember response missing memberId');
+    log(`Member added → memberId: ${memberId}`, 'ok');
+
+    const recBody = { planType: plan, memberIds: [memberId] };
+    log(`POST /wellness/recommend ${JSON.stringify(recBody)}`);
+    const recRes  = await api('POST', '/wellness/recommend', recBody);
+
+    log(`Recommend response: memberResults=${recRes.recommendation?.memberResults?.length}, clinicalMembers=${recRes.recommendation?.clinicalMembers?.length}`, 'ok');
+
+    const memberResult = (recRes.recommendation?.memberResults || [])[0];
+    if (!memberResult) {
+      // Check if member was flagged clinical
+      const isClinical = (recRes.recommendation?.clinicalMembers || []).some(c => String(c.memberId) === String(memberId));
+      const isCovered  = (recRes.recommendation?.coveredMembers  || []).some(c => String(c.memberId) === String(memberId));
+      const reason = isClinical ? 'Member needs clinical review' : isCovered ? 'Member already covered' : 'No basket result returned';
+      log(`Empty basket: ${reason}`, 'warn');
+      return { condLabel, goalValue, plan, status: 'empty', reason, memberId, basketItems: [], totalNutrition: {}, planDisplayName: planLabel(plan) };
+    }
+    if (!memberResult.basketItems?.length) {
+      log(`Basket returned but no items`, 'warn');
+      return { condLabel, goalValue, plan, status: 'empty', reason: 'Basket engine returned 0 items', memberId, basketItems: [], totalNutrition: memberResult.totalNutrition||{}, planDisplayName: memberResult.planDisplayName||planLabel(plan) };
+    }
+
+    log(`✓ Basket: ${memberResult.basketItems.length} items, score=${memberResult.wellnessScore}`, 'ok');
+    return {
+      condLabel, goalValue, plan,
+      status:          'ok',
+      memberId,
+      planDisplayName: memberResult.planDisplayName || planLabel(plan),
+      planCoverage:    memberResult.planCoverage,
+      adjustedTDEE:    memberResult.adjustedTDEE,
+      wellnessScore:   memberResult.wellnessScore,
+      basketItems:     memberResult.basketItems    || [],
+      totalNutrition:  memberResult.totalNutrition || {},
+      targets:         memberResult.targets        || {},
+      coveragePercent: memberResult.coveragePercent|| {},
+      totalPrice:      memberResult.totalPrice     || 0,
+      goals:           memberResult.goals          || [],
+      conditions:      memberResult.conditions     || [],
+    };
+  } catch(e) {
+    log(`ERROR: ${e.message}`, 'err');
+    return { condLabel, goalValue, plan, status: 'error', error: e.message, basketItems: [], totalNutrition: {} };
+  }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderResults(rows) {
+  const area = document.getElementById('results-area');
+  if (!rows.length) {
+    area.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div><div>Running…</div></div>`;
+    return;
+  }
+
+  const planBadge = p => {
+    const cls = { T20:'badge-t20', T30:'badge-t30', T40:'badge-t40' }[p] || '';
+    return `<span class="badge ${cls}">${p}</span>`;
+  };
+  const scoreColor = s => s >= 70 ? '#2e7d32' : s >= 45 ? '#e65100' : '#c62828';
+  const scoreBg    = s => s >= 70 ? '#e8f5e9' : s >= 45 ? '#fff3e0' : '#ffebee';
+  const n2 = (v, u='g') => v != null ? `${(+v).toFixed(1)}${u}` : '—';
+
+  const rowsHtml = rows.map(r => {
+    const planCls = { T20:'plan-t20', T30:'plan-t30', T40:'plan-t40' }[r.plan] || '';
+
+    if (r.status === 'error') {
+      return `<tr>
+        <td class="${planCls}">${escHtml(r.condLabel)}</td>
+        <td>${escHtml(r.goalValue)}</td>
+        <td>${planBadge(r.plan)}</td>
+        <td colspan="11"><span class="badge badge-err">✗ ${escHtml(r.error||'')}</span></td>
+      </tr>`;
+    }
+    if (r.status === 'empty') {
+      return `<tr>
+        <td class="${planCls}">${escHtml(r.condLabel)}</td>
+        <td>${escHtml(r.goalValue)}</td>
+        <td>${planBadge(r.plan)}</td>
+        <td colspan="11" style="color:var(--text-muted);font-style:italic;font-size:11px">
+          No basket — ${escHtml(r.reason || 'No items generated')}
+        </td>
+      </tr>`;
+    }
+
+    const n = r.totalNutrition;
+    const items = r.basketItems || [];
+    const score = r.wellnessScore || 0;
+
+    const prodsHtml = items.map(it => {
+      const qty = it.servingUnit === 'egg' && it.eggCount
+        ? `${it.eggCount} egg${it.eggCount>1?'s':''}`
+        : `${it.quantityG}g`;
+      return `<div class="prod-row"><span class="prod-name">${escHtml(it.name)}</span><span class="prod-qty">${qty}</span></div>`;
+    }).join('');
+
+    return `<tr>
+      <td class="${planCls}">${escHtml(r.condLabel)}</td>
+      <td>${escHtml(r.goalValue)}</td>
+      <td>${planBadge(r.plan)}<br/><span style="font-size:10px;color:var(--text-muted)">${escHtml(r.planDisplayName||'')}</span></td>
+      <td><div class="products-list">${prodsHtml}</div></td>
+      <td class="mono">${items.length}</td>
+      <td class="mono">${n2(n.calories,'kcal')}</td>
+      <td class="mono">${n2(n.protein)}</td>
+      <td class="mono">${n2(n.carbs)}</td>
+      <td class="mono">${n2(n.fat)}</td>
+      <td class="mono">${n2(n.fibre)}</td>
+      <td class="mono">${r.adjustedTDEE ? n2(r.adjustedTDEE,'kcal') : '—'}</td>
+      <td class="mono">${r.planCoverage != null ? r.planCoverage+'%' : '—'}</td>
+      <td><span class="score-pill" style="background:${scoreBg(score)};color:${scoreColor(score)}">${score}%</span></td>
+      <td class="mono">₹${(r.totalPrice||0).toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+
+  const ok    = rows.filter(r=>r.status==='ok').length;
+  const empty = rows.filter(r=>r.status==='empty').length;
+  const err   = rows.filter(r=>r.status==='error').length;
+
+  area.innerHTML = `
+    <div class="results-header">
+      <div class="results-title">
+        Results — ${rows.length} rows &nbsp;
+        <span style="font-size:12px;font-weight:400;color:var(--green)">✓ ${ok} baskets</span>
+        ${empty ? `<span style="font-size:12px;font-weight:400;color:var(--orange)"> · ⚠ ${empty} empty</span>` : ''}
+        ${err   ? `<span style="font-size:12px;font-weight:400;color:var(--red)"> · ✗ ${err} errors</span>` : ''}
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Health Condition</th>
+            <th>Wellness Goal</th>
+            <th>Plan</th>
+            <th>Products &amp; Qty</th>
+            <th>#</th>
+            <th>Calories</th>
+            <th>Protein</th>
+            <th>Carbs</th>
+            <th>Fat</th>
+            <th>Fibre</th>
+            <th>TDEE</th>
+            <th>Coverage</th>
+            <th>Score</th>
+            <th>Price/del</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+// ── Excel export ──────────────────────────────────────────────────────────────
+function exportExcel() {
+  if (!allResults.length) return toast('No results to export', 'error');
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1 — Summary
+  const s1 = [['Health Condition','Wellness Goal','Plan Code','Plan Name','Status','Reason/Error',
+    '#Items','Calories(kcal)','Protein(g)','Carbs(g)','Fat(g)','Fibre(g)',
+    'TDEE(kcal)','Coverage%','WellnessScore%','Price/del(₹)','Products']];
+  for (const r of allResults) {
+    const n = r.totalNutrition || {};
+    const prodsStr = (r.basketItems||[]).map(it => {
+      const qty = it.servingUnit==='egg'&&it.eggCount ? `${it.eggCount} eggs` : `${it.quantityG}g`;
+      return `${it.name} | ${qty}`;
+    }).join('; ');
+    s1.push([
+      r.condLabel, r.goalValue, r.plan, r.planDisplayName||'', r.status, r.reason||r.error||'',
+      (r.basketItems||[]).length,
+      +(n.calories||0).toFixed(1), +(n.protein||0).toFixed(1),
+      +(n.carbs||0).toFixed(1), +(n.fat||0).toFixed(1), +(n.fibre||0).toFixed(1),
+      r.adjustedTDEE ? +r.adjustedTDEE.toFixed(1) : '',
+      r.planCoverage||'', r.wellnessScore||0, r.totalPrice ? +r.totalPrice.toFixed(2) : 0,
+      prodsStr,
+    ]);
+  }
+  const ws1 = XLSX.utils.aoa_to_sheet(s1);
+  ws1['!cols'] = [22,22,8,14,8,24,6,14,10,10,10,10,12,10,14,14,60].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws1, 'Summary');
+
+  // Sheet 2 — Per-product detail
+  const s2 = [['Health Condition','Wellness Goal','Plan','Product','Category',
+    'Qty(g)','ServingUnit','Eggs',
+    'Calories','Protein','Carbs','Fat','Fibre',
+    'Iron(mg)','Calcium(mg)','VitC(mg)','VitA(µg)','Potassium(mg)',
+    'Magnesium(mg)','Zinc(mg)','Iodine(µg)','Selenium(µg)',
+    'WellnessScore','EstCost(₹)','Tags','Reason']];
+  for (const r of allResults) {
+    if (r.status !== 'ok') continue;
+    for (const it of (r.basketItems||[])) {
+      const n = it.nutrients || {};
+      s2.push([
+        r.condLabel, r.goalValue, r.plan,
+        it.name, it.category||'',
+        it.quantityG, it.servingUnit||'g', it.eggCount||'',
+        +(n.calories||0).toFixed(2), +(n.protein||0).toFixed(2),
+        +(n.carbs||0).toFixed(2), +(n.fat||0).toFixed(2), +(n.fibre||0).toFixed(2),
+        +(n.iron||0).toFixed(2), +(n.calcium||0).toFixed(2),
+        +(n.vitaminC||0).toFixed(2), +(n.vitaminA||0).toFixed(2),
+        +(n.potassium||0).toFixed(2), +(n.magnesium||0).toFixed(2),
+        +(n.zinc||0).toFixed(2), +(n.iodine||0).toFixed(2), +(n.selenium||0).toFixed(2),
+        it.wellnessScore||0, +(it.estimatedCost||0).toFixed(2),
+        (it.curationTags||[]).join(', '), it.reason||'',
+      ]);
+    }
+  }
+  const ws2 = XLSX.utils.aoa_to_sheet(s2);
+  ws2['!cols'] = [22,22,8,24,14,8,10,6,10,10,10,10,10,10,10,10,10,12,12,10,10,10,12,12,20,20].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb, ws2, 'Product Detail');
+
+  const ts = new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
+  XLSX.writeFile(wb, `basket_curation_${ts}.xlsx`);
+  toast('Excel exported!', 'success');
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function setStatus(type, msg) {
+  document.getElementById('status-dot').className  = 'status-dot dot-' + type;
+  document.getElementById('status-text').textContent = msg;
+}
+function setProgress(done, total) {
+  document.getElementById('prog-bar').style.width = total ? `${(done/total*100).toFixed(1)}%` : '0%';
+  document.getElementById('status-count').textContent = total ? `${done} / ${total}` : '';
+}
+function planLabel(p) {
+  return { T20:'LIV Care', T30:'LIV Balance', T40:'LIV Premium' }[p] || p;
+}
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escAttr(s) { return escHtml(s); }
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadSetupData();
+</script>
+</body>
+</html>

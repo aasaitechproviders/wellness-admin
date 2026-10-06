@@ -28,6 +28,21 @@
 const content = renderShell({ active:'products', title:'Products', sub:'Nutrition master data — full produce catalogue with nutrient profiles', actions:`<button class="btn btn-ghost" onclick="recalcAll()" id="recalcBtn">⟳ Recalculate All Scores</button> <button class="btn btn-primary" onclick="openModal()">+ Add Product</button>` });
 
 let allProducts=[], filtered=[], page=1, perPage=25, editId=null, curationTagsList=[], CATEGORIES=[];
+let DIET_TYPES = [
+  { id: 'Veg',        label: 'Vegetarian',     emoji: '🌿' },
+  { id: 'Eggetarian', label: 'Eggetarian',     emoji: '🥚' },
+  { id: 'Non-Veg',    label: 'Non-Vegetarian', emoji: '🍗' },
+];
+
+async function loadDietTypes() {
+  try {
+    const d = await adminApi.getDietTypes();
+    if ((d.items||d.dietTypes||[]).length) DIET_TYPES = d.items || d.dietTypes;
+  } catch { /* use defaults */ }
+  // Populate dietType select in form
+  const sel = document.getElementById('fDietType');
+  if (sel) sel.innerHTML = DIET_TYPES.map(dt=>`<option value="${dt.id}">${dt.emoji} ${dt.label}</option>`).join('');
+}
 
 async function loadCategories() {
   try {
@@ -111,7 +126,7 @@ content.innerHTML=`
         <div class="form-grid">
           <div class="field"><label>Is Active</label><select id="fIsActive"><option value="true">Yes</option><option value="false">No</option></select></div>
           <div class="field"><label>Availability <span style="color:#C62828">*</span> <span style="font-weight:400;font-size:11px;color:var(--ink-faint)">(must be true for basket)</span></label><select id="fAvailability"><option value="false">No — Not Available</option><option value="true">Yes — Available</option></select></div>
-          <div class="field"><label>Is Non-Veg</label><select id="fIsNonVeg"><option value="false">No</option><option value="true">Yes</option></select></div>
+          <div class="field"><label>Diet Type <span style="color:#C62828">*</span></label><select id="fDietType"><option value="Veg">🌿 Vegetarian</option><option value="Eggetarian">🥚 Eggetarian</option><option value="Non-Veg">🍗 Non-Vegetarian</option></select></div>
           <div class="field"><label>Hard Exclusion</label><select id="fHardExclusion"><option value="false">No</option><option value="true">Yes</option></select></div>
           <div class="field"><label>Microgreen Compatible</label><select id="fMicro"><option value="true">Yes</option><option value="false">No</option></select></div>
         </div>
@@ -377,7 +392,11 @@ function render() {
   document.getElementById('tbody').innerHTML = slice.map((p, i) => `
     <tr>
       <td class="mono">${escapeHtml(p.productId||'')}</td>
-      <td><b>${escapeHtml(p.name||'')}</b>${p.isNonVeg?'<span style="color:#C62828;font-size:10px;margin-left:4px">🥩NV</span>':''}</td>
+      <td><b>${escapeHtml(p.name||'')}</b>${
+        p.dietType==='Non-Veg'    ? '<span style="color:#C62828;font-size:10px;margin-left:4px">🍗 NV</span>'  :
+        p.dietType==='Eggetarian' ? '<span style="color:#7B5E2A;font-size:10px;margin-left:4px">🥚 EGG</span>' :
+        (!p.dietType && p.isNonVeg) ? '<span style="color:#C62828;font-size:10px;margin-left:4px">🍗 NV</span>' : ''
+      }</td>
       <td>${escapeHtml(p.category||'')}</td>
       <td class="num">${p.nutrition?.calories??'–'}</td>
       <td class="num">${p.nutrition?.protein??'–'}</td>
@@ -431,7 +450,7 @@ function openModal(p) {
   sv('fTaste',            p?.tasteProfile      || '');
   sv('fIsActive',         p?.isActive === false ? 'false' : 'true');
   sv('fAvailability',     p?.availability === true ? 'true' : 'false');
-  sv('fIsNonVeg',         p?.isNonVeg  === true  ? 'true'  : 'false');
+  sv('fDietType', p?.dietType || (p?.isNonVeg === true ? 'Non-Veg' : 'Veg'));
   sv('fHardExclusion',    p?.hardExclusion === true ? 'true' : 'false');
   sv('fMicro',            p?.microgreenCompatible === false ? 'false' : 'true');
   sv('fKid',              p?.kidFriendly      || su.kidFriendly      || 'Yes');
@@ -520,7 +539,8 @@ async function save() {
     curationTags:         [...curationTagsList],
     isActive:             gb('fIsActive'),
     availability:         gb('fAvailability'),
-    isNonVeg:             gb('fIsNonVeg'),
+    dietType:             g('fDietType') || 'Veg',
+    isNonVeg:             g('fDietType') === 'Non-Veg', // keep legacy flag in sync
     hardExclusion:        gb('fHardExclusion'),
     microgreenCompatible: gb('fMicro'),
     kidFriendly:          g('fKid'),
@@ -621,7 +641,7 @@ async function recalcAll() {
   }
 }
 
-loadCategories().then(() => load());
+Promise.all([loadCategories(), loadDietTypes()]).then(() => load());
 </script>
 </body>
 </html>

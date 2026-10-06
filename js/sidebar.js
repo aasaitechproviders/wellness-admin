@@ -10,6 +10,7 @@ const NAV_SECTIONS = [
       { key: 'customers',         href: 'customers.html',         label: 'Customers',          icon: 'M16 19v-1a4 4 0 00-4-4H6a4 4 0 00-4 4v1 M9 11a3 3 0 100-6 3 3 0 000 6z M22 19v-1a3.5 3.5 0 00-3-3.5 M16 4.2a3 3 0 010 5.6' },
       { key: 'coupons',           href: 'coupons.html',           label: 'Coupons',            icon: 'M3 7a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 000 4v3a2 2 0 01-2 2H5a2 2 0 01-2-2v-3a2 2 0 000-4z M9 7v10' },
       { key: 'cities',            href: 'cities.html',            label: 'Cities',             icon: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z' },
+      { key: 'delivery-requests', href: 'delivery-requests.html', label: 'Delivery Requests',  icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
       { key: 'apartments',        href: 'apartments.html',        label: 'Apartments',         icon: 'M3 21h18 M5 21V7l7-4 7 4v14 M9 21v-6h6v6' },
       { key: 'wellness-partners', href: 'wellness-partners.html', label: 'Wellness Partners',  icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75 M9 11a4 4 0 100-8 4 4 0 000 8z' },
       { key: 'approvals',          href: 'approvals.html',          label: 'Approvals',           icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },

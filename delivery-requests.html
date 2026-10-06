@@ -1,0 +1,87 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Delivery Requests · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/admin.css"/></head><body>
+<script src="js/api.js"></script><script>Auth.guardMenu('delivery-requests');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'delivery-requests',
+  title: 'Delivery Requests',
+  sub: 'Customers who requested delivery to non-serviceable pincodes — review and add pincodes once ready to serve',
+  actions: ``
+});
+
+let items = [], showResolved = false;
+
+content.innerHTML = `
+<div class="panel">
+  <div class="toolbar">
+    <input type="search" id="srch" placeholder="Search by name, pincode, area…" oninput="render()"/>
+    <div class="spacer"></div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--text-muted);cursor:pointer">
+      <input type="checkbox" id="showResolved" onchange="toggleResolved()" style="width:16px;height:16px;cursor:pointer"/>
+      Show resolved
+    </label>
+    <span id="cnt" class="muted" style="font-size:12px"></span>
+  </div>
+  <div class="table-wrap"><table class="data">
+    <thead><tr>
+      <th>Customer</th><th>Phone</th><th>Pincode</th><th>Area</th><th>City</th><th>Requested On</th><th>Status</th><th></th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table></div>
+</div>`;
+
+function toggleResolved() {
+  showResolved = document.getElementById('showResolved').checked;
+  render();
+}
+
+async function load() {
+  document.getElementById('tbody').innerHTML = '<tr><td colspan="8" class="loading-row"><span class="spinner"></span></td></tr>';
+  try {
+    const d = await adminApi.getDeliveryRequests();
+    items = d.requests || d.items || [];
+    render();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+function render() {
+  const q = (document.getElementById('srch').value || '').toLowerCase();
+  let f = items.filter(i => showResolved ? true : i.status !== 'resolved');
+  if (q) f = f.filter(i => JSON.stringify(i).toLowerCase().includes(q));
+
+  const pending  = items.filter(i => i.status !== 'resolved').length;
+  document.getElementById('cnt').textContent = `${pending} pending`;
+
+  document.getElementById('tbody').innerHTML = f.map(i => {
+    const isPending = i.status !== 'resolved';
+    const date = i.createdAt ? new Date(i.createdAt).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '–';
+    return `<tr>
+      <td><b>${escapeHtml(i.name || '–')}</b><br/><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(i.familyId||'')}</span></td>
+      <td style="font-family:var(--mono);font-size:13px">${escapeHtml(i.phone || '–')}</td>
+      <td><span style="font-family:var(--mono);font-weight:700;font-size:14px">${escapeHtml(i.pincode || '–')}</span></td>
+      <td>${escapeHtml(i.area || '–')}</td>
+      <td>${escapeHtml(i.city || '–')}</td>
+      <td style="font-size:12px;color:var(--text-muted)">${date}</td>
+      <td><span class="pill ${isPending ? 'pill-warn' : 'pill-inactive'}">${isPending ? '⏳ Pending' : '✓ Resolved'}</span></td>
+      <td>
+        ${isPending ? `<button class="btn btn-primary btn-sm" onclick="resolve('${i._id}')">Mark Resolved</button>` : `<span style="font-size:11px;color:var(--text-muted)">${i.resolvedAt ? new Date(i.resolvedAt).toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) : ''}</span>`}
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="8" class="empty">${showResolved ? 'No delivery requests found.' : 'No pending delivery requests 🎉'}</td></tr>`;
+}
+
+async function resolve(id) {
+  if (!confirm('Mark this request as resolved? Do this after you have added the pincode to serviceable areas.')) return;
+  try {
+    await adminApi.resolveDeliveryRequest(id);
+    showToast('Marked as resolved', 'success');
+    load();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+load();
+</script></body></html>

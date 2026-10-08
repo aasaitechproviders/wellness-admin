@@ -183,6 +183,13 @@
     </div>
 
     <div class="card">
+      <div class="card-title">🚚 Delivery Frequency</div>
+      <label>Subscription Plan</label>
+      <select id="m-subplan"><option value="">Loading…</option></select>
+      <p style="font-size:11px;color:var(--text-muted);margin-top:6px" id="subplan-hint">Determines how many days each basket covers</p>
+    </div>
+
+    <div class="card">
       <div class="card-title">📦 Plan Types</div>
       <div style="display:flex;flex-direction:column;gap:6px;">
         <label class="check-item" style="cursor:pointer">
@@ -315,10 +322,11 @@ async function ensureAuth() {
 // ── Load dropdowns ────────────────────────────────────────────────────────────
 async function loadSetupData() {
   try {
-    const [actRes, condRes, goalRes] = await Promise.all([
+    const [actRes, condRes, goalRes, subRes] = await Promise.all([
       fetch(`${BASE()}/setup/activity-levels`).then(r => r.json()).catch(() => ({})),
       fetch(`${BASE()}/setup/health-conditions`).then(r => r.json()).catch(() => ({})),
       fetch(`${BASE()}/wellness/goals`).then(r => r.json()).catch(() => ({})),
+      fetch(`${BASE()}/setup/subscription-durations`).then(r => r.json()).catch(() => ({})),
     ]);
 
     // Activity levels
@@ -352,6 +360,32 @@ async function loadSetupData() {
       .map(g => g.displayName || g.name || g)
       .filter(Boolean).sort();
     renderCheckList('goal-list', 'goal', goals);
+
+    // Subscription plans (delivery frequency)
+    const subPlans = subRes.durations || subRes.subscriptionDurations || subRes.plans || [];
+    const subSel = document.getElementById('m-subplan');
+    if (subPlans.length) {
+      subSel.innerHTML = subPlans.map(p => {
+        const id    = p._id || p.planId || p.id || '';
+        const label = p.displayName || p.name || p.planName || '';
+        const days  = p.durationDays || p.deliveryFrequency || p.days || '';
+        const hint  = days ? ` (${days} days/delivery)` : '';
+        return `<option value="${escAttr(String(id))}" data-days="${days}">${escHtml(label)}${hint}</option>`;
+      }).join('');
+      // Update hint on change
+      subSel.onchange = updateSubHint;
+      updateSubHint();
+    } else {
+      // Fallback options when API returns nothing
+      subSel.innerHTML = `
+        <option value="" data-days="7">Weekly (7 days)</option>
+        <option value="" data-days="3">Tri-weekly (3 days)</option>
+        <option value="" data-days="2">Bi-weekly (2 days)</option>
+        <option value="" data-days="1">Daily (1 day)</option>
+      `;
+      subSel.onchange = updateSubHint;
+      updateSubHint();
+    }
 
     updatePermCount();
   } catch(e) {
@@ -388,6 +422,16 @@ function renderCheckList(containerId, prefix, items) {
       <span>${escHtml(item)}</span>
     </label>`
   ).join('');
+}
+
+function updateSubHint() {
+  const sel = document.getElementById('m-subplan');
+  const opt = sel.selectedOptions[0];
+  const days = opt?.dataset?.days || '';
+  const hint = document.getElementById('subplan-hint');
+  if (hint) hint.textContent = days
+    ? `Each basket covers ${days} day${days>1?'s':''} of nutrition`
+    : 'Determines how many days each basket covers';
 }
 
 function selectAll(prefix, on) {
@@ -502,42 +546,53 @@ async function runOne({ dob, sex, height, weight, actLvl, diet, condValue, goalV
     if (!memberId) throw new Error('addMember response missing memberId');
     log(`Member added → memberId: ${memberId}`, 'ok');
 
-    const recBody = { planType: plan, memberIds: [memberId] };
+    // Pass subscriptionPlanId so engine uses correct deliveryFreqDays
+    const subSel   = document.getElementById('m-subplan');
+    const subPlanId = subSel?.value || '';
+    const recBody = { planType: plan, memberIds: [memberId], ...(subPlanId && { subscriptionPlanId: subPlanId }) };
     log(`POST /wellness/recommend ${JSON.stringify(recBody)}`);
     const recRes  = await api('POST', '/wellness/recommend', recBody);
 
     log(`Recommend response: memberResults=${recRes.recommendation?.memberResults?.length}, clinicalMembers=${recRes.recommendation?.clinicalMembers?.length}`, 'ok');
 
-    const memberResult = (recRes.recommendation?.memberResults || [])[0];
-    if (!memberResult) {
-      // Check if member was flagged clinical
+    // API shape: recommendation.memberResults[i] = { memberId, baskets: [{ basketItems, ... }], ... }
+    // The basket data lives inside baskets[0], not on the memberResult directly
+    const memberResultRaw = (recRes.recommendation?.memberResults || [])[0];
+    if (!memberResultRaw) {
       const isClinical = (recRes.recommendation?.clinicalMembers || []).some(c => String(c.memberId) === String(memberId));
       const isCovered  = (recRes.recommendation?.coveredMembers  || []).some(c => String(c.memberId) === String(memberId));
       const reason = isClinical ? 'Member needs clinical review' : isCovered ? 'Member already covered' : 'No basket result returned';
       log(`Empty basket: ${reason}`, 'warn');
       return { condLabel, goalValue, plan, status: 'empty', reason, memberId, basketItems: [], totalNutrition: {}, planDisplayName: planLabel(plan) };
     }
-    if (!memberResult.basketItems?.length) {
-      log(`Basket returned but no items`, 'warn');
-      return { condLabel, goalValue, plan, status: 'empty', reason: 'Basket engine returned 0 items', memberId, basketItems: [], totalNutrition: memberResult.totalNutrition||{}, planDisplayName: memberResult.planDisplayName||planLabel(plan) };
+
+    // Basket data is in baskets[0] (uiBasket shape from the API)
+    const basket = memberResultRaw.baskets?.[0];
+    if (!basket) {
+      log(`memberResult present but no baskets array`, 'warn');
+      return { condLabel, goalValue, plan, status: 'empty', reason: 'No basket in response', memberId, basketItems: [], totalNutrition: {}, planDisplayName: planLabel(plan) };
+    }
+    if (!basket.basketItems?.length) {
+      log(`Basket returned but 0 items`, 'warn');
+      return { condLabel, goalValue, plan, status: 'empty', reason: 'Basket engine returned 0 items', memberId, basketItems: [], totalNutrition: basket.totalNutrition||{}, planDisplayName: basket.planDisplayName||planLabel(plan) };
     }
 
-    log(`✓ Basket: ${memberResult.basketItems.length} items, score=${memberResult.wellnessScore}`, 'ok');
+    log(`✓ Basket: ${basket.basketItems.length} items, score=${basket.wellnessScore}`, 'ok');
     return {
       condLabel, goalValue, plan,
       status:          'ok',
       memberId,
-      planDisplayName: memberResult.planDisplayName || planLabel(plan),
-      planCoverage:    memberResult.planCoverage,
-      adjustedTDEE:    memberResult.adjustedTDEE,
-      wellnessScore:   memberResult.wellnessScore,
-      basketItems:     memberResult.basketItems    || [],
-      totalNutrition:  memberResult.totalNutrition || {},
-      targets:         memberResult.targets        || {},
-      coveragePercent: memberResult.coveragePercent|| {},
-      totalPrice:      memberResult.totalPrice     || 0,
-      goals:           memberResult.goals          || [],
-      conditions:      memberResult.conditions     || [],
+      planDisplayName: basket.planDisplayName || planLabel(plan),
+      planCoverage:    basket.planCoverage,
+      adjustedTDEE:    basket.adjustedTDEE,
+      wellnessScore:   basket.wellnessScore,
+      basketItems:     basket.basketItems    || [],
+      totalNutrition:  basket.totalNutrition || {},
+      targets:         basket.targets        || {},
+      coveragePercent: basket.coveragePercent|| {},
+      totalPrice:      basket.price          || 0,
+      goals:           basket.goals          || [],
+      conditions:      basket.conditions     || [],
     };
   } catch(e) {
     log(`ERROR: ${e.message}`, 'err');

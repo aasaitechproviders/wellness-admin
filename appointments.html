@@ -365,15 +365,15 @@ async function viewDetail(id) {
 
       ${viewApt.basketCuratedAt && (viewApt.curatedBaskets || []).length ? (() => {
         const basket = viewApt.curatedBaskets[0];
-        const items = basket.items || basket.products || [];
-        const totalPrice = items.reduce((s, i) => s + (i.totalPrice || i.price || 0), 0);
+        const items = basket.items || basket.basketItems || basket.products || [];
+        const totalPrice = items.reduce((s, i) => s + (i.totalPrice || i.estimatedCost || i.price || 0), 0);
         const rows = items.map(i => `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
             <div>
               <div style="font-size:13px;font-weight:600">${escapeHtml(i.name||'')}</div>
-              <div style="font-size:11px;color:var(--ink-faint)">${i.quantity ? i.quantity+'g' : ''} ${i.calories ? '· '+Math.round(i.calories)+' kcal' : ''} ${i.protein ? '· P:'+Math.round(i.protein)+'g' : ''}</div>
+              <div style="font-size:11px;color:var(--ink-faint)">${(i.quantityG||i.quantity) ? (i.quantityG||i.quantity)+'g' : ''} ${(i.nutrients?.calories||i.calories) ? '· '+Math.round(i.nutrients?.calories||i.calories)+' kcal' : ''} ${(i.nutrients?.protein||i.protein) ? '· P:'+Math.round(i.nutrients?.protein||i.protein)+'g' : ''}</div>
             </div>
-            <div style="font-size:13px;font-weight:600;color:var(--green)">₹${(i.totalPrice||i.price||0).toFixed(2)}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--green)">₹${(i.totalPrice||i.estimatedCost||i.price||0).toFixed(2)}</div>
           </div>`).join('');
         return `<div class="detail-panel" style="border-left:4px solid var(--green)">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -381,10 +381,10 @@ async function viewDetail(id) {
             <div style="font-size:11px;color:var(--ink-faint)">Generated ${fmtDate(viewApt.basketCuratedAt)}</div>
           </div>
           <div style="margin-bottom:10px;display:flex;gap:16px;flex-wrap:wrap">
-            ${basket.totalCalories ? `<span style="font-size:12px;background:#E8F5E9;color:#2D6A35;padding:3px 8px;border-radius:20px">🔥 ${Math.round(basket.totalCalories)} kcal</span>` : ''}
-            ${basket.totalProtein  ? `<span style="font-size:12px;background:#E3F2FD;color:#1565C0;padding:3px 8px;border-radius:20px">💪 P ${Math.round(basket.totalProtein)}g</span>` : ''}
-            ${basket.totalCarbs    ? `<span style="font-size:12px;background:#FFF8E1;color:#F57F17;padding:3px 8px;border-radius:20px">🌾 C ${Math.round(basket.totalCarbs)}g</span>` : ''}
-            ${basket.totalFat      ? `<span style="font-size:12px;background:#FCE4EC;color:#880E4F;padding:3px 8px;border-radius:20px">🫒 F ${Math.round(basket.totalFat)}g</span>` : ''}
+            ${(basket.totalCalories||basket.targets?.calories) ? `<span style="font-size:12px;background:#E8F5E9;color:#2D6A35;padding:3px 8px;border-radius:20px">🔥 ${Math.round(basket.totalCalories||basket.targets?.calories)} kcal</span>` : ''}
+            ${(basket.totalProtein||basket.targets?.protein)   ? `<span style="font-size:12px;background:#E3F2FD;color:#1565C0;padding:3px 8px;border-radius:20px">💪 P ${Math.round(basket.totalProtein||basket.targets?.protein)}g</span>` : ''}
+            ${(basket.totalCarbs||basket.targets?.carbs)       ? `<span style="font-size:12px;background:#FFF8E1;color:#F57F17;padding:3px 8px;border-radius:20px">🌾 C ${Math.round(basket.totalCarbs||basket.targets?.carbs)}g</span>` : ''}
+            ${(basket.totalFat||basket.targets?.fat)           ? `<span style="font-size:12px;background:#FCE4EC;color:#880E4F;padding:3px 8px;border-radius:20px">🫒 F ${Math.round(basket.totalFat||basket.targets?.fat)}g</span>` : ''}
           </div>
           <div>${rows || '<div style="color:var(--ink-faint);font-size:13px">No items</div>'}</div>
           ${totalPrice ? `<div style="text-align:right;font-size:14px;font-weight:700;margin-top:10px;color:var(--green)">Total ₹${totalPrice.toFixed(2)}</div>` : ''}

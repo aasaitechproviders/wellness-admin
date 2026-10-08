@@ -144,7 +144,9 @@ async function viewDetail(id) {
     if (d.status === 'rejected') throw d.reason;
     viewApt = d.value.appointment;
     const fam = d.value.family;
-    const sub = d.value.subscription; // active subscription — has livPlanCode, durationDays, subscriptionDurationMonths
+    // sub = active subscription (post-payment) OR null; prefSubPlan = plan they picked during setup (pre-payment)
+    const sub        = d.value.subscription;
+    const prefSubPlan = d.value.preferredSubPlan;
     const est = estResult.status === 'fulfilled' ? estResult.value : null;
     const member = fam?.members?.find(m => m.memberId === viewApt.memberId) || {};
 
@@ -172,23 +174,35 @@ async function viewDetail(id) {
       actionHtml = `<button class="call-btn call-btn-ring" onclick="startCall()">📞 Call ${escapeHtml(viewApt.memberName||'Customer')}</button>`;
     }
 
-    // Build subscription/plan panel — data comes from active subscription doc
+    // Build subscription/plan panel
+    // Priority: active sub (post-payment) → preferredSubPlan (pre-payment setup) → member fields
     const planTypeMap = { T20: 'T20 — 30% coverage', T30: 'T30 — 40% coverage', T40: 'T40 — 50% coverage' };
-    // livPlanCode on subscription = care/balanced/premium tier; member.preferredPlan = T20/T30/T40 basket type
-    const livPlanCode = sub?.livPlanCode || '';
-    const freqDays    = sub?.durationDays || '';
-    const prefPlan    = member.preferredPlan || '';
-    const durMonths   = sub?.subscriptionDurationMonths || '';
-    const planName    = sub?.planName || sub?.frequencyLabel || '';
 
-    // Frequency label
+    // livPlanCode (care/balanced/premium) only exists on paid subscription doc
+    const livPlanCode = sub?.livPlanCode || '–';
+
+    // Frequency: from paid sub → from preferredSubPlan (setup selection) → fallback
+    const freqDays  = sub?.durationDays || prefSubPlan?.durationDays || '';
     const freqLabel = freqDays
-      ? ({ '1':'Daily','2':'Every 2 Days','3':'Every 3 Days','7':'Weekly','14':'Fortnightly' }[String(freqDays)] || `Every ${freqDays} days`)
+      ? ({ '1':'Daily','2':'Every 2 Days','3':'Every 3 Days','7':'Weekly','14':'Fortnightly' }[String(freqDays)]
+          || `Every ${freqDays} days`)
       : '–';
+    const planName  = sub?.planName || sub?.frequencyLabel || prefSubPlan?.planName || prefSubPlan?.frequencyLabel || '';
+
+    // Basket type T20/T30/T40 — always on member.preferredPlan (set during setup step 4)
+    const prefPlan  = member.preferredPlan || '';
+
+    // Duration: only on paid subscription
+    const durMonths = sub?.subscriptionDurationMonths || '';
+
+    // Status note — tell nutritionist if this is pre/post payment
+    const subStatusNote = sub
+      ? `<span style="font-size:10px;background:#E8F5E9;color:#2D6A35;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px">✅ Active subscription</span>`
+      : `<span style="font-size:10px;background:#FFF8E1;color:#F57F17;padding:2px 8px;border-radius:10px;font-weight:700;margin-left:8px">⏳ Setup complete — pending payment</span>`;
 
     const subscriptionPanelHtml = `
       <div class="detail-panel" style="border-left:4px solid #7B5EA7">
-        <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#5E35B1">📦 Subscription & Delivery Details</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#5E35B1;display:flex;align-items:center;flex-wrap:wrap;gap:4px">📦 Subscription & Delivery Details ${subStatusNote}</div>
         <div class="detail-grid">
           <div>
             <div class="detail-label">Plan Tier (LIV Plan)</div>

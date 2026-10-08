@@ -137,9 +137,14 @@ async function viewDetail(id) {
   document.getElementById('detailView').innerHTML = '<div style="text-align:center;padding:40px"><span class="spinner"></span></div>';
 
   try {
-    const d = await req('GET', `/admin/appointments/${id}`);
-    viewApt = d.appointment;
-    const fam = d.family;
+    const [d, estResult] = await Promise.allSettled([
+      req('GET', `/admin/appointments/${id}`),
+      req('GET', `/admin/appointments/${id}/estimate`),
+    ]);
+    if (d.status === 'rejected') throw d.reason;
+    viewApt = d.value.appointment;
+    const fam = d.value.family;
+    const est = estResult.status === 'fulfilled' ? estResult.value : null;
     const member = fam?.members?.find(m => m.memberId === viewApt.memberId) || {};
 
     const statusClass = `apt-${viewApt.status}`;
@@ -166,18 +171,115 @@ async function viewDetail(id) {
       actionHtml = `<button class="call-btn call-btn-ring" onclick="startCall()">📞 Call ${escapeHtml(viewApt.memberName||'Customer')}</button>`;
     }
 
+    // Build subscription/plan panel
+    const planLabelMap = { care: '🌱 Care', balanced: '⚖️ Balanced', premium: '⭐ Premium' };
+    const freqLabelMap = { '1': 'Daily', '2': 'Every 2 Days', '7': 'Weekly', '14': 'Fortnightly' };
+    const planTypeMap = { T20: 'T20 — 30% coverage', T30: 'T30 — 40% coverage', T40: 'T40 — 50% coverage' };
+    const subPlan = member.subscriptionPlan || fam?.subscriptionPlan || '';
+    const freqDays = member.deliveryFreqDays || fam?.deliveryFreqDays || member.deliveryFrequency || '';
+    const prefPlan = member.preferredPlan || '';
+    const duration = member.subscriptionDuration || fam?.subscriptionDuration || '';
+
+    const subscriptionPanelHtml = `
+      <div class="detail-panel" style="border-left:4px solid #7B5EA7">
+        <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#5E35B1">📦 Subscription & Delivery Details</div>
+        <div class="detail-grid">
+          <div>
+            <div class="detail-label">Plan Tier</div>
+            <div class="detail-value">${planLabelMap[subPlan] || escapeHtml(subPlan) || '–'}</div>
+          </div>
+          <div>
+            <div class="detail-label">Basket Type</div>
+            <div class="detail-value">${planTypeMap[prefPlan] || escapeHtml(prefPlan) || '–'}</div>
+          </div>
+          <div>
+            <div class="detail-label">Delivery Frequency</div>
+            <div class="detail-value">${freqLabelMap[String(freqDays)] || (freqDays ? 'Every '+freqDays+' day(s)' : '–')}</div>
+          </div>
+          <div>
+            <div class="detail-label">Subscription Duration</div>
+            <div class="detail-value">${duration ? duration+' months' : '–'}</div>
+          </div>
+          <div>
+            <div class="detail-label">Member Wellness Goals</div>
+            <div class="detail-value" style="margin-top:2px">${(member.wellnessGoals||[]).map(g=>`<span class="chip chip-goal">${escapeHtml(g)}</span>`).join('')||'–'}</div>
+          </div>
+          <div>
+            <div class="detail-label">Cuisine Preference</div>
+            <div class="detail-value">${escapeHtml(member.cuisinePreference||member.regionPreference||'–')}</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px 12px;background:#EDE7F6;border-radius:8px;font-size:12px;color:#4527A0">
+          <strong>ℹ️ How the basket engine uses this:</strong><br/>
+          Basket Type (T20/T30/T40) sets the weekly coverage %, Delivery Frequency decides how many boxes per basket, and Plan Tier drives the product eligibility pool. The engine auto-calculates TDEE from the member profile above.
+        </div>
+      </div>`;
+
     let nutritionFormHtml = '';
     if (viewApt.status === 'assigned' || viewApt.status === 'completed') {
       const readonly = viewApt.status === 'completed' ? 'disabled' : '';
+      // Engine estimate panel — shown when estimate loaded successfully
+      const estimate = est?.estimate;
+      const breakdown = est?.breakdown;
+      let estimatePanelHtml = '';
+      if (estimate) {
+        const condRows = (breakdown?.conditionModifiers || []).map(c =>
+          `<span style="font-size:11px;background:${c.type==='deficit'?'#FCE4EC':'#E8F5E9'};color:${c.type==='deficit'?'#880E4F':'#1B5E20'};padding:2px 7px;border-radius:10px;margin:2px 3px 0 0;display:inline-block">${escapeHtml(c.condition)}: ${c.type === 'deficit' ? '−' : '+'}${c.kcal} kcal</span>`
+        ).join('');
+        estimatePanelHtml = `
+          <div style="grid-column:1/-1;background:linear-gradient(135deg,#E8F5E9,#F1F8E9);border:1.5px solid #81C784;border-radius:10px;padding:14px;margin-bottom:2px">
+            <div style="font-size:12px;font-weight:700;color:#1B5E20;margin-bottom:8px">🤖 Engine Auto-Calculation (what will be used if you leave fields blank)</div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+              <div style="background:#fff;border:1px solid #A5D6A7;border-radius:8px;padding:8px 12px;text-align:center;min-width:80px">
+                <div style="font-size:18px;font-weight:700;color:#2D6A35">${estimate.kcalPerDay}</div>
+                <div style="font-size:10px;color:#558B2F;font-weight:600">KCAL/DAY</div>
+              </div>
+              <div style="background:#fff;border:1px solid #90CAF9;border-radius:8px;padding:8px 12px;text-align:center;min-width:70px">
+                <div style="font-size:18px;font-weight:700;color:#1565C0">${estimate.proteinG}g</div>
+                <div style="font-size:10px;color:#1976D2;font-weight:600">PROTEIN</div>
+              </div>
+              <div style="background:#fff;border:1px solid #FFE082;border-radius:8px;padding:8px 12px;text-align:center;min-width:70px">
+                <div style="font-size:18px;font-weight:700;color:#F57F17">${estimate.carbsG}g</div>
+                <div style="font-size:10px;color:#FF8F00;font-weight:600">CARBS</div>
+              </div>
+              <div style="background:#fff;border:1px solid #F48FB1;border-radius:8px;padding:8px 12px;text-align:center;min-width:70px">
+                <div style="font-size:18px;font-weight:700;color:#880E4F">${estimate.fatG}g</div>
+                <div style="font-size:10px;color:#AD1457;font-weight:600">FAT</div>
+              </div>
+              <div style="background:#fff;border:1px solid #CE93D8;border-radius:8px;padding:8px 12px;text-align:center;min-width:70px">
+                <div style="font-size:18px;font-weight:700;color:#6A1B9A">${estimate.fibreG}g</div>
+                <div style="font-size:10px;color:#7B1FA2;font-weight:600">FIBRE</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#33691E;line-height:1.7;border-top:1px solid #C8E6C9;padding-top:8px">
+              <strong>BMR:</strong> ${breakdown.bmr} kcal &nbsp;·&nbsp;
+              <strong>Activity (${escapeHtml(breakdown.activityLevel)}) ×${breakdown.activityFactor}:</strong> ${breakdown.tdee} kcal
+              ${breakdown.goalApplied ? ` &nbsp;·&nbsp; <strong>Goal (${escapeHtml(breakdown.goalApplied)}) ×${breakdown.calorieMultiplier}:</strong> ${Math.round(breakdown.tdee * breakdown.calorieMultiplier)} kcal` : ''}
+              ${condRows ? `<div style="margin-top:4px"><strong>Condition modifiers:</strong> ${condRows}</div>` : ''}
+            </div>
+          </div>`;
+      }
+
+      const optionalBannerHtml = readonly ? '' : `
+        <div style="grid-column:1/-1;background:#FFF8E1;border:1.5px solid #FFD54F;border-radius:10px;padding:12px 14px;margin-bottom:4px">
+          <div style="font-size:12px;font-weight:700;color:#E65100;margin-bottom:4px">⚡ Nutrition Targets are Optional Overrides (per day values)</div>
+          <div style="font-size:12px;color:#BF360C;line-height:1.6">
+            The engine <strong>auto-calculates TDEE</strong> from the member's height, weight, age, activity level, wellness goals and health conditions.<br/>
+            <strong>Leave these blank</strong> to let the engine decide — or fill them only if you want to override for this patient specifically.<br/>
+            <span style="background:#FFD54F;padding:1px 6px;border-radius:4px;font-weight:700">Your main job: Foods to Include / Exclude below ↓</span>
+          </div>
+        </div>`;
       nutritionFormHtml = `
         <div class="detail-panel">
           <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:var(--green-dark)">🩺 Nutrition Prescription</div>
           <div class="nutrition-form">
-            <div class="field"><label>Total Calories (kcal/day)</label><input id="nCal" type="number" placeholder="1800" value="${viewApt.totalCalories||''}" ${readonly}/></div>
-            <div class="field"><label>Protein (g)</label><input id="nPro" type="number" placeholder="60" value="${viewApt.proteinTarget||''}" ${readonly}/></div>
-            <div class="field"><label>Carbs (g)</label><input id="nCarb" type="number" placeholder="200" value="${viewApt.carbsTarget||''}" ${readonly}/></div>
-            <div class="field"><label>Fat (g)</label><input id="nFat" type="number" placeholder="50" value="${viewApt.fatTarget||''}" ${readonly}/></div>
-            <div class="field"><label>Fiber (g)</label><input id="nFiber" type="number" placeholder="25" value="${viewApt.fiberTarget||''}" ${readonly}/></div>
+            ${optionalBannerHtml}
+            ${estimatePanelHtml}
+            <div class="field"><label>Total Calories <span style="font-size:10px;color:var(--ink-faint);font-weight:400">(kcal/day · optional override)</span></label><input id="nCal" type="number" placeholder="${estimate ? 'Engine: '+estimate.kcalPerDay+' kcal' : 'Auto from TDEE'}" value="${viewApt.totalCalories||''}" ${readonly}/></div>
+            <div class="field"><label>Protein <span style="font-size:10px;color:var(--ink-faint);font-weight:400">(g/day · optional override)</span></label><input id="nPro" type="number" placeholder="${estimate ? 'Engine: '+estimate.proteinG+'g' : 'Auto from goal macros'}" value="${viewApt.proteinTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Carbs <span style="font-size:10px;color:var(--ink-faint);font-weight:400">(g/day · optional override)</span></label><input id="nCarb" type="number" placeholder="${estimate ? 'Engine: '+estimate.carbsG+'g' : 'Auto from goal macros'}" value="${viewApt.carbsTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Fat <span style="font-size:10px;color:var(--ink-faint);font-weight:400">(g/day · optional override)</span></label><input id="nFat" type="number" placeholder="${estimate ? 'Engine: '+estimate.fatG+'g' : 'Auto from goal macros'}" value="${viewApt.fatTarget||''}" ${readonly}/></div>
+            <div class="field"><label>Fiber <span style="font-size:10px;color:var(--ink-faint);font-weight:400">(g/day · optional override)</span></label><input id="nFiber" type="number" placeholder="${estimate ? 'Engine: '+estimate.fibreG+'g' : 'Auto from goal macros'}" value="${viewApt.fiberTarget||''}" ${readonly}/></div>
             <div class="field full">
               <label>Foods to Include</label>
               <div id="includeChips" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px"></div>
@@ -236,6 +338,8 @@ async function viewDetail(id) {
         <div style="margin-top:8px"><div class="detail-label">Allergies</div><div style="margin-top:4px">${allergies}</div></div>
         <div style="margin-top:8px"><div class="detail-label">Food Restrictions</div><div style="margin-top:4px">${restrictions}</div></div>
       </div>
+
+      ${subscriptionPanelHtml}
 
       ${nutritionFormHtml}
 
@@ -366,7 +470,7 @@ async function assignTo() {
 
 async function completeConsultation() {
   const totalCalories = parseInt(document.getElementById('nCal')?.value) || null;
-  if (!totalCalories) return showToast('Total Calories is required', 'error');
+  // All nutrition fields are optional — engine auto-calculates TDEE from member profile
 
   try {
     await req('PUT', `/admin/appointments/${viewApt._id}/complete`, {

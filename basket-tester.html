@@ -62,7 +62,7 @@
   .freq-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--green);flex-shrink:0}
   .freq-item .fl{font-size:12px;line-height:1.3}
 
-  /* ─── Sub duration ─── */
+  /* ─── Sub duration (checkboxes) ─── */
   .dur-grid{display:flex;flex-direction:column;gap:5px}
   .dur-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:7px;border:1.5px solid var(--border);cursor:pointer;transition:border .15s}
   .dur-item:hover{border-color:var(--green-mid)}
@@ -95,7 +95,7 @@
 
   /* ─── Table ─── */
   .twrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);box-shadow:var(--shadow)}
-  table{border-collapse:collapse;width:100%;min-width:1400px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;min-width:1600px;background:var(--card)}
   thead th{background:var(--green);color:#fff;padding:8px 10px;font-size:11px;font-weight:700;text-align:left;white-space:nowrap;position:sticky;top:0;z-index:2}
   tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
   tbody tr:hover{background:var(--green-light)}
@@ -110,10 +110,20 @@
   .b40{background:#f3e5f5;color:#6a1b9a}
   .berr{background:#ffebee;color:#c62828;font-size:11px;font-weight:400;font-family:monospace}
   .prods{display:flex;flex-direction:column;gap:2px}
-  .prow{display:flex;justify-content:space-between;gap:6px}
-  .pname{font-size:11px}.pqty{color:var(--green);font-weight:600;font-size:11px;min-width:46px;text-align:right}
+  .prow{display:flex;justify-content:space-between;gap:6px;align-items:baseline}
+  .pname{font-size:11px}
+  .pqty{color:var(--green);font-weight:600;font-size:11px;min-width:46px;text-align:right}
+  .pnew{color:#1565c0;font-size:9px;font-weight:700;margin-left:2px}
+  .prep{color:#888;font-size:9px;margin-left:2px}
   .spill{display:inline-block;padding:2px 7px;border-radius:7px;font-size:11px;font-weight:700}
   .empty-s{text-align:center;padding:50px 20px;color:var(--muted)}
+
+  /* ─── Delivery group rows ─── */
+  .grp-hdr td{background:#f0f7f0;font-weight:700;font-size:12px;color:var(--green);border-top:2px solid var(--green-mid)}
+  .grp-del td{background:#fafcfa}
+  .grp-del td:first-child{padding-left:22px;color:var(--blue);font-weight:600;white-space:nowrap}
+  .del-num{display:inline-block;min-width:22px;background:#e3f2fd;color:#1565c0;border-radius:5px;padding:1px 5px;font-size:10px;font-weight:700;margin-right:4px}
+  .del-date{font-size:10px;color:var(--muted)}
 
   /* ─── Results header ─── */
   .rhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;flex-wrap:wrap;gap:7px}
@@ -134,7 +144,7 @@
 <div class="hdr">
   <div>
     <h1>🌿 Krisha LIV — Basket Curation Tester</h1>
-    <small>Tests every Condition × Goal × Plan × Delivery-Frequency permutation — for nutritionist review</small>
+    <small>Tests every Condition × Goal × Plan × Delivery-Frequency × Duration permutation — with full non-repetition rotation across deliveries</small>
   </div>
 </div>
 
@@ -234,7 +244,7 @@
   <!-- Delivery Frequency (subscription plans) -->
   <div class="card">
     <div class="ctitle">🚚 Delivery Frequency</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Select one or more — engine uses durationDays per basket</p>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Selects deliveryFreqDays — affects basket engine</p>
     <div class="ca-row">
       <span class="ca" onclick="selAll('freq',true)">Select all</span>
       <span class="ca" onclick="selAll('freq',false)">Clear</span>
@@ -244,8 +254,12 @@
 
   <!-- Subscription Duration -->
   <div class="card">
-    <div class="ctitle">📅 Subscription Duration <span style="font-size:10px;text-transform:none;font-weight:400;color:var(--muted)">(context label only)</span></div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Contract length shown in results — does <strong>not</strong> change the basket. Select one to label results.</p>
+    <div class="ctitle">📅 Subscription Duration</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Each selected duration creates <strong>round(months×30÷freqDays)</strong> deliveries — tests non-repetition rotation across all deliveries</p>
+    <div class="ca-row">
+      <span class="ca" onclick="selAll('dur',true)">Select all</span>
+      <span class="ca" onclick="selAll('dur',false)">Clear</span>
+    </div>
     <div class="dur-grid" id="dur-list"><div style="color:var(--muted);font-size:12px">Loading…</div></div>
   </div>
 
@@ -278,7 +292,7 @@
     <div class="empty-s">
       <div style="font-size:42px;margin-bottom:10px">🌿</div>
       <div style="font-size:14px;font-weight:600;margin-bottom:5px">No results yet</div>
-      <div>Configure member profile → select conditions, goals, plans & frequencies → Run</div>
+      <div>Configure member profile → select conditions, goals, plans, frequencies &amp; durations → Run</div>
     </div>
   </div>
 
@@ -292,7 +306,7 @@
 let TOKEN = null, FAM_ID = null;
 let allResults = [], running = false;
 let condObjs = [];
-// freq plans: [{planId, planName, durationDays, frequencyLabel}]
+// freq plans: [{planId, planName, durationDays, frequencyLabel, _id}]
 // dur items : [{_id, label, durationMonths}]
 let freqPlans = [], durItems = [];
 
@@ -383,7 +397,7 @@ async function loadSetup(){
     freqPlans=(freqR.plans||[]);
     renderFreqPlans();
 
-    // Subscription durations (contract length)
+    // Subscription durations (contract length) — now checkboxes, each generates its own deliveries
     durItems=(durR.subscriptionDurations||durR.durations||[]);
     renderDurItems();
 
@@ -417,7 +431,6 @@ function renderCheckList(id,prefix,items){
 function renderFreqPlans(){
   const el=document.getElementById('freq-list');
   if(!freqPlans.length){
-    // fallback hardcoded options
     freqPlans=[
       {planId:'daily',   planName:'Daily',       durationDays:1,  frequencyLabel:'Delivery every day'},
       {planId:'alt',     planName:'Alternate',    durationDays:2,  frequencyLabel:'Delivery every 2 days'},
@@ -440,10 +453,14 @@ function renderFreqPlans(){
 function renderDurItems(){
   const el=document.getElementById('dur-list');
   if(!durItems.length){
-    durItems=[{_id:'',label:'1 Month',durationMonths:1},{_id:'',label:'3 Months',durationMonths:3},{_id:'',label:'6 Months',durationMonths:6}];
+    durItems=[
+      {_id:'',label:'1 Month', durationMonths:1},
+      {_id:'',label:'3 Months',durationMonths:3},
+      {_id:'',label:'6 Months',durationMonths:6},
+    ];
   }
   el.innerHTML=durItems.map((d,i)=>`<label class="dur-item">
-    <input type="radio" name="dur-rb" class="dur-cb" value="${i}" ${i===0?'checked':''} onchange="calcPerms()" style="width:14px;height:14px;accent-color:var(--green);flex-shrink:0"/>
+    <input type="checkbox" class="dur-cb" value="${i}" ${i===0?'checked':''} onchange="calcPerms()" style="width:14px;height:14px;accent-color:var(--green);flex-shrink:0"/>
     <div class="dl"><strong>${eh(d.label||d.name||`${d.durationMonths} Month(s)`)}</strong>
     <span style="color:var(--muted);font-size:11px"> — ${d.durationMonths} month${d.durationMonths>1?'s':''} contract</span></div>
   </label>`).join('');
@@ -459,11 +476,10 @@ function calcPerms(){
   const g=[...document.querySelectorAll('.goal-cb:checked')].length;
   const p=[...document.querySelectorAll('.freq-cb:checked')].length;
   const plans=['T20','T30','T40'].filter(x=>document.getElementById('plan-'+x)?.checked).length;
-  const durRb=document.querySelector('.dur-cb:checked');
-  const durLabel=durRb?durItems[+durRb.value]?.label||'':'—';
-  const total=c*g*plans*p;
+  const d=[...document.querySelectorAll('.dur-cb:checked')].length;
+  const total=c*g*plans*p*d;
   document.getElementById('permcount').textContent=total
-    ?`${c} cond × ${g} goal × ${plans} plan × ${p} freq = ${total} API calls · Duration context: ${durLabel}`:'';
+    ?`${c} cond × ${g} goal × ${plans} plan × ${p} freq × ${d} dur = ${total} API calls (each = all deliveries for that duration)`:'';
 }
 
 // ─── Run all ──────────────────────────────────────────────────────────────────
@@ -484,23 +500,23 @@ async function runAll(){
   const goalVals=[...document.querySelectorAll('.goal-cb:checked')].map(c=>c.value);
   const planCodes=['T20','T30','T40'].filter(x=>document.getElementById('plan-'+x)?.checked);
   const freqIdxs=[...document.querySelectorAll('.freq-cb:checked')].map(c=>+c.value);
-  // Duration: single radio selection — context label only, doesn't change basket
-  const durRb=document.querySelector('.dur-cb:checked');
-  const durIdx=durRb?+durRb.value:0;
+  const durIdxs=[...document.querySelectorAll('.dur-cb:checked')].map(c=>+c.value);
 
   if(!condVals.length) return toast('Select at least one condition (or No Condition)','err');
   if(!goalVals.length) return toast('Select at least one wellness goal','err');
   if(!planCodes.length) return toast('Select at least one plan type','err');
   if(!freqIdxs.length) return toast('Select at least one delivery frequency','err');
+  if(!durIdxs.length) return toast('Select at least one subscription duration','err');
 
-  // Build permutation list — one API call per cond × goal × plan × freq
-  // Duration is metadata only (contract length doesn't affect basket engine)
+  // Build permutation list — one API call per cond × goal × plan × freq × duration
+  // Each call hits /orders/curate-subscription-draft and generates all N deliveries
   const perms=[];
   for(const cv of condVals)
     for(const gv of goalVals)
       for(const plan of planCodes)
         for(const fi of freqIdxs)
-          perms.push({cv,gv,plan,freqIdx:fi,durIdx});
+          for(const di of durIdxs)
+            perms.push({cv,gv,plan,freqIdx:fi,durIdx:di});
 
   running=true; allResults=[];
   document.getElementById('btn-run').disabled=true;
@@ -523,7 +539,8 @@ async function runAll(){
     const cLabel=p.cv==='__none__'?'(No Condition)':p.cv;
     const fp=freqPlans[p.freqIdx]||{};
     const dp=durItems[p.durIdx]||{};
-    setSt('run',`${done+1}/${perms.length} — ${cLabel} × ${p.gv} × ${p.plan} × ${fp.planName||fp.durationDays+'d'||'?'}`);
+    const delivCount=Math.round((dp.durationMonths*30)/(fp.durationDays||7));
+    setSt('run',`${done+1}/${perms.length} — ${cLabel} × ${p.gv} × ${p.plan} × ${fp.planName||fp.durationDays+'d'} × ${dp.label} (${delivCount} deliveries)`);
     const res=await runOne({dob,sex,height,weight,actLvl,diet,
       cv:p.cv,gv:p.gv,plan:p.plan,freqPlan:fp,durItem:dp});
     allResults.push(res); done++;
@@ -541,11 +558,20 @@ async function runAll(){
   toast(`Completed ${done} permutations`,'ok');
 }
 
+// ─── Run one permutation ──────────────────────────────────────────────────────
+// Calls /orders/curate-subscription-draft which generates ALL deliveries with
+// the real non-repetition engine (7-day lookback reads draft orders from previous dates)
 async function runOne({dob,sex,height,weight,actLvl,diet,cv,gv,plan,freqPlan,durItem}){
   const condLabel=cv==='__none__'?'(No Condition)':cv;
   const healthConditions=cv==='__none__'?[]:[cv];
+  const freqDays=freqPlan.durationDays||7;
+  const durationMonths=durItem.durationMonths||1;
+  const delivCount=Math.round((durationMonths*30)/freqDays);
   let memberId=null;
+  let draftOrderIds=[];
+
   try{
+    // 1. Add test member
     const body={
       name:`Test_${plan}_${Date.now()}`,
       dob, gender:sex, relationship:'Self',
@@ -553,82 +579,147 @@ async function runOne({dob,sex,height,weight,actLvl,diet,cv,gv,plan,freqPlan,dur
       activityLevel:actLvl, dietType:diet,
       healthConditions, wellnessGoals:[gv], lifestyleCode:[],
     };
-    lg(`Add member: cond=[${healthConditions.join(',')||'—'}] goal=[${gv}] plan=${plan} freq=${freqPlan.planName} dur=${durItem.label}`);
+    lg(`Add member: cond=[${healthConditions.join(',')||'—'}] goal=[${gv}] plan=${plan} freq=${freqPlan.planName}(${freqDays}d) dur=${durItem.label}(${durationMonths}mo) → ${delivCount} deliveries`);
     const ar=await apiFetch('POST',`/family/${FAM_ID}/members`,body);
     memberId=ar.member?.memberId;
     if(!memberId) throw new Error('addMember response missing memberId');
     lg(`Member added → ${memberId}`,'ok');
 
-    // subscriptionPlanId from the plans endpoint (_id or planId)
+    // 2. Curate all deliveries using the real subscription draft engine
+    // startDate = today, so lookback uses today's date as reference
+    const startDate=new Date().toISOString().slice(0,10);
     const subPlanId=freqPlan._id||freqPlan.planId||'';
-    const recBody={
-      planType:plan,
-      memberIds:[memberId],
+    const curateBody={
+      startDate,
+      frequencyDays: freqDays,
+      durationMonths,
+      livPlanCode: plan,
+      baskets:[{
+        memberId,
+        memberName:`Test_${plan}`,
+        planType: plan,
+        wellnessGoal: gv,
+        planDisplayName: planLbl(plan),
+        basketItems:[],        // engine will regenerate for each delivery
+      }],
       ...(subPlanId&&{subscriptionPlanId:subPlanId}),
     };
-    lg(`POST /wellness/recommend ${JSON.stringify(recBody)}`);
-    const rr=await apiFetch('POST','/wellness/recommend',recBody);
-    lg(`memberResults=${rr.recommendation?.memberResults?.length} clinical=${rr.recommendation?.clinicalMembers?.length}`,'ok');
+    lg(`POST /orders/curate-subscription-draft startDate=${startDate} freq=${freqDays}d dur=${durationMonths}mo → expecting ${delivCount} deliveries`);
+    const cr=await apiFetch('POST','/orders/curate-subscription-draft',curateBody);
+    draftOrderIds=cr.draftOrderIds||[];
+    lg(`Curated ${draftOrderIds.length} draft orders (expected ${delivCount})`,'ok');
 
-    const mrRaw=(rr.recommendation?.memberResults||[])[0];
-    if(!mrRaw){
-      const isClin=(rr.recommendation?.clinicalMembers||[]).some(c=>String(c.memberId)===String(memberId));
-      const isCov =(rr.recommendation?.coveredMembers ||[]).some(c=>String(c.memberId)===String(memberId));
-      const reason=isClin?'Needs clinical review':isCov?'Already covered':'No result returned';
-      lg(`Empty: ${reason}`,'warn');
-      return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,{status:'empty',reason,memberId});
+    if(!draftOrderIds.length){
+      return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,
+        {status:'empty',reason:'curate-subscription-draft returned 0 draft orders',memberId});
     }
 
-    const basket=mrRaw.baskets?.[0];
-    if(!basket)
-      return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,{status:'empty',reason:'No basket in response',memberId});
-    if(!basket.basketItems?.length)
-      return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,
-        {status:'empty',reason:'Basket engine returned 0 items',memberId,totalNutrition:basket.totalNutrition||{},planDisplayName:basket.planDisplayName});
+    // 3. Fetch each draft order to get basketItems for each delivery
+    const deliveries=[];
+    let prevProductIds=new Set();
 
-    lg(`✓ Basket: ${basket.basketItems.length} items, score=${basket.wellnessScore}`,'ok');
+    for(let i=0;i<draftOrderIds.length;i++){
+      const oid=draftOrderIds[i];
+      try{
+        const od=await apiFetch('GET',`/orders/${oid}`);
+        const order=od.order||od;
+        const items=order.basketItems||[];
+        const delivDate=order.deliveryDate?new Date(order.deliveryDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}):'—';
+
+        // Tag each item: NEW (not in previous delivery) or REPEAT
+        const currProductIds=new Set(items.map(it=>String(it.productId||it.name)));
+        const taggedItems=items.map(it=>{
+          const pid=String(it.productId||it.name);
+          return {...it,_isNew:!prevProductIds.has(pid)};
+        });
+
+        // Count rotation quality
+        const newCount=taggedItems.filter(x=>x._isNew).length;
+        const repCount=taggedItems.length-newCount;
+
+        deliveries.push({
+          deliveryNum:i+1,
+          delivDate,
+          orderId:oid,
+          basketItems:taggedItems,
+          totalNutrition:order.totalNutrition||computeNutrition(items),
+          wellnessScore:order.wellnessScore||0,
+          totalPrice:order.totalAmount||order.grossAmount||0,
+          newCount, repCount,
+        });
+        lg(`Delivery ${i+1}: ${items.length} items (${newCount} new, ${repCount} repeat) date=${delivDate}`,'ok');
+        prevProductIds=currProductIds;
+      }catch(e){
+        lg(`Failed to fetch order ${oid}: ${e.message}`,'warn');
+        deliveries.push({deliveryNum:i+1,delivDate:'—',orderId:oid,basketItems:[],totalNutrition:{},wellnessScore:0,totalPrice:0,newCount:0,repCount:0,error:e.message});
+      }
+    }
+
+    const firstBasket=deliveries[0];
     return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,{
       status:'ok', memberId,
-      planDisplayName: basket.planDisplayName||planLbl(plan),
-      planCoverage:    basket.planCoverage,
-      adjustedTDEE:    basket.adjustedTDEE,
-      wellnessScore:   basket.wellnessScore,
-      basketItems:     basket.basketItems    ||[],
-      totalNutrition:  basket.totalNutrition ||{},
-      targets:         basket.targets        ||{},
-      totalPrice:      basket.price          ||0,
-      goals:           basket.goals          ||[],
-      conditions:      basket.conditions     ||[],
+      planDisplayName: planLbl(plan),
+      deliveries,
+      numDeliveries: deliveries.length,
+      basketItems: firstBasket?.basketItems||[],       // first delivery for summary cols
+      totalNutrition: firstBasket?.totalNutrition||{},
+      wellnessScore: firstBasket?.wellnessScore||0,
+      totalPrice: firstBasket?.totalPrice||0,
+      draftOrderIds,
     });
+
   }catch(e){
     lg(`ERROR: ${e.message}`,'err');
     return base(condLabel,gv,plan,freqPlan,durItem,dob,sex,height,weight,actLvl,diet,{status:'error',error:e.message});
   }finally{
+    // Cancel all draft orders to clean up (they expire in 30 min anyway, but clean up is nicer)
+    if(draftOrderIds.length){
+      for(const oid of draftOrderIds){
+        try{await apiFetch('PUT',`/orders/${oid}/cancel`);}
+        catch(e){lg(`Cancel draft ${oid}: ${e.message}`,'warn');}
+      }
+      lg(`Cancelled ${draftOrderIds.length} draft orders`,'ok');
+    }
+    // Remove test member
     if(memberId){
-      try{await apiFetch('DELETE',`/family/${FAM_ID}/members/${memberId}`);lg(`Cleaned ${memberId}`,'ok');}
-      catch(e){lg(`Cleanup failed ${memberId}: ${e.message}`,'warn');}
+      try{await apiFetch('DELETE',`/family/${FAM_ID}/members/${memberId}`);lg(`Cleaned member ${memberId}`,'ok');}
+      catch(e){lg(`Cleanup member failed ${memberId}: ${e.message}`,'warn');}
     }
   }
 }
 
-// Build a result object — always includes all member + plan inputs for the nutritionist
+// Helper: sum nutrients from basketItems when order doesn't include totalNutrition
+function computeNutrition(items){
+  const t={calories:0,protein:0,carbs:0,fat:0,fibre:0};
+  items.forEach(it=>{
+    const n=it.nutrients||{};
+    Object.keys(t).forEach(k=>t[k]=+((t[k]+(n[k]||0)).toFixed(2)));
+  });
+  return t;
+}
+
+// Build a result object — always includes all member + plan inputs
 function base(condLabel,gv,plan,fp,dur,dob,sex,height,weight,actLvl,diet,extra){
   return{
     condLabel, goalValue:gv, plan,
-    // delivery frequency
     freqPlanName:  fp.planName||fp.frequencyLabel||'',
     freqDays:      fp.durationDays||'',
     freqLabel:     fp.frequencyLabel||fp.planName||'',
-    // subscription duration
     durLabel:      dur.label||dur.name||'',
     durMonths:     dur.durationMonths||'',
-    // member profile
     dob, sex, height, weight, actLvl, diet,
-    // defaults
     basketItems:[], totalNutrition:{},
+    deliveries:[], numDeliveries:0,
     planDisplayName: planLbl(plan),
     ...extra
   };
+}
+
+// ─── Qty display helper ────────────────────────────────────────────────────────
+function fmtQty(it){
+  if(it.servingUnit==='egg'&&it.eggCount) return `${it.eggCount} egg${it.eggCount>1?'s':''}`;
+  if(it.servingUnit==='ml') return `${it.quantityG}ml`;
+  return `${it.quantityG}g`;
 }
 
 // ─── Render table ─────────────────────────────────────────────────────────────
@@ -645,82 +736,95 @@ function renderTable(rows){
   const sc=s=>s>=70?'#2e7d32':s>=45?'#e65100':'#c62828';
   const sb=s=>s>=70?'#e8f5e9':s>=45?'#fff3e0':'#ffebee';
   const n2=(v,u='g')=>v!=null?`${(+v).toFixed(1)}${u}`:'—';
-
   const ok=rows.filter(r=>r.status==='ok').length;
   const em=rows.filter(r=>r.status==='empty').length;
   const er=rows.filter(r=>r.status==='error').length;
 
   const rowsHtml=rows.map(r=>{
     const pc={T20:'p20',T30:'p30',T40:'p40'}[r.plan]||'';
-    if(r.status==='error') return `<tr>
-      <td class="${pc}">${eh(r.condLabel)}</td><td>${eh(r.goalValue)}</td>
-      <td>${planBadge(r.plan)}</td>
-      <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d/delivery</span></td>
-      <td>${eh(r.durLabel)}</td>
+    const metaCols=`
       <td>${eh(r.dob)}</td><td>${eh(r.sex)}</td>
-      <td class="mono">${r.height}</td><td class="mono">${r.weight}</td>
-      <td>${eh(r.actLvl)}</td><td>${eh(r.diet)}</td>
+      <td class="mono">${r.height}cm</td><td class="mono">${r.weight}kg</td>
+      <td style="font-size:11px">${eh(r.actLvl)}</td><td>${eh(r.diet)}</td>`;
+
+    if(r.status==='error') return `<tr class="grp-hdr">
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
+      <td>${planBadge(r.plan)}</td>
+      <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d</span></td>
+      <td>${eh(r.durLabel)}<br/><span style="font-size:10px;color:var(--muted)">${r.durMonths}mo</span></td>
+      ${metaCols}
       <td colspan="8"><span class="badge berr">✗ ${eh(r.error||'')}</span></td>
     </tr>`;
-    if(r.status==='empty') return `<tr>
-      <td class="${pc}">${eh(r.condLabel)}</td><td>${eh(r.goalValue)}</td>
+
+    if(r.status==='empty') return `<tr class="grp-hdr">
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
       <td>${planBadge(r.plan)}</td>
-      <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d/delivery</span></td>
-      <td>${eh(r.durLabel)}</td>
-      <td>${eh(r.dob)}</td><td>${eh(r.sex)}</td>
-      <td class="mono">${r.height}</td><td class="mono">${r.weight}</td>
-      <td>${eh(r.actLvl)}</td><td>${eh(r.diet)}</td>
+      <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d</span></td>
+      <td>${eh(r.durLabel)}<br/><span style="font-size:10px;color:var(--muted)">${r.durMonths}mo</span></td>
+      ${metaCols}
       <td colspan="8" style="color:var(--muted);font-style:italic;font-size:11px">No basket — ${eh(r.reason||'')}</td>
     </tr>`;
 
-    const n=r.totalNutrition; const items=r.basketItems||[]; const sc_v=r.wellnessScore||0;
-    const prodsHtml=items.map(it=>{
-      const qty=it.servingUnit==='egg'&&it.eggCount
-        ?`${it.eggCount} egg${it.eggCount>1?'s':''}`
-        :it.servingUnit==='ml'
-          ?`${it.quantityG}ml`
-          :`${it.quantityG}g`;
-      return `<div class="prow"><span class="pname">${eh(it.name)}</span><span class="pqty">${qty}</span></div>`;
-    }).join('');
-    return `<tr>
-      <td class="${pc}">${eh(r.condLabel)}</td><td>${eh(r.goalValue)}</td>
+    // Header row for this permutation group
+    const totalDelivs=r.deliveries?.length||0;
+    const groupHdr=`<tr class="grp-hdr">
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
       <td>${planBadge(r.plan)}<br/><span style="font-size:10px;color:var(--muted)">${eh(r.planDisplayName||'')}</span></td>
       <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d/delivery</span></td>
-      <td>${eh(r.durLabel)}<br/><span style="font-size:10px;color:var(--muted)">${r.durMonths}mo</span></td>
-      <td style="white-space:nowrap">${eh(r.dob)}</td><td>${eh(r.sex)}</td>
-      <td class="mono">${r.height}cm</td><td class="mono">${r.weight}kg</td>
-      <td style="font-size:11px">${eh(r.actLvl)}</td><td>${eh(r.diet)}</td>
-      <td><div class="prods">${prodsHtml}</div></td>
-      <td class="mono">${items.length}</td>
-      <td class="mono">${n2(n.calories,'kcal')}</td>
-      <td class="mono">${n2(n.protein)}</td>
-      <td class="mono">${n2(n.carbs)}</td>
-      <td class="mono">${n2(n.fat)}</td>
-      <td class="mono">${n2(n.fibre)}</td>
-      <td class="mono">${r.adjustedTDEE?n2(r.adjustedTDEE,'kcal'):'—'}</td>
-      <td class="mono">${r.planCoverage!=null?r.planCoverage+'%':'—'}</td>
-      <td><span class="spill" style="background:${sb(sc_v)};color:${sc(sc_v)}">${sc_v}%</span></td>
-      <td class="mono">₹${(r.totalPrice||0).toFixed(2)}</td>
+      <td>${eh(r.durLabel)}<br/><span style="font-size:10px;color:var(--muted)">${r.durMonths}mo · ${totalDelivs} deliveries</span></td>
+      ${metaCols}
+      <td colspan="8" style="font-size:11px;color:var(--muted)">▼ ${totalDelivs} deliveries below — 🆕 = new product vs previous, 🔁 = repeated</td>
     </tr>`;
+
+    // One row per delivery
+    const delivRows=(r.deliveries||[]).map(del=>{
+      const n=del.totalNutrition||{};
+      const items=del.basketItems||[];
+      const prodsHtml=items.map(it=>{
+        const qty=fmtQty(it);
+        const tag=it._isNew
+          ?`<span class="pnew">🆕</span>`
+          :`<span class="prep">🔁</span>`;
+        return `<div class="prow"><span class="pname">${eh(it.name)}${tag}</span><span class="pqty">${qty}</span></div>`;
+      }).join('');
+      const sc_v=del.wellnessScore||0;
+      return `<tr class="grp-del">
+        <td colspan="2"><span class="del-num">#${del.deliveryNum}</span><span class="del-date">${eh(del.delivDate)}</span>
+          <span style="margin-left:6px;font-size:10px;color:var(--muted)">${del.newCount||0}🆕 ${del.repCount||0}🔁</span>
+        </td>
+        <td colspan="3" style="color:var(--muted);font-size:11px">${del.error?`<span style="color:var(--red)">${eh(del.error)}</span>`:''}</td>
+        <td colspan="6"></td>
+        <td><div class="prods">${prodsHtml}</div></td>
+        <td class="mono">${items.length}</td>
+        <td class="mono">${n2(n.calories,'kcal')}</td>
+        <td class="mono">${n2(n.protein)}</td>
+        <td class="mono">${n2(n.carbs)}</td>
+        <td class="mono">${n2(n.fat)}</td>
+        <td class="mono">${n2(n.fibre)}</td>
+        <td colspan="3"><span class="spill" style="background:${sb(sc_v)};color:${sc(sc_v)}">${sc_v||'—'}${sc_v?'%':''}</span> <span style="font-size:10px;color:var(--muted)">₹${(del.totalPrice||0).toFixed(2)}</span></td>
+      </tr>`;
+    }).join('');
+
+    return groupHdr+delivRows;
   }).join('');
 
   area.innerHTML=`
     <div class="rhdr">
-      <div class="rtitle">Results — ${rows.length} rows &nbsp;
-        <span style="font-size:12px;font-weight:400;color:var(--green)">✓ ${ok} baskets</span>
+      <div class="rtitle">Results — ${rows.length} permutations &nbsp;
+        <span style="font-size:12px;font-weight:400;color:var(--green)">✓ ${ok} curated</span>
         ${em?`<span style="font-size:12px;font-weight:400;color:var(--orange)"> · ⚠ ${em} empty</span>`:''}
         ${er?`<span style="font-size:12px;font-weight:400;color:var(--red)"> · ✗ ${er} errors</span>`:''}
       </div>
     </div>
     <div class="twrap"><table>
       <thead><tr>
-        <th>Health Condition</th><th>Wellness Goal</th><th>LIV Plan</th>
+        <th colspan="2">Condition × Goal</th><th>LIV Plan</th>
         <th>Delivery Freq</th><th>Sub Duration</th>
         <th>DOB</th><th>Sex</th><th>Height</th><th>Weight</th>
         <th>Activity Level</th><th>Diet Type</th>
-        <th>Products &amp; Qty</th><th>#</th>
+        <th>Products &amp; Qty (🆕=new 🔁=repeat)</th><th>#</th>
         <th>Calories</th><th>Protein</th><th>Carbs</th><th>Fat</th><th>Fibre</th>
-        <th>TDEE</th><th>Coverage</th><th>Score</th><th>Price/del</th>
+        <th colspan="3">Score / Price</th>
       </tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table></div>`;
@@ -731,83 +835,113 @@ function exportExcel(){
   if(!allResults.length) return toast('No results to export','err');
   const wb=XLSX.utils.book_new();
 
-  // ── Sheet 1 : Summary ──
+  // ── Sheet 1: Permutation Summary ──
   const h1=[
     'Health Condition','Wellness Goal','LIV Plan','Plan Name','Status','Reason/Error',
     'Delivery Freq Plan','Delivery Days','Subscription Duration','Duration (months)',
     'DOB','Sex','Height (cm)','Weight (kg)','Activity Level','Diet Type',
-    '#Items','Calories (kcal)','Protein (g)','Carbs (g)','Fat (g)','Fibre (g)',
-    'TDEE (kcal)','Coverage %','Wellness Score %','Price/delivery (₹)',
-    'Products'
+    'Num Deliveries','Delivery 1 #Items','Delivery 1 Calories','Delivery 1 Protein',
+    'Delivery 1 Carbs','Delivery 1 Fat','Delivery 1 Fibre','Delivery 1 Score','Delivery 1 Price (₹)',
+    'Delivery 1 Products',
   ];
   const s1=[h1];
   for(const r of allResults){
-    const n=r.totalNutrition||{};
-    const prodsStr=(r.basketItems||[]).map(it=>{
-      const qty=it.servingUnit==='egg'&&it.eggCount
-        ?`${it.eggCount} eggs`
-        :it.servingUnit==='ml'
-          ?`${it.quantityG}ml`
-          :`${it.quantityG}g`;
-      return `${it.name} | ${qty}`;
-    }).join('; ');
+    const d1=r.deliveries?.[0];
+    const n=d1?.totalNutrition||{};
+    const prodsStr=(d1?.basketItems||[]).map(it=>`${it.name}${it._isNew?'[NEW]':'[RPT]'} | ${fmtQty(it)}`).join('; ');
     s1.push([
       r.condLabel, r.goalValue, r.plan, r.planDisplayName||'',
       r.status, r.reason||r.error||'',
       r.freqPlanName||'', r.freqDays||'',
       r.durLabel||'', r.durMonths||'',
       r.dob, r.sex, r.height, r.weight, r.actLvl, r.diet,
-      (r.basketItems||[]).length,
+      r.numDeliveries||0,
+      (d1?.basketItems||[]).length,
       +(n.calories||0).toFixed(1), +(n.protein||0).toFixed(1),
-      +(n.carbs||0).toFixed(1), +(n.fat||0).toFixed(1), +(n.fibre||0).toFixed(1),
-      r.adjustedTDEE?+r.adjustedTDEE.toFixed(1):'',
-      r.planCoverage||'', r.wellnessScore||0,
-      r.totalPrice?+r.totalPrice.toFixed(2):0,
+      +(n.carbs||0).toFixed(1),+(n.fat||0).toFixed(1),+(n.fibre||0).toFixed(1),
+      d1?.wellnessScore||0, +(d1?.totalPrice||0).toFixed(2),
       prodsStr,
     ]);
   }
   const ws1=XLSX.utils.aoa_to_sheet(s1);
-  ws1['!cols']=[22,22,8,14,8,24,18,8,18,8,12,6,10,10,18,10,6,14,10,10,10,10,12,10,14,14,60].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws1,'Summary');
+  ws1['!cols']=[22,22,8,14,8,24,18,8,18,8,12,6,10,10,18,10,8,8,14,10,10,10,10,12,12,60].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws1,'Permutation Summary');
 
-  // ── Sheet 2 : Per-product detail ──
+  // ── Sheet 2: All Deliveries (one row per delivery per permutation) ──
   const h2=[
+    'Health Condition','Wellness Goal','LIV Plan',
+    'Delivery Freq Plan','Delivery Days','Sub Duration','Duration (months)',
+    'DOB','Sex','Height','Weight','Activity Level','Diet Type',
+    'Delivery #','Delivery Date','Total Items','New Items','Repeat Items',
+    'Calories (kcal)','Protein (g)','Carbs (g)','Fat (g)','Fibre (g)',
+    'Wellness Score','Price/delivery (₹)','Products',
+  ];
+  const s2=[h2];
+  for(const r of allResults){
+    if(r.status!=='ok') continue;
+    for(const del of (r.deliveries||[])){
+      const n=del.totalNutrition||{};
+      const prodsStr=(del.basketItems||[]).map(it=>`${it.name}${it._isNew?'[NEW]':'[RPT]'} | ${fmtQty(it)}`).join('; ');
+      s2.push([
+        r.condLabel, r.goalValue, r.plan,
+        r.freqPlanName||'', r.freqDays||'', r.durLabel||'', r.durMonths||'',
+        r.dob, r.sex, r.height, r.weight, r.actLvl, r.diet,
+        del.deliveryNum, del.delivDate,
+        (del.basketItems||[]).length, del.newCount||0, del.repCount||0,
+        +(n.calories||0).toFixed(1), +(n.protein||0).toFixed(1),
+        +(n.carbs||0).toFixed(1), +(n.fat||0).toFixed(1), +(n.fibre||0).toFixed(1),
+        del.wellnessScore||0, +(del.totalPrice||0).toFixed(2),
+        prodsStr,
+      ]);
+    }
+  }
+  const ws2=XLSX.utils.aoa_to_sheet(s2);
+  ws2['!cols']=[22,22,8,18,8,18,8,12,6,8,8,18,10,8,14,8,8,8,14,10,10,10,10,12,12,60].map(w=>({wch:w}));
+  XLSX.utils.book_append_sheet(wb,ws2,'All Deliveries');
+
+  // ── Sheet 3: Per-product detail (all deliveries) ──
+  const h3=[
     'Health Condition','Wellness Goal','LIV Plan',
     'Delivery Freq Plan','Delivery Days','Sub Duration',
     'DOB','Sex','Height','Weight','Activity Level','Diet Type',
-    'Product','Category','Qty (g/ml)','Serving Unit','Eggs',
+    'Delivery #','Delivery Date',
+    'Product','Category','Qty','Serving Unit','Eggs','New/Repeat',
     'Calories','Protein','Carbs','Fat','Fibre',
     'Iron (mg)','Calcium (mg)','Vit C (mg)','Vit A (µg)',
     'Potassium (mg)','Magnesium (mg)','Zinc (mg)','Iodine (µg)','Selenium (µg)',
     'Wellness Score','Est Cost (₹)','Tags','Reason'
   ];
-  const s2=[h2];
+  const s3=[h3];
   for(const r of allResults){
     if(r.status!=='ok') continue;
-    for(const it of (r.basketItems||[])){
-      const n=it.nutrients||{};
-      s2.push([
-        r.condLabel, r.goalValue, r.plan,
-        r.freqPlanName||'', r.freqDays||'', r.durLabel||'',
-        r.dob, r.sex, r.height, r.weight, r.actLvl, r.diet,
-        it.name, it.category||'',
-        it.servingUnit==='ml'?`${it.quantityG}ml`:it.quantityG,
-        it.servingUnit||'g', it.eggCount||'',
-        +(n.calories||0).toFixed(2), +(n.protein||0).toFixed(2),
-        +(n.carbs||0).toFixed(2), +(n.fat||0).toFixed(2), +(n.fibre||0).toFixed(2),
-        +(n.iron||0).toFixed(2), +(n.calcium||0).toFixed(2),
-        +(n.vitaminC||0).toFixed(2), +(n.vitaminA||0).toFixed(2),
-        +(n.potassium||0).toFixed(2), +(n.magnesium||0).toFixed(2),
-        +(n.zinc||0).toFixed(2), +(n.iodine||0).toFixed(2), +(n.selenium||0).toFixed(2),
-        it.wellnessScore||0, +(it.estimatedCost||0).toFixed(2),
-        (it.curationTags||[]).join(', '), it.reason||'',
-      ]);
+    for(const del of (r.deliveries||[])){
+      for(const it of (del.basketItems||[])){
+        const n=it.nutrients||{};
+        s3.push([
+          r.condLabel, r.goalValue, r.plan,
+          r.freqPlanName||'', r.freqDays||'', r.durLabel||'',
+          r.dob, r.sex, r.height, r.weight, r.actLvl, r.diet,
+          del.deliveryNum, del.delivDate,
+          it.name, it.category||'',
+          it.servingUnit==='ml'?`${it.quantityG}ml`:it.quantityG,
+          it.servingUnit||'g', it.eggCount||'',
+          it._isNew?'NEW':'REPEAT',
+          +(n.calories||0).toFixed(2), +(n.protein||0).toFixed(2),
+          +(n.carbs||0).toFixed(2), +(n.fat||0).toFixed(2), +(n.fibre||0).toFixed(2),
+          +(n.iron||0).toFixed(2), +(n.calcium||0).toFixed(2),
+          +(n.vitaminC||0).toFixed(2), +(n.vitaminA||0).toFixed(2),
+          +(n.potassium||0).toFixed(2), +(n.magnesium||0).toFixed(2),
+          +(n.zinc||0).toFixed(2), +(n.iodine||0).toFixed(2), +(n.selenium||0).toFixed(2),
+          it.wellnessScore||0, +(it.estimatedCost||0).toFixed(2),
+          (it.curationTags||[]).join(', '), it.reason||'',
+        ]);
+      }
     }
   }
-  const ws2=XLSX.utils.aoa_to_sheet(s2);
-  ws2['!cols']=[22,22,8,18,8,18,12,6,8,8,18,10,24,14,8,10,5,
+  const ws3=XLSX.utils.aoa_to_sheet(s3);
+  ws3['!cols']=[22,22,8,18,8,18,12,6,8,8,18,10,8,14,24,14,8,10,5,8,
     10,10,10,10,10,10,10,10,10,12,12,10,10,10,12,12,20,20].map(w=>({wch:w}));
-  XLSX.utils.book_append_sheet(wb,ws2,'Product Detail');
+  XLSX.utils.book_append_sheet(wb,ws3,'Product Detail');
 
   const ts=new Date().toISOString().slice(0,16).replace(/[T:]/g,'-');
   XLSX.writeFile(wb,`basket_curation_${ts}.xlsx`);

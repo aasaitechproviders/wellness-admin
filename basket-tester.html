@@ -244,12 +244,8 @@
 
   <!-- Subscription Duration -->
   <div class="card">
-    <div class="ctitle">📅 Subscription Duration</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Contract length (1 / 3 / 6 months) — for context in results</p>
-    <div class="ca-row">
-      <span class="ca" onclick="selAll('dur',true)">Select all</span>
-      <span class="ca" onclick="selAll('dur',false)">Clear</span>
-    </div>
+    <div class="ctitle">📅 Subscription Duration <span style="font-size:10px;text-transform:none;font-weight:400;color:var(--muted)">(context label only)</span></div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:8px">Contract length shown in results — does <strong>not</strong> change the basket. Select one to label results.</p>
     <div class="dur-grid" id="dur-list"><div style="color:var(--muted);font-size:12px">Loading…</div></div>
   </div>
 
@@ -447,7 +443,7 @@ function renderDurItems(){
     durItems=[{_id:'',label:'1 Month',durationMonths:1},{_id:'',label:'3 Months',durationMonths:3},{_id:'',label:'6 Months',durationMonths:6}];
   }
   el.innerHTML=durItems.map((d,i)=>`<label class="dur-item">
-    <input type="checkbox" class="dur-cb" value="${i}" ${i===0?'checked':''} onchange="calcPerms()"/>
+    <input type="radio" name="dur-rb" class="dur-cb" value="${i}" ${i===0?'checked':''} onchange="calcPerms()" style="width:14px;height:14px;accent-color:var(--green);flex-shrink:0"/>
     <div class="dl"><strong>${eh(d.label||d.name||`${d.durationMonths} Month(s)`)}</strong>
     <span style="color:var(--muted);font-size:11px"> — ${d.durationMonths} month${d.durationMonths>1?'s':''} contract</span></div>
   </label>`).join('');
@@ -462,11 +458,12 @@ function calcPerms(){
   const c=[...document.querySelectorAll('.cond-cb:checked')].length;
   const g=[...document.querySelectorAll('.goal-cb:checked')].length;
   const p=[...document.querySelectorAll('.freq-cb:checked')].length;
-  const d=[...document.querySelectorAll('.dur-cb:checked')].length;
   const plans=['T20','T30','T40'].filter(x=>document.getElementById('plan-'+x)?.checked).length;
-  const total=c*g*plans*p*d;
+  const durRb=document.querySelector('.dur-cb:checked');
+  const durLabel=durRb?durItems[+durRb.value]?.label||'':'—';
+  const total=c*g*plans*p;
   document.getElementById('permcount').textContent=total
-    ?`${c} cond × ${g} goal × ${plans} plan × ${p} freq × ${d} dur = ${total} API calls`:'';
+    ?`${c} cond × ${g} goal × ${plans} plan × ${p} freq = ${total} API calls · Duration context: ${durLabel}`:'';
 }
 
 // ─── Run all ──────────────────────────────────────────────────────────────────
@@ -487,22 +484,23 @@ async function runAll(){
   const goalVals=[...document.querySelectorAll('.goal-cb:checked')].map(c=>c.value);
   const planCodes=['T20','T30','T40'].filter(x=>document.getElementById('plan-'+x)?.checked);
   const freqIdxs=[...document.querySelectorAll('.freq-cb:checked')].map(c=>+c.value);
-  const durIdxs=[...document.querySelectorAll('.dur-cb:checked')].map(c=>+c.value);
+  // Duration: single radio selection — context label only, doesn't change basket
+  const durRb=document.querySelector('.dur-cb:checked');
+  const durIdx=durRb?+durRb.value:0;
 
   if(!condVals.length) return toast('Select at least one condition (or No Condition)','err');
   if(!goalVals.length) return toast('Select at least one wellness goal','err');
   if(!planCodes.length) return toast('Select at least one plan type','err');
-  if(!freqIdxs.length)  return toast('Select at least one delivery frequency','err');
-  if(!durIdxs.length)   return toast('Select at least one subscription duration','err');
+  if(!freqIdxs.length) return toast('Select at least one delivery frequency','err');
 
-  // Build permutation list
+  // Build permutation list — one API call per cond × goal × plan × freq
+  // Duration is metadata only (contract length doesn't affect basket engine)
   const perms=[];
   for(const cv of condVals)
     for(const gv of goalVals)
       for(const plan of planCodes)
         for(const fi of freqIdxs)
-          for(const di of durIdxs)
-            perms.push({cv,gv,plan,freqIdx:fi,durIdx:di});
+          perms.push({cv,gv,plan,freqIdx:fi,durIdx});
 
   running=true; allResults=[];
   document.getElementById('btn-run').disabled=true;
@@ -525,7 +523,7 @@ async function runAll(){
     const cLabel=p.cv==='__none__'?'(No Condition)':p.cv;
     const fp=freqPlans[p.freqIdx]||{};
     const dp=durItems[p.durIdx]||{};
-    setSt('run',`${done+1}/${perms.length} — ${cLabel} × ${p.gv} × ${p.plan} × ${fp.planName||'?'}d × ${dp.label||'?'}`);
+    setSt('run',`${done+1}/${perms.length} — ${cLabel} × ${p.gv} × ${p.plan} × ${fp.planName||fp.durationDays+'d'||'?'}`);
     const res=await runOne({dob,sex,height,weight,actLvl,diet,
       cv:p.cv,gv:p.gv,plan:p.plan,freqPlan:fp,durItem:dp});
     allResults.push(res); done++;
@@ -677,7 +675,11 @@ function renderTable(rows){
 
     const n=r.totalNutrition; const items=r.basketItems||[]; const sc_v=r.wellnessScore||0;
     const prodsHtml=items.map(it=>{
-      const qty=it.servingUnit==='egg'&&it.eggCount?`${it.eggCount} egg${it.eggCount>1?'s':''}`:it.quantityG+'g';
+      const qty=it.servingUnit==='egg'&&it.eggCount
+        ?`${it.eggCount} egg${it.eggCount>1?'s':''}`
+        :it.servingUnit==='ml'
+          ?`${it.quantityG}ml`
+          :`${it.quantityG}g`;
       return `<div class="prow"><span class="pname">${eh(it.name)}</span><span class="pqty">${qty}</span></div>`;
     }).join('');
     return `<tr>
@@ -742,7 +744,11 @@ function exportExcel(){
   for(const r of allResults){
     const n=r.totalNutrition||{};
     const prodsStr=(r.basketItems||[]).map(it=>{
-      const qty=it.servingUnit==='egg'&&it.eggCount?`${it.eggCount} eggs`:it.quantityG+'g';
+      const qty=it.servingUnit==='egg'&&it.eggCount
+        ?`${it.eggCount} eggs`
+        :it.servingUnit==='ml'
+          ?`${it.quantityG}ml`
+          :`${it.quantityG}g`;
       return `${it.name} | ${qty}`;
     }).join('; ');
     s1.push([
@@ -769,7 +775,7 @@ function exportExcel(){
     'Health Condition','Wellness Goal','LIV Plan',
     'Delivery Freq Plan','Delivery Days','Sub Duration',
     'DOB','Sex','Height','Weight','Activity Level','Diet Type',
-    'Product','Category','Qty (g)','Serving Unit','Eggs',
+    'Product','Category','Qty (g/ml)','Serving Unit','Eggs',
     'Calories','Protein','Carbs','Fat','Fibre',
     'Iron (mg)','Calcium (mg)','Vit C (mg)','Vit A (µg)',
     'Potassium (mg)','Magnesium (mg)','Zinc (mg)','Iodine (µg)','Selenium (µg)',
@@ -784,7 +790,9 @@ function exportExcel(){
         r.condLabel, r.goalValue, r.plan,
         r.freqPlanName||'', r.freqDays||'', r.durLabel||'',
         r.dob, r.sex, r.height, r.weight, r.actLvl, r.diet,
-        it.name, it.category||'', it.quantityG, it.servingUnit||'g', it.eggCount||'',
+        it.name, it.category||'',
+        it.servingUnit==='ml'?`${it.quantityG}ml`:it.quantityG,
+        it.servingUnit||'g', it.eggCount||'',
         +(n.calories||0).toFixed(2), +(n.protein||0).toFixed(2),
         +(n.carbs||0).toFixed(2), +(n.fat||0).toFixed(2), +(n.fibre||0).toFixed(2),
         +(n.iron||0).toFixed(2), +(n.calcium||0).toFixed(2),

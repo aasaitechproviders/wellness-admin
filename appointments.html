@@ -144,6 +144,7 @@ async function viewDetail(id) {
     if (d.status === 'rejected') throw d.reason;
     viewApt = d.value.appointment;
     const fam = d.value.family;
+    const sub = d.value.subscription; // active subscription — has livPlanCode, durationDays, subscriptionDurationMonths
     const est = estResult.status === 'fulfilled' ? estResult.value : null;
     const member = fam?.members?.find(m => m.memberId === viewApt.memberId) || {};
 
@@ -171,22 +172,27 @@ async function viewDetail(id) {
       actionHtml = `<button class="call-btn call-btn-ring" onclick="startCall()">📞 Call ${escapeHtml(viewApt.memberName||'Customer')}</button>`;
     }
 
-    // Build subscription/plan panel
-    const planLabelMap = { care: '🌱 Care', balanced: '⚖️ Balanced', premium: '⭐ Premium' };
-    const freqLabelMap = { '1': 'Daily', '2': 'Every 2 Days', '7': 'Weekly', '14': 'Fortnightly' };
+    // Build subscription/plan panel — data comes from active subscription doc
     const planTypeMap = { T20: 'T20 — 30% coverage', T30: 'T30 — 40% coverage', T40: 'T40 — 50% coverage' };
-    const subPlan = member.subscriptionPlan || fam?.subscriptionPlan || '';
-    const freqDays = member.deliveryFreqDays || fam?.deliveryFreqDays || member.deliveryFrequency || '';
-    const prefPlan = member.preferredPlan || '';
-    const duration = member.subscriptionDuration || fam?.subscriptionDuration || '';
+    // livPlanCode on subscription = care/balanced/premium tier; member.preferredPlan = T20/T30/T40 basket type
+    const livPlanCode = sub?.livPlanCode || '';
+    const freqDays    = sub?.durationDays || '';
+    const prefPlan    = member.preferredPlan || '';
+    const durMonths   = sub?.subscriptionDurationMonths || '';
+    const planName    = sub?.planName || sub?.frequencyLabel || '';
+
+    // Frequency label
+    const freqLabel = freqDays
+      ? ({ '1':'Daily','2':'Every 2 Days','3':'Every 3 Days','7':'Weekly','14':'Fortnightly' }[String(freqDays)] || `Every ${freqDays} days`)
+      : '–';
 
     const subscriptionPanelHtml = `
       <div class="detail-panel" style="border-left:4px solid #7B5EA7">
         <div style="font-weight:700;font-size:14px;margin-bottom:14px;color:#5E35B1">📦 Subscription & Delivery Details</div>
         <div class="detail-grid">
           <div>
-            <div class="detail-label">Plan Tier</div>
-            <div class="detail-value">${planLabelMap[subPlan] || escapeHtml(subPlan) || '–'}</div>
+            <div class="detail-label">Plan Tier (LIV Plan)</div>
+            <div class="detail-value">${escapeHtml(livPlanCode||planName||'–')}</div>
           </div>
           <div>
             <div class="detail-label">Basket Type</div>
@@ -194,11 +200,11 @@ async function viewDetail(id) {
           </div>
           <div>
             <div class="detail-label">Delivery Frequency</div>
-            <div class="detail-value">${freqLabelMap[String(freqDays)] || (freqDays ? 'Every '+freqDays+' day(s)' : '–')}</div>
+            <div class="detail-value">${freqLabel}</div>
           </div>
           <div>
             <div class="detail-label">Subscription Duration</div>
-            <div class="detail-value">${duration ? duration+' months' : '–'}</div>
+            <div class="detail-value">${durMonths ? durMonths+' month'+( durMonths>1?'s':'') : '–'}</div>
           </div>
           <div>
             <div class="detail-label">Member Wellness Goals</div>

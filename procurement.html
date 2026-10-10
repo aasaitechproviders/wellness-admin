@@ -8,6 +8,30 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
+<style>
+  .cb-row { display:flex; align-items:flex-start; gap:12px; }
+  .cb-row input[type=checkbox] { margin-top:3px; width:16px; height:16px; accent-color:var(--green-dark); cursor:pointer; flex-shrink:0; }
+  .bulk-bar {
+    display:none; position:sticky; bottom:0; z-index:10;
+    background:#fff; border-top:2px solid var(--green-dark);
+    padding:12px 20px; gap:12px; align-items:center; flex-wrap:wrap;
+    box-shadow:0 -4px 16px rgba(0,0,0,.08);
+  }
+  .bulk-bar.visible { display:flex; }
+  .bulk-count { font-size:13px; font-weight:700; color:var(--green-dark); flex:1; }
+  .order-status-badge {
+    display:inline-block; padding:2px 8px; border-radius:4px;
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  }
+  .status-confirmed   { background:#E3F2FD; color:#1565C0; }
+  .status-procured    { background:#FFF3E0; color:#E65100; }
+  .status-packed      { background:#E8F5E9; color:#2D6A35; }
+  .status-out_for_delivery { background:#F3E5F5; color:#6A1B9A; }
+  .status-delivered   { background:#E8F5E9; color:#2D6A35; }
+  .order-card { background:#fff; border:1px solid var(--border); border-radius:12px; margin-bottom:12px; overflow:hidden; transition:box-shadow .15s; }
+  .order-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+  .order-card.selected { border-color:var(--green-dark); box-shadow:0 0 0 2px rgba(var(--green-dark-rgb),.15); }
+</style>
 </head>
 <body>
 <script src="js/api.js"></script>
@@ -17,13 +41,15 @@
 const content = renderShell({
   active: 'procurement',
   title: 'Procurement',
-  sub: 'Daily order quantities and per-member packing breakdown',
+  sub: 'Daily order quantities, packing breakdown, and status management',
 });
 
 let selectedDate = (() => {
   const d = new Date(); d.setDate(d.getDate() + 1);
   return d.toISOString().split('T')[0];
 })();
+
+let allOrders = [];
 
 content.innerHTML = `
 <!-- Date bar -->
@@ -42,29 +68,39 @@ content.innerHTML = `
 <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
   <button id="tabProcure" onclick="switchTab('procure')"
     style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid var(--green-dark);color:var(--green-dark);margin-bottom:-2px">
-    📦 Procurement List
+    🛒 Procurement List
   </button>
   <button id="tabPacking" onclick="switchTab('packing')"
     style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid transparent;color:var(--ink-soft);margin-bottom:-2px">
-    🗂 Packing Orders
+    📦 Packaging
   </button>
 </div>
 
-<!-- Procurement List -->
+<!-- Procurement Tab — ingredient totals + confirm orders as procured -->
 <div id="paneProcure">
-  <div class="panel">
+
+  <!-- Bulk action bar (confirmed orders → procured) -->
+  <div id="bulkBarProcure" class="bulk-bar">
+    <span class="bulk-count" id="procureCount">0 orders selected</span>
+    <button class="btn btn-ghost" onclick="selectAllProcure(false)" style="font-size:13px">Clear</button>
+    <button class="btn btn-ghost" onclick="selectAllProcure(true)" style="font-size:13px">Select All</button>
+    <button class="btn" onclick="bulkProcure()"
+      style="background:var(--green-dark);color:#fff;font-size:13px;border-radius:8px;padding:8px 20px;font-weight:700">
+      ✓ Mark Selected as Procured
+    </button>
+  </div>
+
+  <!-- Ingredient totals table -->
+  <div class="panel" style="margin-bottom:16px">
     <div style="padding:10px 16px;font-size:12px;color:var(--ink-soft);border-bottom:1px solid var(--border);background:var(--green-pale)">
-      📦 Total quantities to procure across all subscription orders for this delivery date
+      🥬 Total quantities to buy — all confirmed + procured orders for this date
     </div>
     <div class="table-wrap">
       <table class="data">
         <thead><tr>
-          <th>Product</th>
-          <th>Category</th>
-          <th>Total Qty (g)</th>
-          <th>Total Qty (kg)</th>
-          <th>Members</th>
-          <th>Est. Product Cost</th>
+          <th>Product</th><th>Category</th>
+          <th>Total Qty (g)</th><th>Total Qty (kg)</th>
+          <th>Members</th><th>Est. Cost</th>
         </tr></thead>
         <tbody id="procureBody">
           <tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>
@@ -72,11 +108,44 @@ content.innerHTML = `
       </table>
     </div>
   </div>
+
+  <!-- Confirmed orders list (checkboxes → mark procured) -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:14px;font-weight:700;color:var(--ink)">Confirmed Orders <span id="confirmedBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="selectAllProcure(true)" style="font-size:12px">Select All</button>
+      <button class="btn btn-ghost" onclick="selectAllProcure(false)" style="font-size:12px">Clear</button>
+    </div>
+  </div>
+  <div id="confirmedOrdersList">
+    <div style="padding:32px;text-align:center"><div class="spinner"></div></div>
+  </div>
 </div>
 
-<!-- Packing Orders -->
+<!-- Packaging Tab — procured orders with checkboxes → mark packed -->
 <div id="panePacking" style="display:none">
-  <div id="packingOrders"></div>
+
+  <!-- Bulk action bar (procured orders → packed) -->
+  <div id="bulkBarPacking" class="bulk-bar">
+    <span class="bulk-count" id="packingCount">0 orders selected</span>
+    <button class="btn btn-ghost" onclick="selectAllPacking(false)" style="font-size:13px">Clear</button>
+    <button class="btn btn-ghost" onclick="selectAllPacking(true)" style="font-size:13px">Select All</button>
+    <button class="btn" onclick="bulkPack()"
+      style="background:var(--green-dark);color:#fff;font-size:13px;border-radius:8px;padding:8px 20px;font-weight:700">
+      📦 Mark Selected as Packed
+    </button>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div style="font-size:14px;font-weight:700;color:var(--ink)">Procured Orders — Ready to Pack <span id="procuredBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="selectAllPacking(true)" style="font-size:12px">Select All</button>
+      <button class="btn btn-ghost" onclick="selectAllPacking(false)" style="font-size:12px">Clear</button>
+    </div>
+  </div>
+  <div id="procuredOrdersList">
+    <div style="padding:32px;text-align:center"><div class="spinner"></div></div>
+  </div>
 </div>
 `;
 
@@ -84,56 +153,53 @@ function switchTab(tab) {
   document.getElementById('paneProcure').style.display  = tab === 'procure' ? '' : 'none';
   document.getElementById('panePacking').style.display  = tab === 'packing' ? '' : 'none';
   ['Procure','Packing'].forEach(t => {
-    const el = document.getElementById('tab' + t);
-    const active = (t.toLowerCase() === tab) || (t === 'Procure' && tab === 'procure') || (t === 'Packing' && tab === 'packing');
-    el.style.borderBottomColor = active ? 'var(--green-dark)' : 'transparent';
-    el.style.color             = active ? 'var(--green-dark)' : 'var(--ink-soft)';
+    const btn = document.getElementById('tab' + t);
+    const active = (t === 'Procure' && tab === 'procure') || (t === 'Packing' && tab === 'packing');
+    btn.style.borderBottomColor = active ? 'var(--green-dark)' : 'transparent';
+    btn.style.color             = active ? 'var(--green-dark)' : 'var(--ink-soft)';
   });
 }
 
-function statCard(label, value, sub, color) {
+// ── Stats bar ─────────────────────────────────────────────────────────────────
+function statCard(label, value, color) {
   return `
     <div style="display:flex;flex-direction:column;align-items:center;min-width:90px;flex:1">
       <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:${color||'var(--green-dark)'}">${value}</span>
       <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:1px">${label}</span>
-      ${sub ? `<span style="font-size:10px;color:var(--ink-soft);margin-top:1px">${sub}</span>` : ''}
     </div>`;
 }
-
-function divider() {
-  return `<div style="width:1px;background:var(--border);align-self:stretch"></div>`;
-}
+function divider() { return `<div style="width:1px;background:var(--border);align-self:stretch"></div>`; }
 
 function renderStats(data) {
   const bar = document.getElementById('statsBar');
   bar.style.display = 'block';
   const dt = data.dayTotals || {};
   bar.innerHTML = `
-    <div style="display:flex;gap:14px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;align-items:center;box-sizing:border-box">
-      ${statCard('Members',       data.totalMembers  || 0)}
+    <div style="display:flex;gap:14px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;align-items:center">
+      ${statCard('Members',      data.totalMembers  || 0)}
       ${divider()}
-      ${statCard('Families',      data.totalFamilies || 0)}
+      ${statCard('Families',     data.totalFamilies || 0)}
       ${divider()}
-      ${statCard('Orders',        data.totalOrders   || 0)}
+      ${statCard('Orders',       data.totalOrders   || 0)}
       ${divider()}
-      ${statCard('Product Cost',  dt.totalProductCost  != null ? '₹'+(+dt.totalProductCost ).toFixed(0) : '–', null, '#555')}
+      ${statCard('Product Cost', dt.totalProductCost  != null ? '₹'+(+dt.totalProductCost ).toFixed(0) : '–', '#555')}
       ${divider()}
-      ${statCard('Packaging',     dt.totalPackagingCost!= null ? '₹'+(+dt.totalPackagingCost).toFixed(0) : '–', null, '#555')}
+      ${statCard('Packaging',    dt.totalPackagingCost!= null ? '₹'+(+dt.totalPackagingCost).toFixed(0) : '–', '#555')}
       ${divider()}
-      ${statCard('Delivery',      dt.totalDeliveryCost != null ? '₹'+(+dt.totalDeliveryCost ).toFixed(0) : '–', null, '#555')}
+      ${statCard('Delivery',     dt.totalDeliveryCost != null ? '₹'+(+dt.totalDeliveryCost ).toFixed(0) : '–', '#555')}
       ${divider()}
-      ${statCard('Profit',        dt.totalProfitAmount != null ? '₹'+(+dt.totalProfitAmount ).toFixed(0) : '–', null, '#C9A84C')}
+      ${statCard('Profit',       dt.totalProfitAmount != null ? '₹'+(+dt.totalProfitAmount ).toFixed(0) : '–', '#C9A84C')}
       ${divider()}
-      ${statCard('Revenue',       dt.totalRevenue      != null ? '₹'+(+dt.totalRevenue      ).toFixed(0) : '–', null, 'var(--green-dark)')}
+      ${statCard('Revenue',      dt.totalRevenue      != null ? '₹'+(+dt.totalRevenue      ).toFixed(0) : '–')}
     </div>`;
 }
 
+// ── Ingredient totals table ───────────────────────────────────────────────────
 function renderProcurementList(list) {
   const tbody = document.getElementById('procureBody');
   if (!list?.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty" style="text-align:center">
-      <div class="icon">📦</div>No subscription orders scheduled for this date
-    </td></tr>`;
+      <div class="icon">📦</div>No orders for this date</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(item => `<tr>
@@ -146,134 +212,173 @@ function renderProcurementList(list) {
   </tr>`).join('');
 }
 
-function renderPackingOrders(orders) {
-  const wrap = document.getElementById('packingOrders');
-  if (!orders?.length) {
-    wrap.innerHTML = `<div class="empty"><div class="icon">🗂</div>No subscription orders for this date</div>`;
-    return;
-  }
+// ── Order card builder (shared by both tabs) ──────────────────────────────────
+function orderCard(order, checkboxName) {
+  const addr    = order.deliveryAddress || {};
+  const addrStr = [addr.flatNo, addr.towerNo, addr.apartmentName, addr.area, addr.city, addr.pincode].filter(Boolean).join(', ');
+  const items   = order.basketItems || [];
+  const statusClass = 'status-' + (order.status || 'confirmed');
 
-  // Group by family
-  const byFamily = {};
-  orders.forEach(o => {
-    const fk = o.familyId?.toString() || 'unknown';
-    if (!byFamily[fk]) byFamily[fk] = {
-      familyName:  o.familyName,
-      phone:       o.phone,
-      address:     o.deliveryAddress,
-      members:     [],
-    };
-    byFamily[fk].members.push(o);
-  });
-
-  wrap.innerHTML = Object.values(byFamily).map(family => {
-    // Family-level totals
-    const famRevenue = family.members.reduce((s,o) => s+(o.totalAmount||0), 0);
-
-    return `
-    <div style="background:#fff;border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden">
-
-      <!-- Family header -->
-      <div style="padding:14px 18px;background:var(--green-pale);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+  return `
+  <div class="order-card" id="card-${escapeHtml(order._id)}">
+    <div class="cb-row" style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--green-pale)">
+      <input type="checkbox" name="${checkboxName}" value="${escapeHtml(order._id)}"
+        onchange="updateBulkBar('${checkboxName}')" />
+      <div style="flex:1;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-weight:700;font-size:15px;color:var(--green-dark)">🏠 ${escapeHtml(family.familyName||'Family')}</div>
+          <div style="font-weight:700;font-size:14px;color:var(--green-dark)">
+            🏠 ${escapeHtml(order.familyName||'Family')}
+            <span style="font-size:12px;font-weight:400;color:var(--ink-soft);margin-left:6px">#${escapeHtml((order._id||'').slice(-6).toUpperCase())}</span>
+          </div>
           <div style="font-size:12px;color:var(--ink-soft);margin-top:3px">
-            📞 ${escapeHtml(family.phone||'–')} &nbsp;·&nbsp;
-            📍 ${escapeHtml([family.address?.flatNo, family.address?.towerNo, family.address?.apartmentName, family.address?.city].filter(Boolean).join(', ') || '–')}
+            👤 ${escapeHtml(order.memberName||'–')} &nbsp;·&nbsp;
+            🕐 ${escapeHtml(order.deliverySlot||'–')} &nbsp;·&nbsp;
+            📍 ${escapeHtml(addrStr||'–')}
           </div>
         </div>
-        <div style="text-align:right">
-          <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--green-dark)">₹${famRevenue.toFixed(0)}</div>
-          <div style="font-size:11px;color:var(--ink-soft)">${family.members.length} member${family.members.length>1?'s':''}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="order-status-badge ${statusClass}">${escapeHtml(order.status||'confirmed')}</span>
+          <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--green-dark)">₹${(order.totalAmount||0).toFixed(0)}</span>
         </div>
       </div>
-
-      <!-- Per-member rows -->
-      ${family.members.map(order => {
-        const items = order.basketItems || [];
-        const productCost   = order.productCost   ?? items.reduce((s,i) => s+(i.estimatedCost||0), 0);
-        const packagingCost = order.packagingCost;
-        const deliveryCost  = order.deliveryCost;
-        const profitAmount  = order.profitAmount;
-        const totalAmount   = order.totalAmount || 0;
-
-        return `
-        <div style="padding:14px 18px;border-bottom:1px solid var(--border)">
-
-          <!-- Member header -->
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-            <div>
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span style="font-weight:700;font-size:14px">👤 ${escapeHtml(order.memberName||'Member')}</span>
-                <span style="background:var(--green-pale);color:var(--green-dark);padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">
-                  ${escapeHtml(order.planDisplayName || order.planType || '–')}
-                </span>
-                <span style="background:#f5f5f5;color:var(--ink-soft);padding:2px 8px;border-radius:4px;font-size:11px">
-                  Every ${order.deliveryFreqDays||'?'} days · ${order.durationMonths||'?'} mo
-                </span>
-              </div>
-              <div style="font-size:12px;color:var(--ink-soft);margin-top:4px">
-                🕐 ${escapeHtml(order.deliverySlot||'–')} &nbsp;·&nbsp; ${escapeHtml(order.wellnessGoal||'–')}
-              </div>
+    </div>
+    <div style="padding:12px 18px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
+      ${items.length
+        ? items.map(item => `
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+            <div style="font-weight:600;font-size:13px">${escapeHtml(item.name||'–')}</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">
+              <span class="mono">${item.quantityG||0} g</span>
+              &nbsp;·&nbsp; ${escapeHtml(item.category||'–')}
             </div>
-            <!-- Cost breakdown chip -->
-            <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:10px 14px;min-width:180px;font-size:12px">
-              <div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
-                <span>Product Cost</span>
-                <span class="mono">₹${productCost.toFixed(0)}</span>
-              </div>
-              ${packagingCost != null ? `<div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
-                <span>Packaging</span><span class="mono">₹${(+packagingCost).toFixed(0)}</span></div>` : ''}
-              ${deliveryCost != null ? `<div style="display:flex;justify-content:space-between;color:var(--ink-soft);padding:2px 0">
-                <span>Delivery</span><span class="mono">₹${(+deliveryCost).toFixed(0)}</span></div>` : ''}
-              ${profitAmount != null ? `<div style="display:flex;justify-content:space-between;color:#C9A84C;padding:2px 0">
-                <span>Profit</span><span class="mono">₹${(+profitAmount).toFixed(0)}</span></div>` : ''}
-              <div style="border-top:1.5px solid var(--border);margin-top:4px;padding-top:5px;display:flex;justify-content:space-between;font-weight:700;color:var(--green-dark)">
-                <span>Total</span><span class="mono">₹${totalAmount.toFixed(0)}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Basket items -->
-          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px">
-            ${items.length
-              ? items.map(item => `
-                <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-                  <div style="font-weight:600;font-size:13px">${escapeHtml(item.name||'–')}</div>
-                  <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">
-                    <span class="mono">${item.quantityG||0} g</span>
-                    &nbsp;·&nbsp; ${escapeHtml(item.category||'–')}
-                  </div>
-                  <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">
-                    ₹${(item.pricePer100g||0).toFixed(0)}/100g
-                    &nbsp;·&nbsp; est. ₹${(item.estimatedCost||0).toFixed(0)}
-                  </div>
-                </div>`).join('')
-              : `<div style="color:var(--ink-faint);font-size:12px;grid-column:1/-1">No basket items</div>`}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`;
-  }).join('');
+            <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">₹${(item.estimatedCost||0).toFixed(0)} est.</div>
+          </div>`).join('')
+        : `<div style="color:var(--ink-faint);font-size:12px;grid-column:1/-1">No basket items</div>`}
+    </div>
+  </div>`;
 }
 
+// ── Confirmed orders list (Procurement tab) ───────────────────────────────────
+function renderConfirmedOrders(orders) {
+  const wrap = document.getElementById('confirmedOrdersList');
+  const confirmed = orders.filter(o => o.status === 'confirmed');
+  document.getElementById('confirmedBadge').textContent = `(${confirmed.length})`;
+
+  if (!confirmed.length) {
+    wrap.innerHTML = `<div class="empty"><div class="icon">✅</div>All orders have been marked as procured for this date</div>`;
+    return;
+  }
+  wrap.innerHTML = confirmed.map(o => orderCard(o, 'procure-cb')).join('');
+  updateBulkBar('procure-cb');
+}
+
+// ── Procured orders list (Packaging tab) ─────────────────────────────────────
+function renderProcuredOrders(orders) {
+  const wrap = document.getElementById('procuredOrdersList');
+  const procured = orders.filter(o => o.status === 'procured');
+  document.getElementById('procuredBadge').textContent = `(${procured.length})`;
+
+  if (!procured.length) {
+    wrap.innerHTML = `<div class="empty"><div class="icon">📦</div>No procured orders waiting to be packed for this date</div>`;
+    return;
+  }
+  wrap.innerHTML = procured.map(o => orderCard(o, 'packing-cb')).join('');
+  updateBulkBar('packing-cb');
+}
+
+// ── Checkbox helpers ──────────────────────────────────────────────────────────
+function getChecked(name) {
+  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
+}
+
+function updateBulkBar(name) {
+  const checked = getChecked(name);
+  if (name === 'procure-cb') {
+    const bar = document.getElementById('bulkBarProcure');
+    bar.classList.toggle('visible', checked.length > 0);
+    document.getElementById('procureCount').textContent = `${checked.length} order${checked.length !== 1 ? 's' : ''} selected`;
+    document.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
+      const card = document.getElementById('card-' + cb.value);
+      if (card) card.classList.toggle('selected', cb.checked);
+    });
+  } else {
+    const bar = document.getElementById('bulkBarPacking');
+    bar.classList.toggle('visible', checked.length > 0);
+    document.getElementById('packingCount').textContent = `${checked.length} order${checked.length !== 1 ? 's' : ''} selected`;
+    document.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
+      const card = document.getElementById('card-' + cb.value);
+      if (card) card.classList.toggle('selected', cb.checked);
+    });
+  }
+}
+
+function selectAllProcure(check) {
+  document.querySelectorAll('input[name="procure-cb"]').forEach(cb => cb.checked = check);
+  updateBulkBar('procure-cb');
+}
+
+function selectAllPacking(check) {
+  document.querySelectorAll('input[name="packing-cb"]').forEach(cb => cb.checked = check);
+  updateBulkBar('packing-cb');
+}
+
+// ── Bulk actions ──────────────────────────────────────────────────────────────
+async function bulkProcure() {
+  const ids = getChecked('procure-cb');
+  if (!ids.length) return;
+  if (!confirm(`Mark ${ids.length} order(s) as procured?`)) return;
+  try {
+    const r = await adminApi.bulkMarkProcured(ids);
+    showToast(`✅ ${r.updated} order(s) marked as procured`);
+    load();
+  } catch (e) { showToast('❌ ' + (e.message || 'Failed'), 'error'); }
+}
+
+async function bulkPack() {
+  const ids = getChecked('packing-cb');
+  if (!ids.length) return;
+  if (!confirm(`Mark ${ids.length} order(s) as packed?`)) return;
+  try {
+    const r = await adminApi.bulkMarkPacked(ids);
+    showToast(`✅ ${r.updated} order(s) marked as packed`);
+    load();
+  } catch (e) { showToast('❌ ' + (e.message || 'Failed'), 'error'); }
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;background:${type==='error'?'#DC2626':'var(--green-dark)'};box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s`;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
   document.getElementById('procureBody').innerHTML =
     '<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>';
-  document.getElementById('packingOrders').innerHTML =
+  document.getElementById('confirmedOrdersList').innerHTML =
+    '<div style="padding:32px;text-align:center"><div class="spinner"></div></div>';
+  document.getElementById('procuredOrdersList').innerHTML =
     '<div style="padding:32px;text-align:center"><div class="spinner"></div></div>';
   document.getElementById('statsBar').style.display = 'none';
+  document.getElementById('bulkBarProcure').classList.remove('visible');
+  document.getElementById('bulkBarPacking').classList.remove('visible');
 
   try {
     const data = await adminApi.getProcurementOrders(selectedDate);
+    allOrders = data.orders || [];
     renderStats(data);
     renderProcurementList(data.procurementList || []);
-    renderPackingOrders(data.orders || []);
+    renderConfirmedOrders(allOrders);
+    renderProcuredOrders(allOrders);
   } catch (e) {
-    const msg = escapeHtml(e.message);
+    const msg = escapeHtml(e.message || 'Failed to load');
     document.getElementById('procureBody').innerHTML =
       `<tr><td colspan="6" class="empty"><div class="icon">⚠️</div>${msg}</td></tr>`;
-    document.getElementById('packingOrders').innerHTML =
+    document.getElementById('confirmedOrdersList').innerHTML =
+      `<div class="empty"><div class="icon">⚠️</div>${msg}</div>`;
+    document.getElementById('procuredOrdersList').innerHTML =
       `<div class="empty"><div class="icon">⚠️</div>${msg}</div>`;
   }
 }

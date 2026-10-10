@@ -290,6 +290,8 @@ const adminApi = {
   generateProcurementOrders: (body)     => req('POST', '/admin/procurement/generate', body),
   retriggerOrder:            (id)       => req('POST', `/admin/procurement/retrigger/${id}`),
   getProcurementOrders:      (date)     => req('GET',  `/admin/procurement/orders${date ? `?date=${date}` : ''}`),
+  bulkMarkProcured:          (orderIds) => req('PUT',  '/admin/orders/bulk-procured', { orderIds }),
+  bulkMarkPacked:            (orderIds) => req('PUT',  '/admin/orders/bulk-packed',   { orderIds }),
 
   // Subscription Durations (kp_subscriptionDurations)
   getSubscriptionDurations:       ()         => req('GET',    '/admin/subscription-durations'),

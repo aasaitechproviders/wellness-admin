@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Delivery Management · KRISHA PURE Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/admin.css" />
+<style>
+  .tab-bar { display: flex; gap: 0; border-bottom: 2px solid #E0E5DC; margin-bottom: 20px; }
+  .tab-btn { padding: 10px 22px; font-size: 14px; font-weight: 600; color: #7A8C72; background: none; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; cursor: pointer; transition: all .15s; }
+  .tab-btn.active { color: #2D6A35; border-bottom-color: #2D6A35; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+  .tag { display: inline-block; background: #E8F5E9; color: #2D6A35; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; margin: 2px; }
+  .tag-input-row { display: flex; gap: 8px; align-items: center; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; min-height: 24px; }
+  .tag-del { cursor: pointer; margin-left: 4px; color: #888; font-size: 11px; }
+  .badge-active { background: #E8F5E9; color: #2D6A35; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+  .badge-inactive { background: #FFF3E0; color: #E65100; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 20px; }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:1000; align-items:center; justify-content:center; }
+  .modal-overlay.open { display:flex; }
+  .modal-box { background:#fff; border-radius:16px; padding:28px; width:100%; max-width:480px; box-shadow:0 8px 40px rgba(0,0,0,.18); }
+  .modal-box h3 { margin:0 0 18px; font-size:17px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-size: 12px; font-weight: 600; color: #6B7C63; margin-bottom: 5px; letter-spacing: .5px; text-transform: uppercase; }
+  .form-row input, .form-row select { width: 100%; padding: 9px 12px; border: 1.5px solid #C8D5BE; border-radius: 8px; font-size: 14px; outline: none; box-sizing: border-box; }
+  .form-row input:focus, .form-row select:focus { border-color: #2D6A35; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+  .issues-table td.issue-note { font-size: 12px; color: #888; max-width: 180px; white-space: normal; }
+</style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script>Auth.guardMenu('delivery');</script>
+<script src="js/sidebar.js"></script>
+<script>
+const content = renderShell({
+  active: 'delivery',
+  title: 'Delivery Management',
+  sub: 'Zones, delivery persons and order issues',
+  actions: `<button class="btn btn-primary btn-sm" id="add-btn">+ Add</button>`,
+});
+
+// ── State ──────────────────────────────────────────────────────────────
+let activeTab = 'zones';
+let zones = [], persons = [], issueOrders = [];
+
+// ── Render shell ──────────────────────────────────────────────────────
+content.innerHTML = `
+  <div class="tab-bar">
+    <button class="tab-btn active" data-tab="zones">🗺️ Zones</button>
+    <button class="tab-btn" data-tab="persons">🚴 Delivery Persons</button>
+    <button class="tab-btn" data-tab="issues">⚠️ Order Issues</button>
+  </div>
+
+  <div class="tab-pane active" id="tab-zones">
+    <div class="panel">
+      <div class="table-wrap">
+        <table class="table" id="zones-table">
+          <thead><tr>
+            <th>Zone Name</th><th>Pincodes</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="zones-tbody"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="tab-persons">
+    <div class="panel">
+      <div class="table-wrap">
+        <table class="table" id="persons-table">
+          <thead><tr>
+            <th>Name</th><th>Phone</th><th>Zone</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="persons-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-pane" id="tab-issues">
+    <div class="panel">
+      <div style="display:flex;gap:10px;margin-bottom:14px;">
+        <select id="issue-status-filter" class="filter-select" style="width:160px;">
+          <option value="open">Open Issues</option>
+          <option value="resolved">Resolved</option>
+          <option value="all">All</option>
+        </select>
+        <button class="btn btn-sm" id="refresh-issues-btn" style="margin-left:auto;">↻ Refresh</button>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="issues-table">
+          <thead><tr>
+            <th>Order</th><th>Customer</th><th>Category</th><th>Note</th><th>Raised</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="issues-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+`;
+
+// ── Zone modal ─────────────────────────────────────────────────────────
+const zoneModal = document.createElement('div');
+zoneModal.className = 'modal-overlay';
+zoneModal.innerHTML = `
+  <div class="modal-box">
+    <h3 id="zone-modal-title">Add Zone</h3>
+    <div class="form-row"><label>Zone Name</label><input id="zone-name" placeholder="e.g. Gandhipuram"/></div>
+    <div class="form-row">
+      <label>Pincodes</label>
+      <div class="tag-input-row">
+        <input id="zone-pincode-input" placeholder="641001" maxlength="6" style="width:140px;" />
+        <button class="btn btn-sm" id="zone-pincode-add">Add</button>
+      </div>
+      <div class="tag-list" id="zone-pincode-tags"></div>
+    </div>
+    <div class="form-row">
+      <label>Status</label>
+      <select id="zone-active">
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="zone-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="zone-modal-save">Save Zone</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(zoneModal);
+
+// ── Person modal ────────────────────────────────────────────────────────
+const personModal = document.createElement('div');
+personModal.className = 'modal-overlay';
+personModal.innerHTML = `
+  <div class="modal-box">
+    <h3 id="person-modal-title">Add Delivery Person</h3>
+    <div class="form-row"><label>Full Name</label><input id="person-name" placeholder="Ravi Kumar"/></div>
+    <div class="form-row"><label>Mobile Number</label><input id="person-phone" placeholder="9876543210" maxlength="10"/></div>
+    <div class="form-row">
+      <label>Assign Zone</label>
+      <select id="person-zone">
+        <option value="">— No Zone —</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Status</label>
+      <select id="person-active">
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="person-modal-cancel">Cancel</button>
+      <button class="btn btn-primary" id="person-modal-save">Save Person</button>
+    </div>
+  </div>
+`;
+document.body.appendChild(personModal);
+
+// ── Tab switching ──────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    activeTab = btn.dataset.tab;
+    document.getElementById(`tab-${activeTab}`).classList.add('active');
+    updateAddBtn();
+  });
+});
+
+function updateAddBtn() {
+  const btn = document.getElementById('add-btn');
+  if (activeTab === 'zones')   { btn.textContent = '+ Add Zone'; btn.style.display = ''; }
+  else if (activeTab === 'persons') { btn.textContent = '+ Add Person'; btn.style.display = ''; }
+  else { btn.style.display = 'none'; }
+}
+updateAddBtn();
+
+document.getElementById('add-btn').addEventListener('click', () => {
+  if (activeTab === 'zones')   openZoneModal(null);
+  if (activeTab === 'persons') openPersonModal(null);
+});
+
+// ── Zones ──────────────────────────────────────────────────────────────
+async function loadZones() {
+  try {
+    const d = await adminApi.getDeliveryZones();
+    zones = d.zones || [];
+    renderZones();
+  } catch (e) { document.getElementById('zones-tbody').innerHTML = `<tr><td colspan="4" class="empty error">${escapeHtml(e.message)}</td></tr>`; }
+}
+
+function renderZones() {
+  const tbody = document.getElementById('zones-tbody');
+  if (!zones.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty">No zones yet. Add your first zone above.</td></tr>'; return; }
+  tbody.innerHTML = zones.map(z => `
+    <tr>
+      <td><strong>${escapeHtml(z.name)}</strong></td>
+      <td>${(z.pincodes || []).map(p => `<span class="tag">${escapeHtml(p)}</span>`).join('') || '<span style="color:#aaa">None</span>'}</td>
+      <td><span class="${z.isActive ? 'badge-active' : 'badge-inactive'}">${z.isActive ? 'Active' : 'Inactive'}</span></td>
+      <td>
+        <button class="btn btn-xs" onclick="openZoneModal('${z._id}')">Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="deleteZone('${z._id}','${escapeHtml(z.name)}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+let editingZoneId = null;
+let zonePincodes  = [];
+
+function openZoneModal(id) {
+  editingZoneId = id;
+  const z = id ? zones.find(x => x._id === id) : null;
+  document.getElementById('zone-modal-title').textContent = id ? 'Edit Zone' : 'Add Zone';
+  document.getElementById('zone-name').value   = z?.name || '';
+  document.getElementById('zone-active').value = z?.isActive !== false ? 'true' : 'false';
+  zonePincodes = [...(z?.pincodes || [])];
+  renderPincodeTags();
+  zoneModal.classList.add('open');
+}
+
+function renderPincodeTags() {
+  const container = document.getElementById('zone-pincode-tags');
+  container.innerHTML = zonePincodes.map((p, i) =>
+    `<span class="tag">${escapeHtml(p)} <span class="tag-del" data-i="${i}">✕</span></span>`
+  ).join('');
+  container.querySelectorAll('.tag-del').forEach(el => {
+    el.addEventListener('click', () => { zonePincodes.splice(+el.dataset.i, 1); renderPincodeTags(); });
+  });
+}
+
+document.getElementById('zone-pincode-add').addEventListener('click', () => {
+  const val = document.getElementById('zone-pincode-input').value.trim();
+  if (!/^\d{6}$/.test(val)) { showToast('Enter a valid 6-digit pincode', 'error'); return; }
+  if (!zonePincodes.includes(val)) zonePincodes.push(val);
+  document.getElementById('zone-pincode-input').value = '';
+  renderPincodeTags();
+});
+document.getElementById('zone-pincode-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('zone-pincode-add').click(); }
+});
+
+document.getElementById('zone-modal-cancel').addEventListener('click', () => zoneModal.classList.remove('open'));
+zoneModal.addEventListener('click', e => { if (e.target === zoneModal) zoneModal.classList.remove('open'); });
+
+document.getElementById('zone-modal-save').addEventListener('click', async () => {
+  const name     = document.getElementById('zone-name').value.trim();
+  const isActive = document.getElementById('zone-active').value === 'true';
+  if (!name) { showToast('Zone name is required', 'error'); return; }
+  try {
+    if (editingZoneId) {
+      await adminApi.updateDeliveryZone(editingZoneId, { name, pincodes: zonePincodes, isActive });
+    } else {
+      await adminApi.createDeliveryZone({ name, pincodes: zonePincodes, isActive });
+    }
+    zoneModal.classList.remove('open');
+    showToast('Zone saved', 'success');
+    loadZones();
+    loadPersons(); // refresh zone names in persons table
+  } catch (e) { showToast(e.message, 'error'); }
+});
+
+async function deleteZone(id, name) {
+  if (!confirm(`Delete zone "${name}"? This cannot be undone.`)) return;
+  try {
+    await adminApi.deleteDeliveryZone(id);
+    showToast('Zone deleted', 'success');
+    loadZones();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Persons ────────────────────────────────────────────────────────────
+async function loadPersons() {
+  try {
+    const d = await adminApi.getDeliveryPersons();
+    persons = d.persons || [];
+    renderPersons();
+  } catch (e) { document.getElementById('persons-tbody').innerHTML = `<tr><td colspan="5" class="empty error">${escapeHtml(e.message)}</td></tr>`; }
+}
+
+function renderPersons() {
+  const tbody = document.getElementById('persons-tbody');
+  if (!persons.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No delivery persons yet.</td></tr>'; return; }
+  tbody.innerHTML = persons.map(p => `
+    <tr>
+      <td><strong>${escapeHtml(p.name)}</strong></td>
+      <td>${escapeHtml(p.phone)}</td>
+      <td>${p.zoneName ? `<span class="tag">${escapeHtml(p.zoneName)}</span>` : '<span style="color:#aaa">Unassigned</span>'}</td>
+      <td><span class="${p.isActive ? 'badge-active' : 'badge-inactive'}">${p.isActive ? 'Active' : 'Inactive'}</span></td>
+      <td>
+        <button class="btn btn-xs" onclick="openPersonModal('${p._id}')">Edit</button>
+        <button class="btn btn-xs btn-danger" onclick="deletePerson('${p._id}','${escapeHtml(p.name)}')">Delete</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+let editingPersonId = null;
+
+function openPersonModal(id) {
+  editingPersonId = id;
+  const p = id ? persons.find(x => x._id === id) : null;
+  document.getElementById('person-modal-title').textContent = id ? 'Edit Delivery Person' : 'Add Delivery Person';
+  document.getElementById('person-name').value   = p?.name  || '';
+  document.getElementById('person-phone').value  = p?.phone || '';
+  document.getElementById('person-active').value = p?.isActive !== false ? 'true' : 'false';
+
+  // Populate zone dropdown
+  const zoneSelect = document.getElementById('person-zone');
+  zoneSelect.innerHTML = '<option value="">— No Zone —</option>' +
+    zones.map(z => `<option value="${z._id}" ${p?.zoneId === z._id ? 'selected' : ''}>${escapeHtml(z.name)}</option>`).join('');
+  if (p?.zoneId) zoneSelect.value = p.zoneId;
+
+  personModal.classList.add('open');
+}
+
+document.getElementById('person-modal-cancel').addEventListener('click', () => personModal.classList.remove('open'));
+personModal.addEventListener('click', e => { if (e.target === personModal) personModal.classList.remove('open'); });
+
+document.getElementById('person-modal-save').addEventListener('click', async () => {
+  const name     = document.getElementById('person-name').value.trim();
+  const phone    = document.getElementById('person-phone').value.trim();
+  const zoneId   = document.getElementById('person-zone').value || null;
+  const isActive = document.getElementById('person-active').value === 'true';
+  if (!name || !phone) { showToast('Name and phone are required', 'error'); return; }
+  if (!/^\d{10}$/.test(phone)) { showToast('Enter a valid 10-digit phone number', 'error'); return; }
+  try {
+    if (editingPersonId) {
+      await adminApi.updateDeliveryPerson(editingPersonId, { name, phone, zoneId, isActive });
+    } else {
+      await adminApi.createDeliveryPerson({ name, phone, zoneId });
+    }
+    personModal.classList.remove('open');
+    showToast('Delivery person saved', 'success');
+    loadPersons();
+  } catch (e) { showToast(e.message, 'error'); }
+});
+
+async function deletePerson(id, name) {
+  if (!confirm(`Remove delivery person "${name}"?`)) return;
+  try {
+    await adminApi.deleteDeliveryPerson(id);
+    showToast('Deleted', 'success');
+    loadPersons();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ── Issues ─────────────────────────────────────────────────────────────
+async function loadIssues() {
+  const status = document.getElementById('issue-status-filter').value;
+  try {
+    const d = await adminApi.getOrderIssues({ status });
+    issueOrders = d.orders || [];
+    renderIssues();
+  } catch (e) { document.getElementById('issues-tbody').innerHTML = `<tr><td colspan="7" class="empty error">${escapeHtml(e.message)}</td></tr>`; }
+}
+
+function renderIssues() {
+  const tbody = document.getElementById('issues-tbody');
+  const rows  = [];
+  for (const order of issueOrders) {
+    for (const issue of (order.issues || [])) {
+      rows.push({ order, issue });
+    }
+  }
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No issues found.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(({ order, issue }) => `
+    <tr>
+      <td><code style="font-size:11px">${escapeHtml(order.orderId || order._id)}</code></td>
+      <td>${escapeHtml(order.familyName || '—')}</td>
+      <td><strong>${escapeHtml(issue.category)}</strong></td>
+      <td class="issue-note">${escapeHtml(issue.note || '—')}</td>
+      <td style="font-size:12px;color:#888">${fmtDate(issue.raisedAt, { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}</td>
+      <td><span class="${issue.status === 'resolved' ? 'badge-active' : 'badge-inactive'}">${issue.status}</span></td>
+      <td>
+        ${issue.status !== 'resolved'
+          ? `<button class="btn btn-xs btn-primary" onclick="resolveIssue('${order._id}','${issue.issueId}')">Resolve</button>`
+          : `<span style="color:#aaa;font-size:12px">Done</span>`
+        }
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function resolveIssue(orderId, issueId) {
+  const note = prompt('Resolution note (optional):') ?? '';
+  try {
+    await adminApi.resolveOrderIssue(orderId, issueId, { status: 'resolved', resolutionNote: note });
+    showToast('Issue resolved', 'success');
+    loadIssues();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+document.getElementById('issue-status-filter').addEventListener('change', loadIssues);
+document.getElementById('refresh-issues-btn').addEventListener('click', loadIssues);
+
+// ── Boot ───────────────────────────────────────────────────────────────
+loadZones();
+loadPersons();
+loadIssues();
+</script>
+</body>
+</html>

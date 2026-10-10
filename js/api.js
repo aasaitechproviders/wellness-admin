@@ -7,7 +7,8 @@ const ROLE_DEFAULTS = {
               'approvals','subscription-plans','subscription-durations','plan-types','procurement','essential-baskets',
               'products','wellness-goals','health-conditions','activity-levels','lifestyle-codes',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
-              'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
+              'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares',
+              'delivery','cities','delivery-requests','announcements','pricing-config','wellness-score-formulas','age-goal-rules','met-ranges','diet-types','allergies'],
   nutrition: ['products','wellness-goals','health-conditions','activity-levels','lifestyle-codes','appointments',
               'bmi-rules','curated-baskets','basket-goal-mapping','condition-basket-mapping',
               'goal-macro-rules','condition-modifier-rules','rule-conflict-priority','nutrient-coverage-targets','basket-nutrient-shares'],
@@ -349,6 +350,22 @@ const adminApi = {
   saveServiceablePincodes:   (body) => req('PUT', '/admin/serviceable-pincodes', body),
   getDeliveryRequests:       ()     => req('GET', '/admin/delivery-requests'),
   resolveDeliveryRequest:    (id)   => req('PATCH', `/admin/delivery-requests/${id}/resolve`),
+
+  // Delivery Zones
+  getDeliveryZones:    ()         => req('GET',    '/admin/delivery-zones'),
+  createDeliveryZone:  (body)     => req('POST',   '/admin/delivery-zones', body),
+  updateDeliveryZone:  (id, body) => req('PUT',    `/admin/delivery-zones/${id}`, body),
+  deleteDeliveryZone:  (id)       => req('DELETE', `/admin/delivery-zones/${id}`),
+
+  // Delivery Persons
+  getDeliveryPersons:    ()         => req('GET',    '/admin/delivery-persons'),
+  createDeliveryPerson:  (body)     => req('POST',   '/admin/delivery-persons', body),
+  updateDeliveryPerson:  (id, body) => req('PUT',    `/admin/delivery-persons/${id}`, body),
+  deleteDeliveryPerson:  (id)       => req('DELETE', `/admin/delivery-persons/${id}`),
+
+  // Order Issues
+  getOrderIssues:     (p)              => req('GET', `/admin/order-issues${qs(p)}`),
+  resolveOrderIssue:  (orderId, issueId, body) => req('PUT', `/admin/order-issues/${orderId}/${issueId}`, body),
 };
 
 // ── Shared utilities ──────────────────────────────────────────────────────────

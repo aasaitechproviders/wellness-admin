@@ -9,28 +9,59 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/admin.css" />
 <style>
-  .cb-row { display:flex; align-items:flex-start; gap:12px; }
-  .cb-row input[type=checkbox] { margin-top:3px; width:16px; height:16px; accent-color:var(--green-dark); cursor:pointer; flex-shrink:0; }
+  /* ── Bulk action bar ── */
   .bulk-bar {
     display:none; position:sticky; bottom:0; z-index:10;
     background:#fff; border-top:2px solid var(--green-dark);
     padding:12px 20px; gap:12px; align-items:center; flex-wrap:wrap;
-    box-shadow:0 -4px 16px rgba(0,0,0,.08);
+    box-shadow:0 -4px 16px rgba(0,0,0,.1);
   }
   .bulk-bar.visible { display:flex; }
   .bulk-count { font-size:13px; font-weight:700; color:var(--green-dark); flex:1; }
-  .order-status-badge {
-    display:inline-block; padding:2px 8px; border-radius:4px;
-    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+
+  /* ── Family card ── */
+  .fam-card {
+    background:#fff; border:1.5px solid var(--border); border-radius:14px;
+    margin-bottom:12px; overflow:hidden; transition:border-color .15s, box-shadow .15s;
   }
-  .status-confirmed   { background:#E3F2FD; color:#1565C0; }
-  .status-procured    { background:#FFF3E0; color:#E65100; }
-  .status-packed      { background:#E8F5E9; color:#2D6A35; }
-  .status-out_for_delivery { background:#F3E5F5; color:#6A1B9A; }
-  .status-delivered   { background:#E8F5E9; color:#2D6A35; }
-  .order-card { background:#fff; border:1px solid var(--border); border-radius:12px; margin-bottom:12px; overflow:hidden; transition:box-shadow .15s; }
-  .order-card:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
-  .order-card.selected { border-color:var(--green-dark); box-shadow:0 0 0 2px rgba(var(--green-dark-rgb),.15); }
+  .fam-card.selected { border-color:var(--green-dark); box-shadow:0 0 0 3px rgba(45,106,53,.1); }
+
+  /* Family header row — clicking toggles collapse */
+  .fam-header {
+    display:flex; align-items:center; gap:12px;
+    padding:14px 18px; background:var(--green-pale);
+    cursor:pointer; user-select:none;
+  }
+  .fam-header input[type=checkbox] {
+    width:17px; height:17px; flex-shrink:0;
+    accent-color:var(--green-dark); cursor:pointer;
+  }
+  .fam-chevron { font-size:11px; color:var(--ink-faint); transition:transform .2s; margin-left:auto; flex-shrink:0; }
+  .fam-chevron.open { transform:rotate(180deg); }
+
+  /* Member rows */
+  .fam-members { border-top:1px solid var(--border); }
+  .member-row {
+    display:flex; align-items:flex-start; gap:10px;
+    padding:12px 18px; border-bottom:1px solid var(--border);
+  }
+  .member-row:last-child { border-bottom:none; }
+  .member-icon { font-size:18px; flex-shrink:0; margin-top:1px; }
+  .member-items { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .item-chip {
+    background:var(--bg); border:1px solid var(--border); border-radius:6px;
+    padding:4px 8px; font-size:11px; color:var(--ink-soft);
+  }
+  .item-chip strong { color:var(--ink); font-weight:600; }
+
+  /* Status badges */
+  .status-badge {
+    display:inline-block; padding:2px 8px; border-radius:4px;
+    font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  }
+  .s-confirmed { background:#E3F2FD; color:#1565C0; }
+  .s-procured  { background:#FFF3E0; color:#E65100; }
+  .s-packed    { background:#E8F5E9; color:#2D6A35; }
 </style>
 </head>
 <body>
@@ -40,8 +71,8 @@
 <script>
 const content = renderShell({
   active: 'procurement',
-  title: 'Procurement',
-  sub: 'Daily order quantities, packing breakdown, and status management',
+  title:  'Procurement',
+  sub:    'Daily order quantities, packing breakdown, and status management',
 });
 
 let selectedDate = (() => {
@@ -61,11 +92,11 @@ content.innerHTML = `
   <button class="btn btn-ghost" onclick="load()" style="font-size:13px">↻ Refresh</button>
 </div>
 
-<!-- Day totals stats bar -->
+<!-- Stats bar -->
 <div id="statsBar" style="display:none;margin-bottom:16px"></div>
 
 <!-- Tabs -->
-<div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px">
+<div style="display:flex;border-bottom:2px solid var(--border);margin-bottom:16px">
   <button id="tabProcure" onclick="switchTab('procure')"
     style="padding:10px 20px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;border-bottom:2.5px solid var(--green-dark);color:var(--green-dark);margin-bottom:-2px">
     🛒 Procurement List
@@ -76,21 +107,20 @@ content.innerHTML = `
   </button>
 </div>
 
-<!-- Procurement Tab — ingredient totals + confirm orders as procured -->
+<!-- ══ PROCUREMENT TAB ══ -->
 <div id="paneProcure">
-
-  <!-- Bulk action bar (confirmed orders → procured) -->
+  <!-- sticky bulk bar -->
   <div id="bulkBarProcure" class="bulk-bar">
-    <span class="bulk-count" id="procureCount">0 orders selected</span>
-    <button class="btn btn-ghost" onclick="selectAllProcure(false)" style="font-size:13px">Clear</button>
-    <button class="btn btn-ghost" onclick="selectAllProcure(true)" style="font-size:13px">Select All</button>
+    <span class="bulk-count" id="procureCount">0 families selected</span>
+    <button class="btn btn-ghost" onclick="selectAll('procure-cb',false)" style="font-size:13px">Clear</button>
+    <button class="btn btn-ghost" onclick="selectAll('procure-cb',true)"  style="font-size:13px">Select All</button>
     <button class="btn" onclick="bulkProcure()"
       style="background:var(--green-dark);color:#fff;font-size:13px;border-radius:8px;padding:8px 20px;font-weight:700">
       ✓ Mark Selected as Procured
     </button>
   </div>
 
-  <!-- Ingredient totals table -->
+  <!-- ingredient totals -->
   <div class="panel" style="margin-bottom:16px">
     <div style="padding:10px 16px;font-size:12px;color:var(--ink-soft);border-bottom:1px solid var(--border);background:var(--green-pale)">
       🥬 Total quantities to buy — all confirmed + procured orders for this date
@@ -109,27 +139,28 @@ content.innerHTML = `
     </div>
   </div>
 
-  <!-- Confirmed orders list (checkboxes → mark procured) -->
+  <!-- confirmed families -->
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <div style="font-size:14px;font-weight:700;color:var(--ink)">Confirmed Orders <span id="confirmedBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span></div>
+    <div style="font-size:14px;font-weight:700;color:var(--ink)">
+      Confirmed Families <span id="confirmedBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span>
+    </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost" onclick="selectAllProcure(true)" style="font-size:12px">Select All</button>
-      <button class="btn btn-ghost" onclick="selectAllProcure(false)" style="font-size:12px">Clear</button>
+      <button class="btn btn-ghost" onclick="selectAll('procure-cb',true)"  style="font-size:12px">Select All</button>
+      <button class="btn btn-ghost" onclick="selectAll('procure-cb',false)" style="font-size:12px">Clear</button>
     </div>
   </div>
-  <div id="confirmedOrdersList">
+  <div id="confirmedFamilyList">
     <div style="padding:32px;text-align:center"><div class="spinner"></div></div>
   </div>
 </div>
 
-<!-- Packaging Tab — procured orders with checkboxes → mark packed -->
+<!-- ══ PACKAGING TAB ══ -->
 <div id="panePacking" style="display:none">
-
-  <!-- Bulk action bar (procured orders → packed) -->
+  <!-- sticky bulk bar -->
   <div id="bulkBarPacking" class="bulk-bar">
-    <span class="bulk-count" id="packingCount">0 orders selected</span>
-    <button class="btn btn-ghost" onclick="selectAllPacking(false)" style="font-size:13px">Clear</button>
-    <button class="btn btn-ghost" onclick="selectAllPacking(true)" style="font-size:13px">Select All</button>
+    <span class="bulk-count" id="packingCount">0 families selected</span>
+    <button class="btn btn-ghost" onclick="selectAll('packing-cb',false)" style="font-size:13px">Clear</button>
+    <button class="btn btn-ghost" onclick="selectAll('packing-cb',true)"  style="font-size:13px">Select All</button>
     <button class="btn" onclick="bulkPack()"
       style="background:var(--green-dark);color:#fff;font-size:13px;border-radius:8px;padding:8px 20px;font-weight:700">
       📦 Mark Selected as Packed
@@ -137,24 +168,27 @@ content.innerHTML = `
   </div>
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <div style="font-size:14px;font-weight:700;color:var(--ink)">Procured Orders — Ready to Pack <span id="procuredBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span></div>
+    <div style="font-size:14px;font-weight:700;color:var(--ink)">
+      Procured Families — Ready to Pack <span id="procuredBadge" style="font-size:12px;color:var(--ink-soft);font-weight:500"></span>
+    </div>
     <div style="display:flex;gap:8px">
-      <button class="btn btn-ghost" onclick="selectAllPacking(true)" style="font-size:12px">Select All</button>
-      <button class="btn btn-ghost" onclick="selectAllPacking(false)" style="font-size:12px">Clear</button>
+      <button class="btn btn-ghost" onclick="selectAll('packing-cb',true)"  style="font-size:12px">Select All</button>
+      <button class="btn btn-ghost" onclick="selectAll('packing-cb',false)" style="font-size:12px">Clear</button>
     </div>
   </div>
-  <div id="procuredOrdersList">
+  <div id="procuredFamilyList">
     <div style="padding:32px;text-align:center"><div class="spinner"></div></div>
   </div>
 </div>
 `;
 
+// ── Tab switch ────────────────────────────────────────────────────────────────
 function switchTab(tab) {
-  document.getElementById('paneProcure').style.display  = tab === 'procure' ? '' : 'none';
-  document.getElementById('panePacking').style.display  = tab === 'packing' ? '' : 'none';
+  document.getElementById('paneProcure').style.display = tab === 'procure' ? '' : 'none';
+  document.getElementById('panePacking').style.display = tab === 'packing' ? '' : 'none';
   ['Procure','Packing'].forEach(t => {
-    const btn = document.getElementById('tab' + t);
-    const active = (t === 'Procure' && tab === 'procure') || (t === 'Packing' && tab === 'packing');
+    const btn    = document.getElementById('tab' + t);
+    const active = (t === 'Procure') === (tab === 'procure');
     btn.style.borderBottomColor = active ? 'var(--green-dark)' : 'transparent';
     btn.style.color             = active ? 'var(--green-dark)' : 'var(--ink-soft)';
   });
@@ -162,35 +196,27 @@ function switchTab(tab) {
 
 // ── Stats bar ─────────────────────────────────────────────────────────────────
 function statCard(label, value, color) {
-  return `
-    <div style="display:flex;flex-direction:column;align-items:center;min-width:90px;flex:1">
-      <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:${color||'var(--green-dark)'}">${value}</span>
-      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:1px">${label}</span>
-    </div>`;
+  return `<div style="display:flex;flex-direction:column;align-items:center;min-width:80px;flex:1">
+    <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:${color||'var(--green-dark)'}">${value}</span>
+    <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-faint);margin-top:1px">${label}</span>
+  </div>`;
 }
-function divider() { return `<div style="width:1px;background:var(--border);align-self:stretch"></div>`; }
+function div() { return `<div style="width:1px;background:var(--border);align-self:stretch"></div>`; }
 
 function renderStats(data) {
   const bar = document.getElementById('statsBar');
   bar.style.display = 'block';
   const dt = data.dayTotals || {};
   bar.innerHTML = `
-    <div style="display:flex;gap:14px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;align-items:center">
-      ${statCard('Members',      data.totalMembers  || 0)}
-      ${divider()}
-      ${statCard('Families',     data.totalFamilies || 0)}
-      ${divider()}
-      ${statCard('Orders',       data.totalOrders   || 0)}
-      ${divider()}
-      ${statCard('Product Cost', dt.totalProductCost  != null ? '₹'+(+dt.totalProductCost ).toFixed(0) : '–', '#555')}
-      ${divider()}
-      ${statCard('Packaging',    dt.totalPackagingCost!= null ? '₹'+(+dt.totalPackagingCost).toFixed(0) : '–', '#555')}
-      ${divider()}
-      ${statCard('Delivery',     dt.totalDeliveryCost != null ? '₹'+(+dt.totalDeliveryCost ).toFixed(0) : '–', '#555')}
-      ${divider()}
-      ${statCard('Profit',       dt.totalProfitAmount != null ? '₹'+(+dt.totalProfitAmount ).toFixed(0) : '–', '#C9A84C')}
-      ${divider()}
-      ${statCard('Revenue',      dt.totalRevenue      != null ? '₹'+(+dt.totalRevenue      ).toFixed(0) : '–')}
+    <div style="display:flex;gap:12px;padding:14px 18px;background:#fff;border:1px solid var(--border);border-radius:12px;flex-wrap:wrap;align-items:center">
+      ${statCard('Members',   data.totalMembers  || 0)}${div()}
+      ${statCard('Families',  data.totalFamilies || 0)}${div()}
+      ${statCard('Orders',    data.totalOrders   || 0)}${div()}
+      ${statCard('Prod. Cost',dt.totalProductCost  !=null?'₹'+(+dt.totalProductCost ).toFixed(0):'–','#555')}${div()}
+      ${statCard('Packaging', dt.totalPackagingCost!=null?'₹'+(+dt.totalPackagingCost).toFixed(0):'–','#555')}${div()}
+      ${statCard('Delivery',  dt.totalDeliveryCost !=null?'₹'+(+dt.totalDeliveryCost ).toFixed(0):'–','#555')}${div()}
+      ${statCard('Profit',    dt.totalProfitAmount !=null?'₹'+(+dt.totalProfitAmount ).toFixed(0):'–','#C9A84C')}${div()}
+      ${statCard('Revenue',   dt.totalRevenue      !=null?'₹'+(+dt.totalRevenue      ).toFixed(0):'–')}
     </div>`;
 }
 
@@ -198,8 +224,7 @@ function renderStats(data) {
 function renderProcurementList(list) {
   const tbody = document.getElementById('procureBody');
   if (!list?.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="text-align:center">
-      <div class="icon">📦</div>No orders for this date</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="text-align:center"><div class="icon">📦</div>No orders for this date</td></tr>`;
     return;
   }
   tbody.innerHTML = list.map(item => `<tr>
@@ -212,121 +237,169 @@ function renderProcurementList(list) {
   </tr>`).join('');
 }
 
-// ── Order card builder (shared by both tabs) ──────────────────────────────────
-function orderCard(order, checkboxName) {
-  const addr    = order.deliveryAddress || {};
-  const addrStr = [addr.flatNo, addr.towerNo, addr.apartmentName, addr.area, addr.city, addr.pincode].filter(Boolean).join(', ');
-  const items   = order.basketItems || [];
-  const statusClass = 'status-' + (order.status || 'confirmed');
+// ── Group orders by family ────────────────────────────────────────────────────
+function groupByFamily(orders) {
+  const map = new Map();
+  for (const o of orders) {
+    const key = o.familyId || o.familyName || 'unknown';
+    if (!map.has(key)) {
+      const addr = o.deliveryAddress || {};
+      map.set(key, {
+        familyId:   key,
+        familyName: o.familyName || 'Unknown Family',
+        address:    [addr.flatNo, addr.towerNo, addr.apartmentName, addr.area, addr.city, addr.pincode].filter(Boolean).join(', '),
+        slot:       o.deliverySlot || '',
+        members:    [],
+        orderIds:   [],
+        total:      0,
+      });
+    }
+    const fam = map.get(key);
+    fam.members.push(o);
+    fam.orderIds.push(o._id);
+    fam.total += (o.totalAmount || 0);
+  }
+  return [...map.values()];
+}
+
+// ── Family card HTML ──────────────────────────────────────────────────────────
+// cbName: checkbox name attribute ('procure-cb' | 'packing-cb')
+// value:  what the checkbox value holds — we use familyId
+// expanded: initial collapse state
+function familyCard(fam, cbName, expanded = false) {
+  const uid    = 'fam-' + cbName + '-' + escapeHtml(fam.familyId).replace(/[^a-z0-9]/gi,'_');
+  const membersHtml = fam.members.map(o => {
+    const items = (o.basketItems || []);
+    const statusClass = o.status === 'confirmed' ? 's-confirmed' : o.status === 'procured' ? 's-procured' : 's-packed';
+    return `
+      <div class="member-row">
+        <div class="member-icon">👤</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+            <span style="font-weight:600;font-size:13px;color:var(--ink)">${escapeHtml(o.memberName||'Member')}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="status-badge ${statusClass}">${escapeHtml(o.status||'')}</span>
+              <span style="font-family:var(--font-mono);font-size:13px;font-weight:700;color:var(--green-dark)">₹${(o.totalAmount||0).toFixed(0)}</span>
+            </div>
+          </div>
+          <div class="member-items">
+            ${items.length
+              ? items.map(it => `<span class="item-chip"><strong>${escapeHtml(it.name||'–')}</strong> · ${it.quantityG||0}g · ₹${(it.estimatedCost||0).toFixed(0)}</span>`).join('')
+              : `<span style="font-size:12px;color:var(--ink-faint)">No items</span>`}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Store all orderIds as JSON on the checkbox for easy bulk retrieval
+  const orderIdsJson = escapeHtml(JSON.stringify(fam.orderIds));
 
   return `
-  <div class="order-card" id="card-${escapeHtml(order._id)}">
-    <div class="cb-row" style="padding:14px 18px;border-bottom:1px solid var(--border);background:var(--green-pale)">
-      <input type="checkbox" name="${checkboxName}" value="${escapeHtml(order._id)}"
-        onchange="updateBulkBar('${checkboxName}')" />
-      <div style="flex:1;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
-        <div>
-          <div style="font-weight:700;font-size:14px;color:var(--green-dark)">
-            🏠 ${escapeHtml(order.familyName||'Family')}
-            <span style="font-size:12px;font-weight:400;color:var(--ink-soft);margin-left:6px">#${escapeHtml((order._id||'').slice(-6).toUpperCase())}</span>
-          </div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-top:3px">
-            👤 ${escapeHtml(order.memberName||'–')} &nbsp;·&nbsp;
-            🕐 ${escapeHtml(order.deliverySlot||'–')} &nbsp;·&nbsp;
-            📍 ${escapeHtml(addrStr||'–')}
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span class="order-status-badge ${statusClass}">${escapeHtml(order.status||'confirmed')}</span>
-          <span style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--green-dark)">₹${(order.totalAmount||0).toFixed(0)}</span>
+  <div class="fam-card" id="${uid}">
+    <div class="fam-header" onclick="toggleFamily('${uid}', event)">
+      <input type="checkbox" name="${cbName}"
+        value="${escapeHtml(fam.familyId)}"
+        data-order-ids="${orderIdsJson}"
+        onclick="event.stopPropagation()"
+        onchange="onFamCheck('${cbName}','${uid}',this)" />
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;color:var(--green-dark)">🏠 ${escapeHtml(fam.familyName)}</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${fam.address ? `📍 ${escapeHtml(fam.address)}` : ''}
+          ${fam.slot ? ` &nbsp;·&nbsp; 🕐 ${escapeHtml(fam.slot)}` : ''}
         </div>
       </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:var(--font-mono);font-size:15px;font-weight:700;color:var(--green-dark)">₹${fam.total.toFixed(0)}</div>
+        <div style="font-size:11px;color:var(--ink-faint)">${fam.members.length} member${fam.members.length!==1?'s':''}</div>
+      </div>
+      <div class="fam-chevron ${expanded?'open':''}">▼</div>
     </div>
-    <div style="padding:12px 18px 14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">
-      ${items.length
-        ? items.map(item => `
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
-            <div style="font-weight:600;font-size:13px">${escapeHtml(item.name||'–')}</div>
-            <div style="font-size:11px;color:var(--ink-soft);margin-top:3px">
-              <span class="mono">${item.quantityG||0} g</span>
-              &nbsp;·&nbsp; ${escapeHtml(item.category||'–')}
-            </div>
-            <div style="font-size:11px;color:var(--ink-faint);margin-top:2px">₹${(item.estimatedCost||0).toFixed(0)} est.</div>
-          </div>`).join('')
-        : `<div style="color:var(--ink-faint);font-size:12px;grid-column:1/-1">No basket items</div>`}
+    <div class="fam-members" id="${uid}-members" style="${expanded?'':'display:none'}">
+      ${membersHtml}
     </div>
   </div>`;
 }
 
-// ── Confirmed orders list (Procurement tab) ───────────────────────────────────
-function renderConfirmedOrders(orders) {
-  const wrap = document.getElementById('confirmedOrdersList');
-  const confirmed = orders.filter(o => o.status === 'confirmed');
-  document.getElementById('confirmedBadge').textContent = `(${confirmed.length})`;
+function toggleFamily(uid, e) {
+  if (e && e.target.type === 'checkbox') return;
+  const members  = document.getElementById(uid + '-members');
+  const chevron  = document.querySelector('#' + uid + ' .fam-chevron');
+  const open     = members.style.display !== 'none';
+  members.style.display = open ? 'none' : '';
+  if (chevron) chevron.classList.toggle('open', !open);
+}
 
-  if (!confirmed.length) {
-    wrap.innerHTML = `<div class="empty"><div class="icon">✅</div>All orders have been marked as procured for this date</div>`;
+// ── Checkbox change ───────────────────────────────────────────────────────────
+function onFamCheck(cbName, uid, cb) {
+  const card = document.getElementById(uid);
+  if (card) card.classList.toggle('selected', cb.checked);
+  updateBulkBar(cbName);
+}
+
+function updateBulkBar(cbName) {
+  const checked = [...document.querySelectorAll(`input[name="${cbName}"]:checked`)];
+  const isProcure = cbName === 'procure-cb';
+  const barId     = isProcure ? 'bulkBarProcure' : 'bulkBarPacking';
+  const countId   = isProcure ? 'procureCount'   : 'packingCount';
+  document.getElementById(barId).classList.toggle('visible', checked.length > 0);
+  document.getElementById(countId).textContent =
+    `${checked.length} famil${checked.length !== 1 ? 'ies' : 'y'} selected`;
+}
+
+function selectAll(cbName, check) {
+  document.querySelectorAll(`input[name="${cbName}"]`).forEach(cb => {
+    cb.checked = check;
+    const uid = cb.closest('.fam-card')?.id;
+    if (uid) document.getElementById(uid)?.classList.toggle('selected', check);
+  });
+  updateBulkBar(cbName);
+}
+
+// Collect all orderIds from checked family checkboxes
+function getCheckedOrderIds(cbName) {
+  return [...document.querySelectorAll(`input[name="${cbName}"]:checked`)]
+    .flatMap(cb => {
+      try { return JSON.parse(cb.dataset.orderIds || '[]'); } catch { return []; }
+    });
+}
+
+// ── Render family lists ───────────────────────────────────────────────────────
+function renderConfirmedFamilies(orders) {
+  const wrap      = document.getElementById('confirmedFamilyList');
+  const confirmed = orders.filter(o => o.status === 'confirmed');
+  const families  = groupByFamily(confirmed);
+  document.getElementById('confirmedBadge').textContent = `(${families.length} famil${families.length!==1?'ies':'y'}, ${confirmed.length} orders)`;
+
+  if (!families.length) {
+    wrap.innerHTML = `<div class="empty"><div class="icon">✅</div>All families have been marked as procured for this date</div>`;
     return;
   }
-  wrap.innerHTML = confirmed.map(o => orderCard(o, 'procure-cb')).join('');
+  // First family expanded by default, rest collapsed
+  wrap.innerHTML = families.map((fam, i) => familyCard(fam, 'procure-cb', i === 0)).join('');
   updateBulkBar('procure-cb');
 }
 
-// ── Procured orders list (Packaging tab) ─────────────────────────────────────
-function renderProcuredOrders(orders) {
-  const wrap = document.getElementById('procuredOrdersList');
+function renderProcuredFamilies(orders) {
+  const wrap     = document.getElementById('procuredFamilyList');
   const procured = orders.filter(o => o.status === 'procured');
-  document.getElementById('procuredBadge').textContent = `(${procured.length})`;
+  const families = groupByFamily(procured);
+  document.getElementById('procuredBadge').textContent = `(${families.length} famil${families.length!==1?'ies':'y'}, ${procured.length} orders)`;
 
-  if (!procured.length) {
+  if (!families.length) {
     wrap.innerHTML = `<div class="empty"><div class="icon">📦</div>No procured orders waiting to be packed for this date</div>`;
     return;
   }
-  wrap.innerHTML = procured.map(o => orderCard(o, 'packing-cb')).join('');
-  updateBulkBar('packing-cb');
-}
-
-// ── Checkbox helpers ──────────────────────────────────────────────────────────
-function getChecked(name) {
-  return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(el => el.value);
-}
-
-function updateBulkBar(name) {
-  const checked = getChecked(name);
-  if (name === 'procure-cb') {
-    const bar = document.getElementById('bulkBarProcure');
-    bar.classList.toggle('visible', checked.length > 0);
-    document.getElementById('procureCount').textContent = `${checked.length} order${checked.length !== 1 ? 's' : ''} selected`;
-    document.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
-      const card = document.getElementById('card-' + cb.value);
-      if (card) card.classList.toggle('selected', cb.checked);
-    });
-  } else {
-    const bar = document.getElementById('bulkBarPacking');
-    bar.classList.toggle('visible', checked.length > 0);
-    document.getElementById('packingCount').textContent = `${checked.length} order${checked.length !== 1 ? 's' : ''} selected`;
-    document.querySelectorAll(`input[name="${name}"]`).forEach(cb => {
-      const card = document.getElementById('card-' + cb.value);
-      if (card) card.classList.toggle('selected', cb.checked);
-    });
-  }
-}
-
-function selectAllProcure(check) {
-  document.querySelectorAll('input[name="procure-cb"]').forEach(cb => cb.checked = check);
-  updateBulkBar('procure-cb');
-}
-
-function selectAllPacking(check) {
-  document.querySelectorAll('input[name="packing-cb"]').forEach(cb => cb.checked = check);
+  wrap.innerHTML = families.map((fam, i) => familyCard(fam, 'packing-cb', i === 0)).join('');
   updateBulkBar('packing-cb');
 }
 
 // ── Bulk actions ──────────────────────────────────────────────────────────────
 async function bulkProcure() {
-  const ids = getChecked('procure-cb');
+  const ids = getCheckedOrderIds('procure-cb');
   if (!ids.length) return;
-  if (!confirm(`Mark ${ids.length} order(s) as procured?`)) return;
+  const fams = [...document.querySelectorAll('input[name="procure-cb"]:checked')].length;
+  if (!confirm(`Mark all orders for ${fams} famil${fams!==1?'ies':'y'} (${ids.length} orders) as procured?`)) return;
   try {
     const r = await adminApi.bulkMarkProcured(ids);
     showToast(`✅ ${r.updated} order(s) marked as procured`);
@@ -335,9 +408,10 @@ async function bulkProcure() {
 }
 
 async function bulkPack() {
-  const ids = getChecked('packing-cb');
+  const ids = getCheckedOrderIds('packing-cb');
   if (!ids.length) return;
-  if (!confirm(`Mark ${ids.length} order(s) as packed?`)) return;
+  const fams = [...document.querySelectorAll('input[name="packing-cb"]:checked')].length;
+  if (!confirm(`Mark all orders for ${fams} famil${fams!==1?'ies':'y'} (${ids.length} orders) as packed?`)) return;
   try {
     const r = await adminApi.bulkMarkPacked(ids);
     showToast(`✅ ${r.updated} order(s) marked as packed`);
@@ -350,16 +424,16 @@ function showToast(msg, type) {
   t.textContent = msg;
   t.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;background:${type==='error'?'#DC2626':'var(--green-dark)'};box-shadow:0 4px 20px rgba(0,0,0,.2);transition:opacity .3s`;
   document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2800);
+  setTimeout(() => { t.style.opacity='0'; setTimeout(() => t.remove(), 400); }, 2800);
 }
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 async function load() {
   document.getElementById('procureBody').innerHTML =
     '<tr><td colspan="6" class="loading-row"><div class="spinner"></div></td></tr>';
-  document.getElementById('confirmedOrdersList').innerHTML =
+  document.getElementById('confirmedFamilyList').innerHTML =
     '<div style="padding:32px;text-align:center"><div class="spinner"></div></div>';
-  document.getElementById('procuredOrdersList').innerHTML =
+  document.getElementById('procuredFamilyList').innerHTML =
     '<div style="padding:32px;text-align:center"><div class="spinner"></div></div>';
   document.getElementById('statsBar').style.display = 'none';
   document.getElementById('bulkBarProcure').classList.remove('visible');
@@ -367,18 +441,18 @@ async function load() {
 
   try {
     const data = await adminApi.getProcurementOrders(selectedDate);
-    allOrders = data.orders || [];
+    allOrders  = data.orders || [];
     renderStats(data);
     renderProcurementList(data.procurementList || []);
-    renderConfirmedOrders(allOrders);
-    renderProcuredOrders(allOrders);
+    renderConfirmedFamilies(allOrders);
+    renderProcuredFamilies(allOrders);
   } catch (e) {
     const msg = escapeHtml(e.message || 'Failed to load');
     document.getElementById('procureBody').innerHTML =
       `<tr><td colspan="6" class="empty"><div class="icon">⚠️</div>${msg}</td></tr>`;
-    document.getElementById('confirmedOrdersList').innerHTML =
+    document.getElementById('confirmedFamilyList').innerHTML =
       `<div class="empty"><div class="icon">⚠️</div>${msg}</div>`;
-    document.getElementById('procuredOrdersList').innerHTML =
+    document.getElementById('procuredFamilyList').innerHTML =
       `<div class="empty"><div class="icon">⚠️</div>${msg}</div>`;
   }
 }

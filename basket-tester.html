@@ -644,8 +644,7 @@ function renderTable(rows){
           <span style="margin-left:6px;font-size:10px;color:var(--muted)">${del.newCount||0}🆕 ${del.repCount||0}🔁</span>
           ${del.error?`<br/><span style="color:var(--red);font-size:10px">${eh(del.error)}</span>`:''}
         </td>
-        <td colspan="3" style="font-size:10px;color:var(--muted)">${del.adjustedTDEE?`TDEE ${del.adjustedTDEE}kcal/day${planPct}`:'&nbsp;'}</td>
-        <td colspan="6"></td>
+        <td colspan="9" style="font-size:10px;color:var(--muted)">${del.adjustedTDEE?`TDEE ${del.adjustedTDEE}kcal/day${planPct}`:'&nbsp;'}</td>
         <td><div class="prods">${prodsHtml}</div></td>
         <td class="mono" style="text-align:center">${items.length}</td>
         <td>${nutCell('calories',tgt,ach,full,cvg,'kcal')}</td>

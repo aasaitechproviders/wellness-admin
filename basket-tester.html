@@ -600,27 +600,26 @@ function renderTable(rows){
 
   const rowsHtml=rows.map(r=>{
     const pc={T20:'p20',T30:'p30',T40:'p40'}[r.plan]||'';
-    const metaCols=`<td>${eh(r.dob)}</td><td>${eh(r.sex)}</td><td class="mono">${r.height}cm</td><td class="mono">${r.weight}kg</td><td style="font-size:11px">${eh(r.actLvl)}</td><td>${eh(r.diet)}</td>`;
+    const memberInfo=`<span style="font-size:10px;font-weight:400;color:#555;display:block;margin-top:2px">${eh(r.dob)} · ${eh(r.sex)} · ${r.height}cm · ${r.weight}kg · ${eh(r.actLvl)} · ${eh(r.diet)}</span>`;
 
     if(r.status==='error') return `<tr class="grp-hdr">
-      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}${memberInfo}</td>
       <td>${planBadge(r.plan)}</td><td>${eh(r.freqPlanName)} (${r.freqDays}d)</td>
-      <td>${eh(r.durLabel)}</td>${metaCols}
+      <td>${eh(r.durLabel)}</td>
       <td colspan="10"><span class="badge berr">✗ ${eh(r.error||'')}</span></td></tr>`;
 
     if(r.status==='empty') return `<tr class="grp-hdr">
-      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}${memberInfo}</td>
       <td>${planBadge(r.plan)}</td><td>${eh(r.freqPlanName)} (${r.freqDays}d)</td>
-      <td>${eh(r.durLabel)}</td>${metaCols}
+      <td>${eh(r.durLabel)}</td>
       <td colspan="10" style="color:var(--muted);font-style:italic">No basket — ${eh(r.reason||'')}</td></tr>`;
 
     const totalDelivs=r.deliveries?.length||0;
     const groupHdr=`<tr class="grp-hdr">
-      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}</td>
+      <td class="${pc}" colspan="2">${eh(r.condLabel)} × ${eh(r.goalValue)}${memberInfo}</td>
       <td>${planBadge(r.plan)}<br/><span style="font-size:10px;color:var(--muted)">${eh(r.planDisplayName||'')}</span></td>
       <td>${eh(r.freqPlanName)}<br/><span style="font-size:10px;color:var(--muted)">${r.freqDays}d/delivery</span></td>
       <td>${eh(r.durLabel)}<br/><span style="font-size:10px;color:var(--muted)">${r.durMonths}mo · ${totalDelivs} deliveries</span></td>
-      ${metaCols}
       <td colspan="10" style="font-size:11px;color:var(--muted)">▼ ${totalDelivs} deliveries — nutrition: Full/Tgt/Got/% per nutrient &nbsp;|&nbsp; 🆕=new 🔁=repeat</td>
     </tr>`;
 
@@ -644,7 +643,7 @@ function renderTable(rows){
           <span style="margin-left:6px;font-size:10px;color:var(--muted)">${del.newCount||0}🆕 ${del.repCount||0}🔁</span>
           ${del.error?`<br/><span style="color:var(--red);font-size:10px">${eh(del.error)}</span>`:''}
         </td>
-        <td colspan="9" style="font-size:10px;color:var(--muted)">${del.adjustedTDEE?`TDEE ${del.adjustedTDEE}kcal/day${planPct}`:'&nbsp;'}</td>
+        <td colspan="3" style="font-size:10px;color:var(--muted)">${del.adjustedTDEE?`TDEE ${del.adjustedTDEE}kcal/day${planPct}`:'&nbsp;'}</td>
         <td><div class="prods">${prodsHtml}</div></td>
         <td class="mono" style="text-align:center">${items.length}</td>
         <td>${nutCell('calories',tgt,ach,full,cvg,'kcal')}</td>
@@ -676,7 +675,6 @@ function renderTable(rows){
       <thead><tr>
         <th colspan="2">Condition × Goal</th><th>LIV Plan</th>
         <th>Delivery Freq</th><th>Sub Duration</th>
-        <th>DOB</th><th>Sex</th><th>Height</th><th>Weight</th><th>Activity</th><th>Diet</th>
         <th>Products &amp; Qty (🆕new 🔁repeat)</th><th>#</th>
         <th class="th-tgt" title="Full=100% need · Tgt=plan-adjusted · Got=basket achieved · %=Got/Tgt">Calories<br/><small>Full/Tgt/Got/%</small></th>
         <th class="th-tgt">Protein</th>
